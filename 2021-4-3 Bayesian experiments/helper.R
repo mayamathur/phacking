@@ -4,8 +4,8 @@
 
 # args with "i" subscript are vectors and the rest are scalars
 log_joint_post = function(.Z,
-                          .T2,
-                          .t2w,
+                          .tau,
+                          .tauw,
                           
                           # intermediate quantities that we don't observe
                           .Zi, # study means (intermediate parameter)
@@ -36,17 +36,17 @@ log_joint_post = function(.Z,
   Z.pdf = dnorm( .Z, mean = 0, sd = 10^2)
   # use Bai prior: 
   # "Half-Cauchy is a truncated standard t w/ 1 degree of freedom" from "RobustBayesianCopasModel.R"
-  T2.pdf = dtt( sqrt(.T2), df = 1, location = 0, scale = 1, left = 0 )
-  t2w.pdf = dtt( sqrt(.t2w), df = 1, location = 0, scale = 1, left = 0 )
+  tau.pdf = dtt( .tau, df = 1, location = 0, scale = 1, left = 0 )
+  tauw.pdf = dtt( .tauw, df = 1, location = 0, scale = 1, left = 0 )
   
   ### Likelihood term 1: .Zi | .Z, .T2
   # random intercept for this study 
   # but not for every draw within this study
-  Zi.pdf = dnorm( .Zi, mean = .Z, sd = sqrt(.T2) )
+  Zi.pdf = dnorm( .Zi, mean = .Z, sd = .tau )
   
   ### Likelihood term 2: .Ni | .Zi, .t2
   # statistical power term for geometric, given Zi
-  SDi = .t2w + 1  # marginal SD of the Z-statistics
+  SDi = sqrt(.tauw^2 + 1)  # marginal SD of the Z-statistics
   crit = qnorm(.975)
   Psig.pos = 1 - pnorm( (crit - .Zi) / SDi )
   Psig.neg = pnorm( (-crit - .Zi) / SDi )
@@ -62,21 +62,18 @@ log_joint_post = function(.Z,
   
   
   ### Likelihood term 3: .Zhat | .Zi, .Ni
-  #@ignores within-study heterogeneity for now
-  
   #Zhat.pdf = Zhat_pdf(...)
-  
   Zhat.pdf = Zhat_pdf(.Zhat = .Zhat,
                       .Zi = .Zi,
                       .Ni = .Ni,
-                      .t2w = .t2w,
+                      .t2w = .tauw^2,
                       N.max = N.max,
                       hack = hack)
   
   ### Full joint posterior
   return( log(Z.pdf) + 
-            log(T2.pdf) + 
-            log(t2w.pdf) + 
+            log(tau.pdf) + 
+            log(tauw.pdf) + 
             sum( log(Zi.pdf) ) +
             sum( log(Ni.pdf) ) +
             sum( log(Zhat.pdf) ) )
