@@ -58,6 +58,8 @@ hist(rs$pval, breaks = 30)
 mean(rs$ybar)  # with no heterogeneity and mu=0, won't actually be biased unless we hack to get affirmative status rather than significance
 
 
+hist(rs$tstat)
+
 # increasing t2 or T2 results in right skew, which makes sense
 
 # for un-hacked distribution (i.e., N.max = 1)
