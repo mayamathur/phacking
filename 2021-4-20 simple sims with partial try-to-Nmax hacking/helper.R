@@ -1,4 +1,9 @@
 
+# NOTES ---------------------------------------------------------------
+
+# "draw" always refers to within-study draw
+# "study set" refers to all draws, observed and observed, for a given study
+
 
 # DATA SIMULATION ---------------------------------------------------------------
 
@@ -11,115 +16,22 @@
 
 # similar to phack_study in earlier helper script (2020-6 folder)
 
-draw_hacked_study = function(Nmax = Inf,  # max draws to try
-                             Mu,  # overall mean for meta-analysis
-                             T2,  # across-study heterogeneity
-                             m,  # sample size for this study
-                             t2w,  # within-study heterogeneity
-                             se,  # TRUE SE for this study
-                             rho = 0,  # correlation of Tn with T_{n-1} 
-                             hack = "affirm") {  # hack until significant or until affirmative?
-  
-  
-  # simulate the study
-  # its marginal heterogeneity reflects meta-analysis heterogeneity and within-study heterogeneity
-  mui = Mu + rnorm(mean = 0,
-                   sd = sqrt(T2 + t2w),
-                   n = 1)
-  
-  success = FALSE
-  N = 0  # counts draws actually made
-  
-  sd.y = se * sqrt(m)
-  
-  while ( success == FALSE ) {
-    
-    if ( N == Nmax ) break
-    N = N + 1
-    
-    # draw subject-level data from this study's population effect
-    y = rnorm( mean = mui,
-               sd = sd.y,
-               n = m)
-    
-    # run a one-sample t-test
-    if ( rho == 0 ) {
-      pval = t.test(y,
-                    alternative = "two.sided")$p.value
-      tstat = t.test(y,
-                     alternative = "two.sided")$statistic
-    } else {
-      stop("rho>0 case not implemented yet")
-    }
-    
-    if (hack == "signif") success = (pval < 0.05)
-    if (hack == "affirm") success = (pval < 0.05 & mean(y) > 0)
-  }
-  
-  return( data.frame(pval = pval,
-                     tstat = tstat,
-                     tcrit = qt(0.975, df = m-1),
-                     mui = mui,
-                     muHati = mean(y), 
-                     success = success,
-                     N = N,
-                     Di = 1,  # publication indicator
-  ) )
-}
-
-
-# draw_hacked_study( Nmax = Inf,
-#              Mu = 0.1,
-#              T2 = 0.1,
-#              m = 50,
-#              t2w = .5,
-#              se = 1)
-
-# # sanity check: should follow truncated t distribution
-# d = data.frame( matrix(nrow = 500, ncol = 1))
-# 
-# d = d %>% rowwise() %>%
-#   mutate( draw_hacked_study( Nmax = Inf,
-#                                 Mu = 0.1,
-#                                 T2 = 0.1,
-#                                 m = 50,
-#                                 t2w = .5,
-#                                 se = 1) )
-# 
-# # compare to truncated t
-# qqtrunc(x = d$tstat,
-#         spec = "t",
-#         df = 50-1,
-#         # since I simulated iid studies here, the truncation cutoff is always the same
-#         a = d$tcrit[1] )
-# 
-# # vs. actually drawing directly from truncated t 
-# x = rtrunc( n = 500,
-#                spec = "t",
-#                df = 50-1,
-#                a = d$tcrit[1])
-# 
-# plot( density(x) ) +
-#   lines( density(d$tstat), col = "red")
-# # looks good :)
-
-
-
 # draws exactly Nmax results and treats the last one as the reported one
 #  but returns them all
 # since there's no hacking, argument "hack" is just to create indicator for whether draw was successful or not
 # here the final result could be affirmative or nonaffirmative
 # returns the entire study set, but only last draw is observed
 
-draw_one_study_set = function(Nmax,  # max draws to try
-                                   Mu,  # overall mean for meta-analysis
-                                   T2,  # across-study heterogeneity
-                                   m,  # sample size for this study
-                                   t2w,  # within-study heterogeneity
-                                   se,  # TRUE SE for this study
-                                   rho = 0,
-                                   #force.nonaffirm = FALSE, # should we force 
-                                   hack ) {  # should this study set be hacked? ("no", "affirm", "signif")
+sim_one_study_set = function(Nmax,  # max draws to try
+                             Mu,  # overall mean for meta-analysis
+                             T2,  # across-study heterogeneity
+                             m,  # sample size for this study
+                             t2w,  # within-study heterogeneity
+                             se,  # TRUE SE for this study
+                             rho = 0,
+                             return.only.published = FALSE,
+                             #force.nonaffirm = FALSE, # should we force 
+                             hack ) {  # should this study set be hacked? ("no", "affirm", "signif")
   
   
   # # test only
@@ -145,14 +57,14 @@ draw_one_study_set = function(Nmax,  # max draws to try
   .args$mui = mui
   .args$sd.y = sd.y
   
- 
+  
   stop = FALSE  # indicator for whether to stop drawing results
   N = 0  # counts draws actually made
   
   
-  while( stop == FALSE ) {
-
-    newRow = do.call( draw_withinstudy_result, .args )
+  while( stop == FALSE & N < Nmax ) {
+    
+    newRow = do.call( make_one_draw, .args )
     
     N = N + 1
     
@@ -167,44 +79,96 @@ draw_one_study_set = function(Nmax,  # max draws to try
     if ( hack == "no") stop = (N == Nmax)
   }
   
+  # number of draws made
+  d$N = N
   
   # convenience indicators for significance and affirmative status
   d$signif = d$pval < 0.05
   d$affirm = (d$pval < 0.05 & d$muHati > 0)
-
+  
   # publication indicator
   if ( hack == "signif" ) d$Di = (d$signif == TRUE)
   if (hack == "affirm") d$Di = (d$affirm == TRUE)
   # if no hacking, assume only last draw is published
-  if ( hack == "no" ) d$Di = 0; d$Di[ length(d$Di) ] = 1
+  if ( hack == "no" ) {
+    d$Di = 0
+    d$Di[ length(d$Di) ] = 1
+  }
+  
+  if ( return.only.published == TRUE ) d = d[ d$Di == 1, ]
   
   return(d)
-  
-  #bm
   
 }
 
 
-# d = draw_one_study_set(Nmax = 20,
-#                        Mu = 0.1,
-#                        T2 = 0.1,
-#                        m = 50,
-#                        t2w = .5,
-#                        se = 1,
-#                        hack = "signif")
+# d = sim_one_study_set(Nmax = 2,
+#                       Mu = 0.1,
+#                       T2 = 0.1,
+#                       m = 50,
+#                       t2w = .5,
+#                       se = 1,
+#                       hack = "signif",
+#                       return.only.published = TRUE)
 # nrow(d)
 # d
 
 
+# # ~ Sanity check  ---------------------------------------------------------------
+# #  if Nmax -> Inf and we hack until affirmative, 
+# #   published results should follow truncated t distribution
+# # also need to set heterogeneity to 0?
+# d = data.frame( matrix(nrow = 500, ncol = 1))
+# Mu = 1
+# T2 = 0.5
+# t2w = 0.3
+# se = 1
+# 
+# d = d %>% rowwise() %>%
+#   mutate( sim_one_study_set( Nmax = Inf,
+#                              Mu = Mu,
+#                              T2 = T2,
+#                              m = 50,
+#                              t2w = t2w,
+#                              se = se,
+#                              hack = "affirm",
+#                              return.only.published = TRUE ) )
+# 
+# summary(d$N)
+# 
+# # calculate noncentrality parameter
+# ncp = Mu / sqrt( T2 + t2w + se^2 )
+# 
+# # compare to truncated t
+# qqtrunc(x = d$tstat,
+#         spec = "t",
+#         ncp = ncp,
+#         df = 50-1,
+#         # since I simulated iid studies here, the truncation cutoff is always the same
+#         a = d$tcrit[1] )
+# 
+# # vs. actually drawing directly from truncated t
+# x = rtrunc( n = 500,
+#             spec = "t",
+#             ncp = ncp,
+#             df = 50-1,
+#             a = d$tcrit[1])
+# 
+# plot( density(x) ) +
+#   lines( density(d$tstat), col = "red")
+# # looks great! :)
+
+
+
 
 # draws one unbiased result within the study
-draw_withinstudy_result = function(mui,  # mean for this study set
-                                   t2w,
-                                   sd.y,
-                                   m,
-                                   #hack,
-                                   rho = 0,
-                                   ...) {
+make_one_draw = function(mui,  # mean for this study set
+                         t2w,
+                         sd.y,
+                         m,
+                         #hack,
+                         rho = 0,
+                         ...) {
   
   
   # true mean for draw n (based on within-study heterogeneity)
@@ -240,55 +204,8 @@ draw_withinstudy_result = function(mui,  # mean for this study set
   #N = Nmax ) )
 }
 
-draw_withinstudy_result(mui = 0.1,
-                        t2w = 0,
-                        sd.y = 0.3,
-                        m = 30 )
-
-
-# draw_hacked_study( Nmax = Inf,
-#              Mu = 0.1,
-#              T2 = 0.1,
-#              m = 50,
-#              t2w = .5,
-#              se = 1)
-
-# # assumes rho=0; o.w. will need to be passed stats from previous draw
-# draw_one_unhacked_study = function(Mu,  # overall mean for meta-analysis
-#                                    T2,  # across-study heterogeneity
-#                                    m,  # sample size for this study
-#                                    t2w,  # within-study heterogeneity
-#                                    se) {  # TRUE SE for this study
-#   # draw subject-level data from this study's population effect
-#   y = rnorm( mean = mui,
-#              sd = sd.y,
-#              n = m)
-#   
-#   # run a one-sample t-test
-#   if ( rho == 0 ) {
-#     pval = t.test(y,
-#                   alternative = "two.sided")$p.value
-#     tstat = t.test(y,
-#                    alternative = "two.sided")$statistic
-#   } else {
-#     stop("rho>0 case not implemented yet")
-#   }
-#   
-#   
-#   if (hack == "signif") success = (pval < 0.05)
-#   if (hack == "affirm") success = (pval < 0.05 & mean(y) > 0)
-#   
-#   return( data.frame(pval = pval,
-#                      tstat = tstat,
-#                      tcrit = qt(0.975, df = m-1),
-#                      mui = mui,
-#                      muHati = mean(y) ) )
-# }
-
-
-
-draw_one_unhacked_study(0, 0.1, 30, 0, .2)
-
-
-
+# make_one_draw(mui = 0.1,
+#               t2w = 0,
+#               sd.y = 0.3,
+#               m = 30 )
 
