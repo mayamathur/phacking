@@ -64,10 +64,14 @@ correct_meta_phack = function(yi,
 
 # the presumably conservative version:
 # rho = 0, but n left as a sensitivity parameter
+# lkl for a significant (or affirmative result)
+
+# when include.signif.term = TRUE, this likelihood becomes truncated normal
+#  but also with a term for the existence of n-1 nonaffirmatives before the observed one
 
 ll4 = Vectorize( function(Z,  # the true parameter
-                          zn,  # the observed one
-                          n,
+                          zn,  # the observed (significant/affirmative) one
+                          n,  # number of total draws (i.e., there were n=1 nonsignif ones before this)
                           t2w = 0,
                           include.signif.term = TRUE,
                           select.tails = 2){  # two-tailed or one-tailed selection
