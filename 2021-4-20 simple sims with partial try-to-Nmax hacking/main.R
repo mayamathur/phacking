@@ -28,4 +28,5 @@ library(truncdist)
 # - for each affirmative, simulate infinite draws for affirmatives (have option of correlated vs. uncorrelated to check if still trunc normal under correlated draws)
 
 # - for each nonaffirmative, simulate Nmax total underlying nonaffirmatives and take the last one to be the observed one
+#  - I think we need to retain the whole study set, though
 
