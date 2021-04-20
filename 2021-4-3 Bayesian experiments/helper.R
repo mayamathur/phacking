@@ -1,6 +1,7 @@
 
 run_sampler = function() {
   
+
   
   # at each step, compute log of joint posterior, jumping dist, and ratio 
   # jumping dist must be symmetric
@@ -12,67 +13,84 @@ run_sampler = function() {
     ### Draw "Primary" Parameters
     # i.e., from marginals
     # last iteration's draws for scalars
-    # if ( i == 1 ) lastScalarPars = initPars  # init values
-    # if ( i > 1 ) lastScalarPars = triedPars$scalars[i-1,]
     lastScalarPars = triedPars$scalars[i,]
     
     # generate new candidates
-    # jumping dist is independent normals centered around last iteration's draw
-    
+    # jumping dist is normal centered around last iteration's draw
     candZ = rnorm( n = 1,
                    mean = lastScalarPars$Z,
                    sd = jump.SD )
     
-    # draw variance components from truncated normal
-    # asymmetric proposal dist is fine if you use Metropolis-Hastings rather than Metropolis
-    # see Gelman pg 279
-    # the difference is the way the acceptance ratio is calculated later
-    candtau = rtrunc( n = 1,
-                      spec = "norm",
-                      mean = lastScalarPars$tau,
-                      sd = jump.SD,
-                      a = 0)
+    # # draw variance components from truncated normal
+    # # asymmetric proposal dist is fine if you use Metropolis-Hastings rather than Metropolis
+    # # see Gelman pg 279
+    # # the difference is the way the acceptance ratio is calculated later
+    # candtau = rtrunc( n = 1,
+    #                   spec = "norm",
+    #                   mean = lastScalarPars$tau,
+    #                   sd = jump.SD,
+    #                   a = 0)
+    # 
+    # candtauw = rtrunc( n = 1,
+    #                    spec = "norm",
+    #                    mean = lastScalarPars$tauw,
+    #                    sd = jump.SD,
+    #                    a = 0 )
+    # 
+    # 
+    # 
+    # # for the acceptance ratio
+    # # log-prob of making the jump we actually made
+    # termA.J = log( dnorm( candZ,
+    #                       mean = lastScalarPars$Z,
+    #                       sd = jump.SD ) ) +
+    #   
+    #   log( dtrunc( candtau,
+    #                spec = "norm",
+    #                mean = lastScalarPars$tau,
+    #                sd = jump.SD,
+    #                a = 0) ) + 
+    #   
+    #   log( dtrunc( candtauw,
+    #                spec = "norm",
+    #                mean = lastScalarPars$tauw,
+    #                sd = jump.SD,
+    #                a = 0) )
+    # 
+    # #...vs log-prob of making the opposite jump
+    # termB.J = log( dnorm( lastScalarPars$Z,
+    #                       mean = candZ,
+    #                       sd = jump.SD ) ) +
+    #   
+    #   log( dtrunc( lastScalarPars$tau,
+    #                spec = "norm",
+    #                mean = candtau,
+    #                sd = jump.SD,
+    #                a = 0) ) + 
+    #   
+    #   log( dtrunc( lastScalarPars$tauw,
+    #                spec = "norm",
+    #                mean = candtauw,
+    #                sd = jump.SD,
+    #                a = 0) )
+    # 
     
-    candtauw = rtrunc( n = 1,
-                       spec = "norm",
-                       mean = lastScalarPars$tauw,
-                       sd = jump.SD,
-                       a = 0 )
+    #@DEBUGGING ONLY: ALWAYS USE TRUE TAU AND TAUW  -----------------------------
+    candtau = tau
+    candtauw = tauw
     
     # for the acceptance ratio
     # log-prob of making the jump we actually made
+    # termA.J = termB.J for symmetric jumping dists
     termA.J = log( dnorm( candZ,
                           mean = lastScalarPars$Z,
-                          sd = jump.SD ) ) +
-      
-      log( dtrunc( candtau,
-                   spec = "norm",
-                   mean = lastScalarPars$tau,
-                   sd = jump.SD,
-                   a = 0) ) + 
-      
-      log( dtrunc( candtauw,
-                   spec = "norm",
-                   mean = lastScalarPars$tauw,
-                   sd = jump.SD,
-                   a = 0) )
+                          sd = jump.SD ) ) 
     
     #...vs log-prob of making the opposite jump
     termB.J = log( dnorm( lastScalarPars$Z,
                           mean = candZ,
-                          sd = jump.SD ) ) +
-      
-      log( dtrunc( lastScalarPars$tau,
-                   spec = "norm",
-                   mean = candtau,
-                   sd = jump.SD,
-                   a = 0) ) + 
-      
-      log( dtrunc( lastScalarPars$tauw,
-                   spec = "norm",
-                   mean = candtauw,
-                   sd = jump.SD,
-                   a = 0) )
+                          sd = jump.SD ) ) 
+    # END DEBUGGING -----------------------------
     
     
     ### Draw "Intermediate" Parameters (Zi, Ni) Conditional on Primaries
@@ -81,31 +99,34 @@ run_sampler = function() {
                       mean = candZ,
                       sd = candtau ) )
     
-    # Ni
-    SDi = sqrt(candtauw^2 + 1)  # marginal SD of the Z-statistics
-    crit = qnorm(.975)
-    Psig.pos = 1 - pnorm( (crit - candZi) / SDi )
-    Psig.neg = pnorm( (-crit - candZi) / SDi )
+    # # Ni
+    # SDi = sqrt(candtauw^2 + 1)  # marginal SD of the Z-statistics
+    # crit = qnorm(.975)
+    # Psig.pos = 1 - pnorm( (crit - candZi) / SDi )
+    # Psig.neg = pnorm( (-crit - candZi) / SDi )
+    # 
+    # if ( hack == "signif" ) power_i = Psig.pos + Psig.neg
+    # if ( hack == "affirm" ) power_i = Psig.pos
+    # 
+    # # is the final draw affirmative or not?
+    # if ( hack == "signif" ) favored = abs(d$Zhat) > qnorm(0.975)
+    # if ( hack == "affirm" ) favored = d$Zhat > qnorm(0.975)
+    # 
+    # 
+    # # truncated geometric (max = maxN)
+    # # dtrunc isn't vectorized
+    # candNi = vapply( X = seq( 1:k ),
+    #                  FUN = function(i) rtrunc( n = 1,
+    #                                            spec = "geom",
+    #                                            prob = power_i[i],
+    #                                            b = N.max ),
+    #                  FUN.VALUE = -99)
+    # #@ to avoid impossible choices of Ni, anytime the final draw was not favored, 
+    # # Ni should be equal to N.max
+    # candNi[ favored == FALSE ] = N.max
     
-    if ( hack == "signif" ) power_i = Psig.pos + Psig.neg
-    if ( hack == "affirm" ) power_i = Psig.pos
-    
-    # is the final draw affirmative or not?
-    if ( hack == "signif" ) favored = abs(d$Zhat) > qnorm(0.975)
-    if ( hack == "affirm" ) favored = d$Zhat > qnorm(0.975)
-    
-    
-    # truncated geometric (max = maxN)
-    # dtrunc isn't vectorized
-    candNi = vapply( X = seq( 1:k ),
-                     FUN = function(i) rtrunc( n = 1,
-                                               spec = "geom",
-                                               prob = power_i[i],
-                                               b = N.max ),
-                     FUN.VALUE = -99)
-    #@ to avoid impossible choices of Ni, anytime the final draw was not favored, 
-    # Ni should be equal to N.max
-    candNi[ favored == FALSE ] = N.max
+    #@TEMP ONLY: TREAT NI AS OBSERVED DATA
+    candNi = d$Ni
     
     # sanity check
     #table(candNi[d$Zhat < 1.96])
@@ -122,10 +143,11 @@ run_sampler = function() {
                               # **here's where the observed data come in
                               .Zhat = d$Zhati,
                               
-                              
-                              
                               hack = "affirm",
                               N.max = 20 )
+    
+    #bm
+    #@PROBLEM: when I calculate newPost using the TRUE param values (after generating the intermediates from those), the posterior is way worse than the old one
     
     # posterior of previous values
     oldPost = log_joint_post( .Z = lastScalarPars$Z,
@@ -222,9 +244,13 @@ init_sampler = function() {
   
   # init pars
   #initPars = data.frame( Z = 0.5, tau = 0.5, tauw = 0.5 )
-  triedPars$scalars[1,] <<- c(0.5, 0.5, 0.5)
-  triedPars$Zi[1,] <<- 0.5
-  triedPars$Ni[1,] <<- N.max
+  #@for now give true values of tau, tauw, Ni
+  triedPars$scalars[1,] <<- c(0.5, tau, tauw)
+  # THIS ONE MAKES POSTERIOR SO GOOD IT NEVER GETS REJECTED
+  #triedPars$Zi[1,] <<- 0.5
+  triedPars$Zi[1,] <<- 10
+  #triedPars$Ni[1,] <<- N.max
+  triedPars$Ni[1,] <<- d$Ni
 }
 
 
@@ -293,6 +319,7 @@ log_joint_post = function(.Z,
   
   ### Likelihood term 3: .Zhat | .Zi, .Ni
   #Zhat.pdf = Zhat_pdf(...)
+  #@I suspect something is wrong with this
   Zhat.pdf = Zhat_pdf(.Zhat = .Zhat,
                       .Zi = .Zi,
                       .Ni = .Ni,
