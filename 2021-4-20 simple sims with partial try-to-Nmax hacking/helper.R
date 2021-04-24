@@ -7,6 +7,133 @@
 
 # DATA SIMULATION ---------------------------------------------------------------
 
+
+# bm: next make fn to simulate entire meta-analysis that's a mixture of hacked and unhacked
+# that fn should make a study set ID variable
+
+#  for now maybe don't try to force unhackeds to be nonaffirmative; just assume we know which studies are unhacked
+#  then try applying my weighting estimators and see how they compare to estimate from meta-analyzing all studies, incl
+#  underlying ones? :)
+
+# *note that the number of reported, hacked studies might be less than k.hacked
+#  if all Nmax draws are unsuccessful
+
+sim_meta = function(Nmax,  # max draws to try
+                    Mu,  # overall mean for meta-analysis
+                    T2,  # across-study heterogeneity
+                    m,  # sample size for this study
+                    t2w,  # within-study heterogeneity
+                    se,  # TRUE SE for this study
+                    rho = 0,
+                    return.only.published = FALSE,
+                    hack,  # "affirm" or "signif" only
+                    
+                    # args not passed to sim_one_study_set:
+                    k,  # number of studies
+                    k.hacked  # number of hacked studies
+
+                    ) {
+  
+  # # test only
+  # Nmax = 20
+  # Mu = 0.1
+  # T2 = 0.1
+  # m = 50
+  # t2w = .5
+  # se = 1
+  # hack = "affirm"
+  # return.only.published = FALSE
+  # rho=0
+  # k = 30
+  # k.hacked = 20
+  
+  #browser()
+  
+  # collect arguments
+  .args = mget(names(formals()), sys.frame(sys.nframe()))
+  # remove unnecessary args for sim_one_study_set
+  .args = .args[ !names(.args) %in% c("k", "k.hacked")]
+  
+  
+  if ( hack == "no" ) stop("hack should only be 'affirm' or 'signif' for this fn")
+
+  #bm
+  ### Simulate the unhacked studies   
+  for ( i in 1:(k - k.hacked) ) {
+    # for unhacked studies, need to change argument "hack"
+    .argsUnhacked = .args
+    .argsUnhacked[ names(.args) == "hack" ] = "no"
+    
+    # might be multiple rows if return.only.published = FALSE
+    newRows = do.call( sim_one_study_set, .argsUnhacked )
+    
+    # add study ID
+    newRows = newRows %>% add_column( .before = 1,
+                                      study = i )
+    
+    if ( i == 1 ) .dat = newRows else .dat = rbind( .dat, newRows )
+  }
+  
+  ### Simulate hacked studies
+  if ( exists(".dat") ) startInd = nrow(.dat) else startInd = 1
+  
+  for ( i in startInd:(startInd + k.hacked) ) {
+    # for unhacked studies, no need to change argument "hack"
+    .argsHacked = .args
+
+    # might be multiple rows if return.only.published = FALSE
+    newRows = do.call( sim_one_study_set, .argsHacked )
+    
+    # add study ID
+    newRows = newRows %>% add_column( .before = 1,
+                                      study = i )
+    
+    if ( i == 1 ) .dat = newRows else .dat = rbind( .dat, newRows )
+  }
+  
+  return(.dat)
+
+}
+
+
+
+# d = sim_meta(Nmax = 20,
+#              Mu = 0.1,
+#              T2 = 0.1,
+#              m = 50,
+#              t2w = .5,
+#              se = 1,
+#              hack = "affirm",
+#              return.only.published = FALSE,
+#              
+#              k = 30,
+#              k.hacked = 10
+#              
+# )
+# 
+# 
+# 
+# 
+# nrow(d)
+# 
+# # look at the published results only
+# d %>% filter(Di == 1 ) %>%
+#   group_by(hack) %>%
+#   summarise( n(),
+#              mean(affirm),
+#              mean(mui),
+#              mean(muHati) )
+
+
+
+
+
+
+
+
+
+
+
 # simulate a single study from potentially heterogeneous meta-analysis distribution 
 #  and from its own heterogeneous distribution
 
@@ -16,11 +143,13 @@
 
 # similar to phack_study in earlier helper script (2020-6 folder)
 
+# for hack = "no":
 # draws exactly Nmax results and treats the last one as the reported one
-#  but returns them all
-# since there's no hacking, argument "hack" is just to create indicator for whether draw was successful or not
-# here the final result could be affirmative or nonaffirmative
-# returns the entire study set, but only last draw is observed
+#  so the final result could be affirmative or nonaffirmative
+
+# for hack = "affirm" or "signif":
+# draws until affirm or signif result is obtained or Nmax is reached
+# then reports the last result
 
 sim_one_study_set = function(Nmax,  # max draws to try
                              Mu,  # overall mean for meta-analysis
@@ -81,6 +210,8 @@ sim_one_study_set = function(Nmax,  # max draws to try
   
   # number of draws made
   d$N = N
+  
+  d$hack = hack
   
   # convenience indicators for significance and affirmative status
   d$signif = d$pval < 0.05
@@ -208,4 +339,6 @@ make_one_draw = function(mui,  # mean for this study set
 #               t2w = 0,
 #               sd.y = 0.3,
 #               m = 30 )
+
+
 
