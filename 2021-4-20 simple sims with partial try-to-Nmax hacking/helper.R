@@ -8,22 +8,22 @@
 # DATA SIMULATION ---------------------------------------------------------------
 
 
-# bm: next make fn to simulate entire meta-analysis that's a mixture of hacked and unhacked
-# that fn should make a study set ID variable
-
-#  for now maybe don't try to force unhackeds to be nonaffirmative; just assume we know which studies are unhacked
-#  then try applying my weighting estimators and see how they compare to estimate from meta-analyzing all studies, incl
-#  underlying ones? :)
 
 # *note that the number of reported, hacked studies might be less than k.hacked
 #  if all Nmax draws are unsuccessful
 
+# also note that for the unhacked study sets, the single published result could be 
+# affirmative OR nonaffirmative
+
 sim_meta = function(Nmax,  # max draws to try
                     Mu,  # overall mean for meta-analysis
                     T2,  # across-study heterogeneity
+                    
+                    # study parameters, assumed same for all studies:
                     m,  # sample size for this study
                     t2w,  # within-study heterogeneity
-                    se,  # TRUE SE for this study
+                    se,  # TRUE SE
+                    
                     rho = 0,
                     return.only.published = FALSE,
                     hack,  # "affirm" or "signif" only
@@ -31,8 +31,8 @@ sim_meta = function(Nmax,  # max draws to try
                     # args not passed to sim_one_study_set:
                     k,  # number of studies
                     k.hacked  # number of hacked studies
-
-                    ) {
+                    
+) {
   
   # # test only
   # Nmax = 20
@@ -56,43 +56,49 @@ sim_meta = function(Nmax,  # max draws to try
   
   
   if ( hack == "no" ) stop("hack should only be 'affirm' or 'signif' for this fn")
-
-  #bm
-  ### Simulate the unhacked studies   
-  for ( i in 1:(k - k.hacked) ) {
-    # for unhacked studies, need to change argument "hack"
-    .argsUnhacked = .args
-    .argsUnhacked[ names(.args) == "hack" ] = "no"
-    
-    # might be multiple rows if return.only.published = FALSE
-    newRows = do.call( sim_one_study_set, .argsUnhacked )
-    
-    # add study ID
-    newRows = newRows %>% add_column( .before = 1,
-                                      study = i )
-    
-    if ( i == 1 ) .dat = newRows else .dat = rbind( .dat, newRows )
+  
+  k.unhacked = k - k.hacked
+  
+  ### Simulate the unhacked studies 
+  if ( k.unhacked > 0 ) {
+    for ( i in 1:(k - k.hacked) ) {
+      # for unhacked studies, need to change argument "hack"
+      .argsUnhacked = .args
+      .argsUnhacked[ names(.args) == "hack" ] = "no"
+      
+      # might be multiple rows if return.only.published = FALSE
+      newRows = do.call( sim_one_study_set, .argsUnhacked )
+      
+      # add study ID
+      newRows = newRows %>% add_column( .before = 1,
+                                        study = i )
+      
+      if ( i == 1 ) .dat = newRows else .dat = rbind( .dat, newRows )
+    }
   }
   
-  ### Simulate hacked studies
-  if ( exists(".dat") ) startInd = nrow(.dat) else startInd = 1
   
-  for ( i in startInd:(startInd + k.hacked) ) {
-    # for unhacked studies, no need to change argument "hack"
-    .argsHacked = .args
-
-    # might be multiple rows if return.only.published = FALSE
-    newRows = do.call( sim_one_study_set, .argsHacked )
+  ### Simulate hacked studies
+  if ( k.hacked > 0 ) {
+    if ( exists(".dat") ) startInd = max(.dat$study) + 1 else startInd = 1
     
-    # add study ID
-    newRows = newRows %>% add_column( .before = 1,
-                                      study = i )
-    
-    if ( i == 1 ) .dat = newRows else .dat = rbind( .dat, newRows )
+    for ( i in startInd:(startInd + k.hacked - 1) ) {
+      # for unhacked studies, no need to change argument "hack"
+      .argsHacked = .args
+      
+      # might be multiple rows if return.only.published = FALSE
+      newRows = do.call( sim_one_study_set, .argsHacked )
+      
+      # add study ID
+      newRows = newRows %>% add_column( .before = 1,
+                                        study = i )
+      
+      if ( i == 1 ) .dat = newRows else .dat = rbind( .dat, newRows )
+    }
   }
   
   return(.dat)
-
+  
 }
 
 
@@ -105,10 +111,10 @@ sim_meta = function(Nmax,  # max draws to try
 #              se = 1,
 #              hack = "affirm",
 #              return.only.published = FALSE,
-#              
+# 
 #              k = 30,
 #              k.hacked = 10
-#              
+# 
 # )
 # 
 # 
@@ -122,10 +128,7 @@ sim_meta = function(Nmax,  # max draws to try
 #   summarise( n(),
 #              mean(affirm),
 #              mean(mui),
-#              mean(muHati) )
-
-
-
+#              mean(yi) )
 
 
 
@@ -179,6 +182,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
                    sd = sqrt(T2),
                    n = 1)
   
+  # TRUE SD (not estimated)
   sd.y = se * sqrt(m)
   
   # collect all args from outer fn, including default ones
@@ -203,7 +207,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
     
     # check if it's time to stop drawing results
     if (hack == "signif") stop = (newRow$pval < 0.05)
-    if (hack == "affirm") stop = (newRow$pval < 0.05 & newRow$muHati > 0)
+    if (hack == "affirm") stop = (newRow$pval < 0.05 & newRow$yi > 0)
     # if this study set is unhacked, then success is just whether we've reached the 
     if ( hack == "no") stop = (N == Nmax)
   }
@@ -215,7 +219,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
   
   # convenience indicators for significance and affirmative status
   d$signif = d$pval < 0.05
-  d$affirm = (d$pval < 0.05 & d$muHati > 0)
+  d$affirm = (d$pval < 0.05 & d$yi > 0)
   
   # publication indicator
   if ( hack == "signif" ) d$Di = (d$signif == TRUE)
@@ -243,6 +247,33 @@ sim_one_study_set = function(Nmax,  # max draws to try
 #                       return.only.published = TRUE)
 # nrow(d)
 # d
+
+
+# # sanity check by simulation
+# for ( i in 1:2000 ) {
+#   newRows = sim_one_study_set(Nmax = 20,
+#                          Mu = 0.1,
+#                          T2 = 0.1,
+#                          m = 50,
+#                          t2w = .1,
+#                          se = 1,
+#                          hack = "no",
+#                          return.only.published = FALSE )
+# 
+#   if ( i == 1 ) .d = newRows else .d = rbind(.d, newRows)
+# 
+# }
+# 
+# # all studies
+# # note that conditional on Di == 0, variance might be off because of repeated rows
+# # but means should be correct
+# .d %>% group_by(Di == 1) %>%
+#   summarise(n(),
+#             mean(mui),
+#             mean(muin),
+#             var(muin),
+#             mean(yi) )
+# # seems fine
 
 
 # # ~ Sanity check  ---------------------------------------------------------------
@@ -295,7 +326,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
 # draws one unbiased result within the study
 make_one_draw = function(mui,  # mean for this study set
                          t2w,
-                         sd.y,
+                         sd.y,  # TRUE SD
                          m,
                          #hack,
                          rho = 0,
@@ -314,10 +345,13 @@ make_one_draw = function(mui,  # mean for this study set
   
   # run a one-sample t-test
   if ( rho == 0 ) {
-    pval = t.test(y,
-                  alternative = "two.sided")$p.value
-    tstat = t.test(y,
-                   alternative = "two.sided")$statistic
+    
+    test = t.test(y,
+                  alternative = "two.sided")
+    
+    pval = test$p.value
+    tstat = test$statistic
+    vi = test$stderr^2
   } else {
     stop("rho>0 case not implemented yet")
   }
@@ -330,7 +364,8 @@ make_one_draw = function(mui,  # mean for this study set
                      tcrit = qt(0.975, df = m-1),
                      mui = mui,
                      muin = muin,
-                     muHati = mean(y) ) )
+                     yi = mean(y),
+                     vi = vi) )
   #success = success,
   #N = Nmax ) )
 }
@@ -339,6 +374,26 @@ make_one_draw = function(mui,  # mean for this study set
 #               t2w = 0,
 #               sd.y = 0.3,
 #               m = 30 )
+
+# sanity check by simulation
+# for ( i in 1:5000 ) {
+#   newRow = make_one_draw(mui = 0.1,
+#                   t2w = 0.1,
+#                   sd.y = 0.3,
+#                   m = 30 )
+#   
+#   if ( i == 1 ) .d = newRow else .d = rbind(.d, newRow)
+#   
+# }
+# 
+# .d %>% summarise( 
+#                   mean(mui),
+#                   mean(muin),
+#                   var(muin),
+#                   mean(yi) )
+
+
+#bm: this fn seems fine, but clearly something is wrong with either of the outer ones
 
 
 
