@@ -5,9 +5,100 @@
 # "study set" refers to all draws, observed and observed, for a given study
 
 
+
+# ANALYSIS FNS ---------------------------------------------------------------
+
+# hackAssumed: "omniscient" (we know which are hacked) or "allAffirms"
+
+correct_dataset_phack = function( .dp,  # published studies
+                                  .p,  # parameters as dataframe
+                                  hackAssumption ) {
+  
+  # indicator for whether a study is ASSUMED to be hacked for analysis purposes
+  if (hackAssumption == "omniscient" ) .dp$assumedHacked = (.dp$hack == .p$hack)
+  if (hackAssumption == "allAffirms" ) .dp$assumedHacked = .dp$affirm
+  
+  ### Make filtered datasets ###
+  # published ASSUMED-hacked ones only
+  dph = .dp %>% filter(assumedHacked == TRUE )
+  
+  # published unhacked ones only
+  # so only one per study set
+  # same as second row of above table
+  dpu = .dp %>% filter(assumedHacked == FALSE )
+  
+  # meta-analyze only the assumed-unhacked studies
+  ( modUH = rma( yi = yi,
+                 vi = vi,
+                 data = dpu,
+                 method = "REML",
+                 knha = TRUE ) )
+  Mhat.UH = modUH$b
+  # *important: since t2w is a sensitivity parameter, we can just subtract it off
+  T2.UH = modUH$tau2 - .p$t2w
+  
+  ### *Estimate* bias of each assumed-hacked result ###
+  # i.e., truncated t expectation
+  # estimate the noncentrality parameter
+  # uses estimated mean, estimated tau^2, and known t2w 
+  dph$ncp = c(Mhat.UH) / sqrt( c(T2.UH) + .p$t2w + dph$vi )
+  
+  # estimated expectation of each hacked result
+  # extrunc always seems to give warnings about precision not
+  #  being achieved
+  dph = dph %>%
+    rowwise() %>%
+    mutate( hackedExp =  suppressWarnings( extrunc( spec = "t",
+                                                    ncp = ncp,
+                                                    df = .p$m-1,
+                                                    a = tcrit ) ) )
+  
+  # estimated bias of hacked results
+  dph$estBias = dph$hackedExp - c(Mhat.UH)
+  
+  # sanity check:
+  # also calculate the REAL truncated expectations
+  #  (i.e., using the real T2, Mu, and se rather than sample estimates)
+  #@to do in helper code: include SE and m (sample size) in returned dataset
+  #  so we can easily have them vary across study sets
+  dph = dph %>%
+    rowwise() %>%
+    mutate( hackedExpTrue =  suppressWarnings( extrunc( spec = "t",
+                                                        ncp = p$Mu / sqrt( p$T2 + p$t2w + p$se^2 ),
+                                                        df = p$m-1,
+                                                        a = tcrit ) ) )
+  
+  
+  
+  # # another sanity check:and to empirical one
+  # t$`mean(yi)`[ t$hack == "affirm" & t$Di == 1 ]
+  # # all quite close, even with T2 estimate pretty off in this sample!
+  
+  ### Bias-correct the published, hacked results ###
+  dph$yiCorr = dph$yi
+  dph$yiCorr = dph$yi - dph$estBias
+  
+  # put in big dataset (with assumed-unhacked ones) as well
+  dp$yiCorr = dp$yi
+  dp$yiCorr[ dp$assumedHacked == TRUE ] = dph$yiCorr
+  
+  ### Return all the things ###
+  
+  return( list(data = dp,  # corrected dataset
+               sanityChecks = data.frame( Mhat.UH = Mhat.UH,
+                                          T2.UH = T2.UH,
+                                          
+                                          # these 3 should be similar
+                                          meanHackedExp = mean(dph$hackedExp),
+                                          meanHackedExpTrue = mean(dph$hackedExpTrue),
+                                          empHackedExp = mean(dph$yi) ),
+               modUH = modUH ) )
+  
+}
+
+
+
 # DATA SIMULATION ---------------------------------------------------------------
-
-
 
 # *note that the number of reported, hacked studies might be less than k.hacked
 #  if all Nmax draws are unsuccessful

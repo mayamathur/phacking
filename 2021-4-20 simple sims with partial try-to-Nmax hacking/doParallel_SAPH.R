@@ -153,6 +153,7 @@ rep.time = system.time({
                  k.hacked = p$k.hacked )
     
     
+    #@can get these from correct_dataset_phack now
     # dataset of only published results
     dp = d %>% filter(Di == 1 )
     
@@ -195,9 +196,20 @@ rep.time = system.time({
                     method = "REML",
                     knha = TRUE ) )
     
+    
+    
+    
     # ~~ Bias-Corrected Estimator #1 ------------------------------
     # omniscient version: we know which studies are unhacked
     #  (also includes some affirmatives)
+    
+    
+    correct_dataset_phack(.dp = dp,
+                          .p = p,
+                          hackAssumption = "omniscient")
+    
+    
+    
     # meta-analyze only the observed, unhacked studies
     ( modUH = rma( yi = yi,
                    vi = vi,
