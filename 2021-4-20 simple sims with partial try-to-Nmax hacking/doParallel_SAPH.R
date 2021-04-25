@@ -275,11 +275,13 @@ nMethods = length(unique(rs$methName))
 # estimated time for 1 sim rep
 # use NAs for additional methods so that the SUM of the rep times will be the
 #  total computational time
-rs$repTime = rep( c( doParallelTime / sim.reps,
+rs$repSeconds = rep( c( doParallelTime / sim.reps,
                      rep( NA, nMethods - 1 ) ), sim.reps )
 
-expect_equal( as.numeric( sum(rs$repTime, na.rm = TRUE) ),
+expect_equal( as.numeric( sum(rs$repSeconds, na.rm = TRUE) ),
               as.numeric(doParallelTime) )
+
+
 
 # WRITE LONG RESULTS ------------------------------
 if ( run.local == FALSE ) {

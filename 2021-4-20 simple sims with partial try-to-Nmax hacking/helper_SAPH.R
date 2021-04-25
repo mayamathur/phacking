@@ -50,7 +50,7 @@ correct_dataset_phack = function( .dp,  # published studies
     rowwise() %>%
     mutate( hackedExp =  extrunc( spec = "t",
                                   ncp = ncp,
-                                  df = .p$m-1,
+                                  df = m-1,
                                   a = tcrit ) ) 
   
   # estimated bias of hacked results
@@ -59,13 +59,11 @@ correct_dataset_phack = function( .dp,  # published studies
   # sanity check:
   # also calculate the REAL truncated expectations
   #  (i.e., using the real T2, Mu, and se rather than sample estimates)
-  #@to do in helper code: include SE and m (sample size) in returned dataset
-  #  so we can easily have them vary across study sets
   dph = dph %>%
     rowwise() %>%
     mutate( hackedExpTrue =  extrunc( spec = "t",
-                                      ncp = .p$Mu / sqrt( .p$T2 + .p$t2w + .p$se^2 ),
-                                      df = .p$m-1,
+                                      ncp = .p$Mu / sqrt( .p$T2 + .p$t2w + viTrue ),
+                                      df = m-1,
                                       a = tcrit ) ) 
   
   
@@ -189,12 +187,10 @@ sim_meta = function(Nmax,  # max draws to try
   k.unhacked = k - k.hacked
   
   
-  
-  ### Simulate the unhacked studies 
+  ### Simulate the unhacked studies ###
   if ( k.unhacked > 0 ) {
     for ( i in 1:(k - k.hacked) ) {
-      # for unhacked studies, need to change argument "hack"
-      
+      # to generate unhacked studies, need to change argument "hack"
       .argsUnhacked = .args
       .argsUnhacked[ names(.args) == "hack" ] = "no"
       
@@ -209,11 +205,7 @@ sim_meta = function(Nmax,  # max draws to try
     }
   }
   
-  # #@DEBUGGING
-  # browser()
-  # .dat %>% group_by(Di) %>% summarise(n(), mean(mui), mean(muin), mean(yi))
-  
-  ### Simulate hacked studies
+  ### Simulate hacked studies  ###
   if ( k.hacked > 0 ) {
     if ( exists(".dat") ) startInd = max(.dat$study) + 1 else startInd = 1
     
@@ -459,7 +451,6 @@ make_one_draw = function(mui,  # mean for this study set
                          t2w,
                          sd.y,  # TRUE SD
                          m,
-                         #hack,
                          rho = 0,
                          ...) {
   
@@ -482,7 +473,7 @@ make_one_draw = function(mui,  # mean for this study set
     
     pval = test$p.value
     tstat = test$statistic
-    vi = test$stderr^2
+    vi = test$stderr^2  # ESTIMATED variance
   } else {
     stop("rho>0 case not implemented yet")
   }
@@ -496,7 +487,9 @@ make_one_draw = function(mui,  # mean for this study set
                      mui = mui,
                      muin = muin,
                      yi = mean(y),
-                     vi = vi) )
+                     vi = vi,
+                     viTrue = sd.y / sqrt(m),  # true variance
+                     m = m ) )
   #success = success,
   #N = Nmax ) )
 }
