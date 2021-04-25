@@ -8,8 +8,8 @@
 
 # ANALYSIS FNS ---------------------------------------------------------------
 
+# this is the major workhorse fn
 # hackAssumed: "omniscient" (we know which are hacked) or "allAffirms"
-
 correct_dataset_phack = function( .dp,  # published studies
                                   .p,  # parameters as dataframe
                                   hackAssumption ) {
@@ -35,7 +35,7 @@ correct_dataset_phack = function( .dp,  # published studies
                  knha = TRUE ) )
   Mhat.UH = modUH$b
   # *important: since t2w is a sensitivity parameter, we can just subtract it off
-  T2.UH = modUH$tau2 - .p$t2w
+  T2.UH = max(0, modUH$tau2 - .p$t2w )
   
   ### *Estimate* bias of each assumed-hacked result ###
   # i.e., truncated t expectation
@@ -48,10 +48,10 @@ correct_dataset_phack = function( .dp,  # published studies
   #  being achieved
   dph = dph %>%
     rowwise() %>%
-    mutate( hackedExp =  suppressWarnings( extrunc( spec = "t",
-                                                    ncp = ncp,
-                                                    df = .p$m-1,
-                                                    a = tcrit ) ) )
+    mutate( hackedExp =  extrunc( spec = "t",
+                                  ncp = ncp,
+                                  df = .p$m-1,
+                                  a = tcrit ) ) 
   
   # estimated bias of hacked results
   dph$estBias = dph$hackedExp - c(Mhat.UH)
@@ -63,10 +63,10 @@ correct_dataset_phack = function( .dp,  # published studies
   #  so we can easily have them vary across study sets
   dph = dph %>%
     rowwise() %>%
-    mutate( hackedExpTrue =  suppressWarnings( extrunc( spec = "t",
-                                                        ncp = p$Mu / sqrt( p$T2 + p$t2w + p$se^2 ),
-                                                        df = p$m-1,
-                                                        a = tcrit ) ) )
+    mutate( hackedExpTrue =  extrunc( spec = "t",
+                                      ncp = .p$Mu / sqrt( .p$T2 + .p$t2w + .p$se^2 ),
+                                      df = .p$m-1,
+                                      a = tcrit ) ) 
   
   
   
@@ -75,25 +75,63 @@ correct_dataset_phack = function( .dp,  # published studies
   # # all quite close, even with T2 estimate pretty off in this sample!
   
   ### Bias-correct the published, hacked results ###
-  dph$yiCorr = dph$yi
   dph$yiCorr = dph$yi - dph$estBias
   
   # put in big dataset (with assumed-unhacked ones) as well
-  dp$yiCorr = dp$yi
-  dp$yiCorr[ dp$assumedHacked == TRUE ] = dph$yiCorr
+  .dp$yiCorr = .dp$yi
+  .dp$yiCorr[ .dp$assumedHacked == TRUE ] = dph$yiCorr
+  
+  ### Corrected meta-analysis ###
+  modCorr = rma( yi = .dp$yiCorr,
+                 vi = .dp$vi,
+                 method = "REML",
+                 knha = TRUE )
   
   ### Return all the things ###
-  
-  return( list(data = dp,  # corrected dataset
+  return( list(data = .dp,  # corrected dataset
+               metaCorr = report_rma(modCorr, 
+                                     .suffix = "Corr"),
                sanityChecks = data.frame( Mhat.UH = Mhat.UH,
                                           T2.UH = T2.UH,
+                                          
+                                          kAssumedHacked = sum(.dp$assumedHacked),
                                           
                                           # these 3 should be similar
                                           meanHackedExp = mean(dph$hackedExp),
                                           meanHackedExpTrue = mean(dph$hackedExpTrue),
-                                          empHackedExp = mean(dph$yi) ),
-               modUH = modUH ) )
+                                          
+                                          # for "omniscient" mode, this should be similar to the 2 above
+                                          yiMeanAssumedHacked = mean( .dp$yi[ .dp$assumedHacked == TRUE ] ),
+                                          
+                                          
+                                          yiCorrMeanAssumedHacked = mean( .dp$yiCorr[ .dp$assumedHacked == TRUE ] ),
+                                          
+                                          
+                                          yiMeanAssumedUnhacked = mean( .dp$yiCorr[ .dp$assumedHacked == FALSE ] ),
+                                          
+                                          # this is for looking at how biased the SEs become in the hacked studies
+                                          # (when using omniscient mode)
+                                          viMeanAssumedHacked = mean( .dp$vi[ .dp$assumedHacked == TRUE ] ) ),
+               
+               
+               
+               modUH = modUH,
+               modCorr = modCorr ) )
   
+}
+
+
+# nicely report a metafor object with optional suffix to denote which model it is
+report_rma = function(.mod,
+                      .suffix = "") {
+  
+  .res = data.frame( .mod$b,
+                     .mod$ci.lb,
+                     .mod$ci.ub,
+                     .mod$pval )
+  
+  names(.res) = paste( c("Mhat", "MhatLo", "MhatHi", "MhatPval"), .suffix, sep = "" )
+  return(.res)
 }
 
 
@@ -150,13 +188,13 @@ sim_meta = function(Nmax,  # max draws to try
   
   k.unhacked = k - k.hacked
   
-
+  
   
   ### Simulate the unhacked studies 
   if ( k.unhacked > 0 ) {
     for ( i in 1:(k - k.hacked) ) {
       # for unhacked studies, need to change argument "hack"
-
+      
       .argsUnhacked = .args
       .argsUnhacked[ names(.args) == "hack" ] = "no"
       
@@ -226,10 +264,6 @@ sim_meta = function(Nmax,  # max draws to try
 #              mean(affirm),
 #              mean(mui),
 #              mean(yi) )
-
-
-
-
 
 
 
@@ -490,7 +524,26 @@ make_one_draw = function(mui,  # mean for this study set
 #                   mean(yi) )
 
 
-#bm: this fn seems fine, but clearly something is wrong with either of the outer ones
 
+
+# DATA WRANGLING ---------------------------------------------------------------
+
+# corrObject: something returned by correct_dataset_phack
+# looks for (or makes) global object, "res"
+add_method_result_row = function(repRes = NA,
+                                 corrObject,
+                                 methName) {
+  
+  newRow = cbind( corrObject$metaCorr,
+                  corrObject$sanityChecks )
+  
+  newRow = newRow %>% add_column(.before = 1,
+                                 methName = methName )
+  
+  
+  # "if" condition is hacky way to deal with repRes = NA case
+  if ( is.null( nrow(repRes) ) ) repRes = newRow else repRes = rbind(repRes, newRow)
+  return(repRes)
+}
 
 

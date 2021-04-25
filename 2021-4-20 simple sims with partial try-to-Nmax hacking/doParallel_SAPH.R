@@ -107,7 +107,7 @@ if ( run.local == TRUE ) {
                             k.hacked = 20 )
   
   
-  sim.reps = 5  # reps to run in this iterate; leave this alone!
+  sim.reps = 2  # reps to run in this iterate; leave this alone!
   
   
   library(foreach)
@@ -128,10 +128,13 @@ if ( run.local == TRUE ) {
 #for ( scen in scen.params$scen.name ) {  # can't use this part on the cluster
 
 # system.time is in seconds
-rep.time = system.time({
+doParallelTime = system.time({
   rs = foreach( i = 1:sim.reps, .combine=rbind ) %dopar% {
     # for debugging:
     #for ( i in 1:sim.reps ) {
+    
+    # results for just this simulation rep
+    if ( exists("repRes") ) rm(repRes)
     
     # extract simulation params for this scenario (row)
     # exclude the column with the scenario name itself (col) 
@@ -157,25 +160,15 @@ rep.time = system.time({
     # dataset of only published results
     dp = d %>% filter(Di == 1 )
     
-    # published hacked ones only
-    dph = d %>% filter(hack == p$hack & Di == 1)
+    # # published hacked ones only
+    # dph = d %>% filter(hack == p$hack & Di == 1)
+    # 
+    # # published unhacked ones only
+    # # so only one per study set
+    # # same as second row of above table
+    # dpu = d %>% filter(hack == "no" & Di == 1)
     
-    # published unhacked ones only
-    # so only one per study set
-    # same as second row of above table
-    dpu = d %>% filter(hack == "no" & Di == 1)
     
-    # for sanity checks
-    # all results, sorted by hacking status and publication status
-    t = d %>%
-      group_by(hack, Di) %>%
-      summarise( n(),
-                 k = length(unique(study)),
-                 mean(affirm),
-                 mean(mui),
-                 var(mui),
-                 mean(yi),
-                 mean(vi) )
     
     
     # ~~ Fit Gold-Standard Meta-Analysis to All Results  ------------------------------
@@ -203,117 +196,90 @@ rep.time = system.time({
     # omniscient version: we know which studies are unhacked
     #  (also includes some affirmatives)
     
+    corr1 = correct_dataset_phack(.dp = dp,
+                                  .p = p,
+                                  hackAssumption = "omniscient")
     
-    correct_dataset_phack(.dp = dp,
-                          .p = p,
-                          hackAssumption = "omniscient")
+    expect_equal( corr1$sanityChecks$kAssumedHacked,
+                  sum(dp$hack == p$hack) )
     
+    expect_equal( corr1$modUH$k,
+                  sum(dp$hack == "no") )
     
+    # add to results
+    repRes = add_method_result_row(repRes = NA,
+                          corrObject = corr1,
+                          methName = "omniscient")
     
-    # meta-analyze only the observed, unhacked studies
-    ( modUH = rma( yi = yi,
-                   vi = vi,
-                   data = dpu,
-                   method = "REML",
-                   knha = TRUE ) )
-    Mhat.UH = modUH$b
-    # *important: since t2w is a sensitivity parameter, we can just subtract it off
-    T2.UH = modUH$tau2 - p$t2w
-    
-    ### 1.1: *Estimate* bias of each hacked result ###
-    # i.e., truncated t expectation
-    # estimate the noncentrality parameter
-    # uses estimated mean, estimated tau^2, and known t2w 
-    dph$ncp = c(Mhat.UH) / sqrt( c(T2.UH) + p$t2w + dph$vi )
-    
-    # estimated expectation of each hacked result
-    # extrunc always seems to give warnings about precision not
-    #  being achieved
-    dph = dph %>% filter(hack == "affirm") %>%
-      rowwise() %>%
-      mutate( affirmExp =  suppressWarnings( extrunc( spec = "t",
-                                                      ncp = ncp,
-                                                      df = p$m-1,
-                                                      a = tcrit ) ) )
-    
-    # estimated bias of hacked results
-    dph$estBias = dph$affirmExp - c(Mhat.UH)
-    
-    # sanity check:
-    # also calculate the REAL truncated expectations
-    #  (i.e., using the real T2, Mu, and se rather than sample estimates)
-    #@to do in helper code: include SE and m (sample size) in returned dataset
-    #  so we can easily have them vary across study sets
-    dph = dph %>% filter(hack == "affirm") %>%
-      rowwise() %>%
-      mutate( affirmExpTrue =  suppressWarnings( extrunc( spec = "t",
-                                                          ncp = p$Mu / sqrt( p$T2 + p$t2w + p$se^2 ),
-                                                          df = p$m-1,
-                                                          a = tcrit ) ) )
-    
-    
-    
-    # # another sanity check:and to empirical one
-    # t$`mean(yi)`[ t$hack == "affirm" & t$Di == 1 ]
-    # # all quite close, even with T2 estimate pretty off in this sample!
-    
-    ### 1.2: Bias-correct the published, hacked results ###
-    dph$yiCorr = dph$yi
-    dph$yiCorr = dph$yi - dph$estBias
-    
-    # put in big dataset as well
-    dp$yiCorr = dp$yi
-    dp$yiCorr[ dp$hack == p$hack ] = dph$yiCorr
-    
-    # save for sanity checks
-    tab2 = dp %>% group_by(hack) %>%
-      summarise( n(),
-                 k = length(unique(study)),
-                 mean(affirm),
-                 mean(mui),
-                 var(mui),
-                 mean(yi),
-                 mean(yiCorr) )
-    
-    ### 1.3: Meta-analyze corrected estimates ### 
-    ( modCorr = rma( yi = dp$yiCorr,
-                     vi = dp$vi,
-                     method = "REML",
-                     knha = TRUE ) )
-    
-    
-    
-    
-    
- 
-    # how bad is the variance estimation?
-    d %>% group_by(hack, Di) %>%
-      summarise( mean(sqrt(vi)) )
-    
-    
-
     # ~~ Bias-Corrected Estimator #2 ------------------------------
-    # omniscient version: conservatively assume only nonaffirmatives are unhacked
+    # omniscient version: we know which studies are unhacked
+    #  (also includes some affirmatives)
+    
+    corr2 = correct_dataset_phack(.dp = dp,
+                                  .p = p,
+                                  hackAssumption = "allAffirms")
+    
+    # this check assumes p$hack = "affirm" instead of "signif"
+    expect_equal( corr2$sanityChecks$kAssumedHacked,
+                  sum(dp$affirm) )
+    
+    expect_equal( corr2$modUH$k,
+                  sum(dp$affirm == FALSE) )
     
     
+    # add to results
+    repRes = add_method_result_row(repRes = repRes,
+                                   corrObject = corr2,
+                                   methName = "allAffirms")
+   
+
     
     # ~ Write Results ------------------------------
     
+    # add stats for the simulated dataset that don't change based on correction method
+    # these are prefaced by dataset name for clarity
+    #@pay attention to mean(vi) in the results! 
     
+    # **note: all columns before methName don't depend on the correction method used
+    repRes = repRes %>% add_column(repName = i,
+                          
+                          dp.k = nrow(dp),
+                          dp.kAffirm = sum(dp$affirm == TRUE),
+                          dp.kNonaffirm = sum(dp$affirm == FALSE),
+                          
+                          report_rma(modAll, .suffix = "All"),
+                          report_rma(modPub, .suffix = "Naive"),
+                          
+                          .before = 1 )
+    
+
     # add in scenario parameters
-    rows$scen.name = scen
-    rows = as.data.frame( merge(rows, scen.params,
-                                by = "scen.name") )
-    rows
+    repRes = repRes %>% add_column( scenName = scen,
+                                    p,
+                                    .after = 1 )
+    
+    
+    repRes
     
   }  ### end foreach loop
   
 } )[3]  # end timer
 
 
-rs$repTime = rep.time
 
 
+# bm: fix error to the right :) 
+# you're so close!
+nMethods = length(unique(rs$methName))
+
+# estimated time for 1 sim rep
+# use NAs for additional methods so that the SUM of the rep times will be the
+#  total computational time
+rs$repTime = rep( c( doParallelTime / sim.reps,
+                     rep( NA, nMethods - 1 ) ), sim.reps )
+
+expect_equal( as.numeric( sum(rs$repTime, na.rm = TRUE) ),
+              as.numeric(doParallelTime) )
 
 # WRITE LONG RESULTS ------------------------------
 if ( run.local == FALSE ) {
