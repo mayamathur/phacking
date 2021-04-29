@@ -55,9 +55,10 @@ d = sim_meta(Nmax = 20,
 dp = d %>% filter(Di == 1 )
 dim(dp)
 
-setwd( here("2021-4-20 simple sims with partial try-to-Nmax hacking") )
-fwrite(d, "sim_meta_all_studies.csv")
-fwrite(dp, "sim_meta_published_studies.csv")
+# save for later
+# setwd( here("2021-4-20 simple sims with partial try-to-Nmax hacking") )
+# fwrite(d, "sim_meta_all_studies.csv")
+# fwrite(dp, "sim_meta_published_studies.csv")
 
 
 # read back in
