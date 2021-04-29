@@ -107,7 +107,7 @@ if ( run.local == TRUE ) {
                             k.hacked = 20 )
   
   
-  sim.reps = 2  # reps to run in this iterate; leave this alone!
+  sim.reps = 1  # reps to run in this iterate
   
   
   library(foreach)
@@ -155,8 +155,7 @@ doParallelTime = system.time({
                  k = p$k,
                  k.hacked = p$k.hacked )
     
-    
-    #@can get these from correct_dataset_phack now
+
     # dataset of only published results
     dp = d %>% filter(Di == 1 )
     
@@ -238,8 +237,6 @@ doParallelTime = system.time({
     
     # add stats for the simulated dataset that don't change based on correction method
     # these are prefaced by dataset name for clarity
-    #@pay attention to mean(vi) in the results! 
-    
     # **note: all columns before methName don't depend on the correction method used
     repRes = repRes %>% add_column(repName = i,
                           
@@ -247,8 +244,12 @@ doParallelTime = system.time({
                           dp.kAffirm = sum(dp$affirm == TRUE),
                           dp.kNonaffirm = sum(dp$affirm == FALSE),
                           
-                          report_rma(modAll, .suffix = "All"),
-                          report_rma(modPub, .suffix = "Naive"),
+                          report_rma(modAll,
+                                     .Mu = p$Mu,
+                                     .suffix = "All"),
+                          report_rma(modPub,
+                                     .Mu = p$Mu,
+                                     .suffix = "Naive"),
                           
                           .before = 1 )
     
@@ -268,19 +269,60 @@ doParallelTime = system.time({
 
 
 
-# bm: fix error to the right :) 
-# you're so close!
-nMethods = length(unique(rs$methName))
-
-# estimated time for 1 sim rep
+### Estimated time for 1 sim rep ###
 # use NAs for additional methods so that the SUM of the rep times will be the
 #  total computational time
+nMethods = length(unique(rs$methName))
 rs$repSeconds = rep( c( doParallelTime / sim.reps,
                      rep( NA, nMethods - 1 ) ), sim.reps )
 
 expect_equal( as.numeric( sum(rs$repSeconds, na.rm = TRUE) ),
               as.numeric(doParallelTime) )
 
+### Local only: quick look at results ###
+# assumes only 1 scenario
+# make coverage variable (won't need it later)
+# rs$MhatNaiveCover = (rs$MhatLoNaive <= scen.params$Mu) & (rs$MhatHiNaive >= scen.params$Mu)
+# rs$MhatCorrCover = (rs$MhatLoCorr <= scen.params$Mu) & (rs$MhatHiCorr >= scen.params$Mu)
+
+#@things to keep an eye on: is T2.UH biased?
+
+
+takeMean = c( "dp.k",
+              "dp.kAffirm",
+              "dp.kNonaffirm",
+              
+              "MhatAll",
+              "MhatCoverAll",
+              
+              "MhatNaive",
+              "MhatCoverNaive",
+              
+              "MhatCorr",
+              "MhatCoverCorr",
+              
+              "Mhat.UH",
+              "T2.UH",
+              
+              "meanHackedExp",
+              "meanHackedExpTrue",
+              "yiMeanAssumedHacked",
+              "yiCorrMeanAssumedHacked",
+              "yiMeanAssumedUnhacked",
+              "viMeanAssumedHacked" )
+
+
+resTable = rs %>% group_by(methName) %>%
+  summarise_at( takeMean,
+                function(x) round( mean(x, na.rm = TRUE), 2 ) )
+View(resTable)
+
+#@keep an eye on T2.UH: why is it too big even in omniscient mode?
+# and yet meanHackedExp is exactly right (compared to using parameter values in meanHackedExpTrue)
+
+setwd("Results")
+fwrite(rs, "rs_one_scenario.csv")
+fwrite(resTable, "resTable.csv")
 
 
 # WRITE LONG RESULTS ------------------------------

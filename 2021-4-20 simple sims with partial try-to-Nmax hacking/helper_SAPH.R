@@ -88,6 +88,7 @@ correct_dataset_phack = function( .dp,  # published studies
   ### Return all the things ###
   return( list(data = .dp,  # corrected dataset
                metaCorr = report_rma(modCorr, 
+                                     .Mu = .p$Mu,
                                      .suffix = "Corr"),
                sanityChecks = data.frame( Mhat.UH = Mhat.UH,
                                           T2.UH = T2.UH,
@@ -120,15 +121,18 @@ correct_dataset_phack = function( .dp,  # published studies
 
 
 # nicely report a metafor object with optional suffix to denote which model it is
+# includes coverage
 report_rma = function(.mod,
+                      .Mu,  # true mean (to get coverage)
                       .suffix = "") {
   
   .res = data.frame( .mod$b,
                      .mod$ci.lb,
                      .mod$ci.ub,
+                     (.mod$ci.lb <= .Mu) & (.mod$ci.ub >= .Mu), 
                      .mod$pval )
   
-  names(.res) = paste( c("Mhat", "MhatLo", "MhatHi", "MhatPval"), .suffix, sep = "" )
+  names(.res) = paste( c("Mhat", "MhatLo", "MhatHi", "MhatCover", "MhatPval"), .suffix, sep = "" )
   return(.res)
 }
 
