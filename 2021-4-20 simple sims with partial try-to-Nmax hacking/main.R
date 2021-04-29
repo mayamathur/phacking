@@ -36,19 +36,19 @@ t2w = .1
 se = 1
 
 
-# simulate a huge dataset, including unpublished ones
-# don't need to redo this, so commented out
-d = sim_meta(Nmax = 20,
-             Mu = Mu,
-             T2 = T2,
-             m = m,
-             t2w = t2w,
-             se = se,
-             hack = "affirm",
-             return.only.published = FALSE,
-             
-             k = 200,
-             k.hacked = 100 )
+# # simulate a huge dataset, including unpublished ones
+# # don't need to redo this, so commented out
+# d = sim_meta(Nmax = 20,
+#              Mu = Mu,
+#              T2 = T2,
+#              m = m,
+#              t2w = t2w,
+#              se = se,
+#              hack = "affirm",
+#              return.only.published = FALSE,
+#              
+#              k = 200,
+#              k.hacked = 100 )
 
 
 # dataset of only published results

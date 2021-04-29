@@ -8,7 +8,8 @@
 
 # ANALYSIS FNS ---------------------------------------------------------------
 
-# this is the major workhorse fn
+# **this is the major workhorse fn
+# use the studies assumed to be unhacked to corrected the ones assumed to be hacked
 # hackAssumed: "omniscient" (we know which are hacked) or "allAffirms"
 correct_dataset_phack = function( .dp,  # published studies
                                   .p,  # parameters as dataframe
@@ -146,6 +147,10 @@ report_rma = function(.mod,
 # also note that for the unhacked study sets, the single published result could be 
 # affirmative OR nonaffirmative
 
+# simulate meta-analysis in which the hacking follows a mixture distribution:
+# some studies are unhacked, in which case we always make Nmax draws and then report the last one (which is equivalent to only making 1 draw)
+# and some studies are hacked, in which case we make UP TO Nmax draws and stop
+# either when we get the first affirmative OR when we reach Nmax draws
 sim_meta = function(Nmax,  # max draws to try
                     Mu,  # overall mean for meta-analysis
                     T2,  # across-study heterogeneity
@@ -194,6 +199,9 @@ sim_meta = function(Nmax,  # max draws to try
   ### Simulate the unhacked studies ###
   if ( k.unhacked > 0 ) {
     for ( i in 1:(k - k.hacked) ) {
+      
+      if ( i %% 50 == 0 ) cat("\nSimulating study #", i)
+      
       # to generate unhacked studies, need to change argument "hack"
       .argsUnhacked = .args
       .argsUnhacked[ names(.args) == "hack" ] = "no"
@@ -214,6 +222,9 @@ sim_meta = function(Nmax,  # max draws to try
     if ( exists(".dat") ) startInd = max(.dat$study) + 1 else startInd = 1
     
     for ( i in startInd:(startInd + k.hacked - 1) ) {
+      
+      if ( i %% 50 == 0 ) cat("\nSimulating study #", i)
+      
       # for unhacked studies, no need to change argument "hack"
       .argsHacked = .args
       
@@ -322,10 +333,12 @@ sim_one_study_set = function(Nmax,  # max draws to try
   N = 0  # counts draws actually made
   
   
+  # we use this loop whether there's hacking or not
   while( stop == FALSE & N < Nmax ) {
     
     newRow = do.call( make_one_draw, .args )
     
+    # number of draws made so far
     N = N + 1
     
     # add new draw to dataset
@@ -335,13 +348,12 @@ sim_one_study_set = function(Nmax,  # max draws to try
     # check if it's time to stop drawing results
     if (hack == "signif") stop = (newRow$pval < 0.05)
     if (hack == "affirm") stop = (newRow$pval < 0.05 & newRow$yi > 0)
-    # if this study set is unhacked, then success is just whether we've reached the 
+    # if this study set is unhacked, then success is just whether we've reached Nmax draws
     if ( hack == "no") stop = (N == Nmax)
   }
   
-  # number of draws made
+  # record info in dataset
   d$N = N
-  
   d$hack = hack
   
   # convenience indicators for significance and affirmative status
@@ -349,6 +361,8 @@ sim_one_study_set = function(Nmax,  # max draws to try
   d$affirm = (d$pval < 0.05 & d$yi > 0)
   
   # publication indicator
+  # in the first 2 cases, Di=1 for only the last draw IF we got an affirm result
+  #  but if we didn't, then it will always be 0
   if ( hack == "signif" ) d$Di = (d$signif == TRUE)
   if (hack == "affirm") d$Di = (d$affirm == TRUE)
   # if no hacking, assume only last draw is published
@@ -357,6 +371,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
     d$Di[ length(d$Di) ] = 1
   }
   
+  
   if ( return.only.published == TRUE ) d = d[ d$Di == 1, ]
   
   return(d)
@@ -364,14 +379,14 @@ sim_one_study_set = function(Nmax,  # max draws to try
 }
 
 
-# d = sim_one_study_set(Nmax = 2,
+# d = sim_one_study_set(Nmax = 1,
 #                       Mu = 0.1,
 #                       T2 = 0.1,
 #                       m = 50,
 #                       t2w = .5,
 #                       se = 1,
-#                       hack = "signif",
-#                       return.only.published = TRUE)
+#                       hack = "affirm",
+#                       return.only.published = FALSE)
 # nrow(d)
 # d
 
@@ -449,7 +464,6 @@ sim_one_study_set = function(Nmax,  # max draws to try
 
 
 
-
 # draws one unbiased result within the study
 make_one_draw = function(mui,  # mean for this study set
                          t2w,
@@ -492,7 +506,7 @@ make_one_draw = function(mui,  # mean for this study set
                      muin = muin,
                      yi = mean(y),
                      vi = vi,
-                     viTrue = sd.y / sqrt(m),  # true variance
+                     viTrue = sd.y^2 / m,  # true variance; will equal p$se^2
                      m = m ) )
   #success = success,
   #N = Nmax ) )
