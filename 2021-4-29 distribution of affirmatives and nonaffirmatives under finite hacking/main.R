@@ -234,9 +234,7 @@ for ( i in 1:8000 ) {
 
 
 dim(fake)
-expect_equal(  )
 
-#bm
 
 # THIS REPRODUCES THE PROBLEM
 hackedExpTrue; mean(fake$yi[ fake$Di == 1])
@@ -273,7 +271,7 @@ hackedMargVarTrue; var(fake2$yi[ fake2$affirm == 1])
 
 
 
-# EARLIER VERSION:
+# ~ EARLIER VERSION: -------------------------------
 # simulate a huge dataset, all unhacked
 fake3 = sim_meta(Nmax = 1,
                  Mu = p$Mu,
@@ -345,7 +343,7 @@ vartrunc( spec = "t",
          a = unique( fake3$tcrit ) )
 
 
-# EVEN SIMPLER AGAIN: SIMULATE FROM SCRATCH
+# EVEN SIMPLER AGAIN: SIMULATE FROM SCRATCH  -------------------------------
 for ( i in 1:8000 ) {
   
   mui = p$Mu + rnorm(mean = 0,
@@ -406,7 +404,7 @@ var(fake5$yi); p$T2 + p$t2w + p$se^2
 vartrunc( spec = "t",
           ncp = p$Mu / sqrt( p$T2 + p$t2w + unique(p$se)^2 ),
           df = p$m-1,
-          a = unique( fake3$tcrit ) )
+          a = unique( fake5$tcrit ) )
 
 #bm
 
@@ -417,6 +415,288 @@ mean(fake3$vi)
 # ESPECIALLY WEIRD BECAUSE I'M JUST MAKING T-DISTRIBUTED SAMPLES AND LOOKING AT THE MEAN AND 
 #  VARIANCE OF THE AFFIRMATIVE ONES. THE MARGINAL MOMENTS (NOT CONDIITONING ON AFFIRM STATUS)
 #  ARE WHAT I EXPECTED TO SEE, BUT THE CONDITIONAL ONES ARE WRONG.
+
+
+
+# # recalculate affirmative indicator, accounting for T2 + t2w
+# fake5$tstat2 = fake5$yi / sqrt( p$T2 + p$t2w + unique(p$se)^2 )
+# fake5$pval2 = 2 * ( 1 - pt( abs( fake5$tstat2 ), df = p$m - 1 ) )
+# 
+# fake5$yi / sqrt( p$T2 + p$t2w + unique(p$se)^2
+# 
+# 
+# mean(fake5$yi[ fake5$pval2 < 0.05 & fake5$yi > 0 ])
+# var(fake5$yi[ fake5$affirm == 1])
+
+
+# TRUNCATE AT DIFFERENT VALUE, NOT DEPENDING ON P-VALUE -------------------------------
+
+# truncate at a different value, not depending on p-value
+mean(fake5$yi[ fake5$pval2 < 0.05 & fake5$yi > 0 ])
+
+vartrunc( spec = "t",
+          ncp = p$Mu / sqrt( p$T2 + p$t2w + unique(p$se)^2 ),
+          df = p$m-1,
+          a = 1 )
+
+var(fake5$yi[ fake5$yi > 1 ])
+
+
+
+
+# still wrong!! 
+# **so it's nothing to do with the t-test itself
+
+
+# NO HETEROGENEITY -------------------------------
+
+for ( i in 1:8000 ) {
+  
+  sd.y = p$se * sqrt(p$m)
+
+  # draw subject-level data from this study's population effect
+  y = rnorm( mean = p$Mu,
+             sd = sd.y,
+             n = p$m)
+  
+  
+  test = t.test(y,
+                alternative = "two.sided")
+  
+  pval = test$p.value
+  tstat = test$statistic
+  vi = test$stderr^2  # ESTIMATED variance
+  
+  newRow = data.frame(pval = pval,
+                      tstat = tstat,
+                      tcrit = qt(0.975, df = p$m-1),
+                      mui = mui,
+                      muin = muin,
+                      yi = mean(y),
+                      vi = vi,
+                      viTrue = sd.y^2 / p$m,  # true variance; will equal p$se^2
+                      m = p$m ) 
+  
+  if ( i == 1 ) fake5 = newRow else fake5 = rbind(fake5, newRow)
+}
+
+
+# **needed to calculate t-stat with vi instead of true p$se^2
+fake5$tstat2 = fake5$yi / sqrt(fake5$vi)
+
+fake5$pval2 = 2 * ( 1 - pt( abs( fake5$tstat2 ), df = p$m - 1 ) )
+
+
+
+extrunc( spec = "t",
+          ncp = p$Mu / unique(p$se),
+          df = p$m-1,
+          a = 1 )
+mean(fake5$tstat2[ fake5$tstat2 > 1 ])
+
+vartrunc( spec = "t",
+          ncp = p$Mu / unique(p$se),
+          df = p$m-1,
+          a = 1 )
+
+var(fake5$tstat2[ fake5$tstat2 > 1 ])
+
+# WORKS
+# **needed to calculate t-stat with vi instead of true p$se^2
+# and needed to compare the t-stats, not the yis, to truncated t
+
+
+# now try truncating at affirm status
+# seems close? WORKS?
+crit = qt( p = 0.975,
+           df = p$m - 1 )
+
+extrunc( spec = "t",
+         ncp = p$Mu / unique(p$se),
+         df = p$m-1,
+         a = crit )
+mean(fake5$tstat2[ fake5$tstat2 > crit ])
+
+vartrunc( spec = "t",
+          ncp = p$Mu / unique(p$se),
+          df = p$m-1,
+          a = crit )
+
+var(fake5$tstat2[ fake5$tstat2 > crit ])
+
+
+# PUT BACK HETEROGENEITY  -------------------------------
+
+# increase heterogeneity here to exacerbate problem, if there is one
+# and reduce se a little
+# and increase m to make normal approx really good
+p$T2 = 0.25
+p$t2w = 0.25
+p$se = 0.2
+p$m = 200
+for ( i in 1:8000 ) {
+  mui = p$Mu + rnorm(mean = 0,
+                     sd = sqrt(p$T2),
+                     n = 1)
+  
+  sd.y = p$se * sqrt(p$m)
+  
+  
+  # true mean for draw n (based on within-study heterogeneity)
+  muin = rnorm(mean = mui,
+               sd = sqrt(p$t2w),
+               n = 1)
+  
+  # draw subject-level data from this study's population effect
+  y = rnorm( mean = muin,
+             sd = sd.y,
+             n = p$m)
+  
+  
+  test = t.test(y,
+                alternative = "two.sided")
+  
+  pval = test$p.value
+  tstat = test$statistic
+  vi = test$stderr^2  # ESTIMATED variance
+  
+  newRow = data.frame(pval = pval,
+                      tstat = tstat,
+                      tcrit = qt(0.975, df = p$m-1),
+                      mui = mui,
+                      muin = muin,
+                      yi = mean(y),
+                      vi = vi,
+                      viTrue = sd.y^2 / p$m,  # true variance; will equal p$se^2
+                      m = p$m ) 
+  
+  if ( i == 1 ) fake5 = newRow else fake5 = rbind(fake5, newRow)
+  
+}
+
+
+# **this is the "real" t-stat with heterogeneity
+fake5$tstat2 = fake5$yi / sqrt(p$T2 + p$t2w + fake5$vi)
+
+# confirm how the regular t-stat is calculated
+expect_equal( fake5$yi / sqrt(fake5$vi), fake5$tstat )
+
+
+# 1.98
+extrunc( spec = "t",
+         ncp = p$Mu / sqrt(p$T2 + p$t2w + unique(p$se)^2),
+         df = p$m-1,
+         a = 1 )
+
+# extrunc( spec = "t",
+#          ncp = p$Mu / unique(p$se),
+#          df = p$m-1,
+#          a = 1 )
+
+# too low!
+mean(fake5$tstat2[ fake5$tstat2 > 1 ])
+# now I'm consistently getting 1
+
+vartrunc( spec = "t",
+          ncp = p$Mu / sqrt(p$T2 + p$t2w + unique(p$se)^2),
+          df = p$m-1,
+          a = 1 )
+
+var(fake5$tstat2[ fake5$tstat2 > 1 ])
+
+
+# now look at the "fake" t-stats that don't incorporate heterogeneity
+
+vartrunc( spec = "t",
+          ncp = p$Mu / sqrt(p$T2 + p$t2w + unique(p$se)^2),
+          df = p$m-1,
+          a = 1 )
+
+var(fake5$tstat[ fake5$tstat > 1 ])
+
+
+
+
+
+vartrunc( spec = "norm",
+          mean = p$Mu / sqrt(p$T2 + p$t2w + unique(p$se)^2,
+          sd = sqrt(p$T2 + p$t2w + unique(p$se)^2)
+          df = p$m-1,
+          a = 1 )
+
+vartrunc( spec = "norm",
+          mean = p$Mu,
+          sd = sqrt(p$T2 + p$t2w + unique(p$se)^2)
+          df = p$m-1,
+          a = 1 )
+
+
+# ~ Normal approx -----------------------------------
+# should be close
+# ~~ true mean of t-stats calculated WITH heterogeneity --------
+p$Mu / sqrt(p$T2 + p$t2w + unique(p$se)^2); mean(fake5$tstat2)
+1; var(fake5$tstat2)
+
+# normal approx
+vartrunc( spec = "norm",
+          mean = p$Mu / sqrt(p$T2 + p$t2w + unique(p$se)^2),
+          sd = 1,
+          a = 1 )
+
+var(fake5$tstat2[ fake5$tstat2 > 1 ])
+# WORKS - THIS IS PRETTY CLOSE
+
+
+# ~~ now try the CALCULATED t-stats --------------
+se = unique(p$se)
+p$Mu / se; mean(fake5$tstat)
+# **because the CALCULATED t-stats scale by the incomplete (marginal) variance
+# much closer, but true variance still a bit larger
+# probably because of sampling error in se estimate
+(1/se^2) * (p$T2 + p$t2w + se^2); var(fake5$tstat)
+
+# check if that's the reason by calculating "t-stats" using true SE instead of estimated
+# **YES
+# so we could either ignore this source of variability or could try to delta-method it?
+var(fake5$yi / se)
+
+# x1: yi
+# x2: vi
+library(msm)
+correctedSE = deltamethod( g = ~ x1/sqrt(x2),
+             mean = c(p$Mu, se^2),
+             cov = matrix( c( p$T2 + p$t2w + se^2, 0, 0, var(fake5$vi) ),
+                           nrow = 2 ) )
+# **a bit closer, but still not quite
+correctedSE^2; var(fake5$tstat)
+
+
+# normal approx
+vartrunc( spec = "norm",
+          mean = p$Mu / se,
+          sd = sqrt( (1/se^2) * (p$T2 + p$t2w + se^2) ),
+          a = 1 )
+
+# with delta method variance
+vartrunc( spec = "norm",
+          mean = p$Mu / se,
+          sd = correctedSE,
+          a = 1 )
+
+# still a bit too high
+var(fake5$tstat[ fake5$tstat > 1 ])
+
+# # not sure how to use t-dist here...
+# vartrunc( spec = "t",
+#           ncp = (p$Mu / correctedSE),
+#           df = p$m-1,
+#           a = 1 )
+
+#bm
+
+
+
+
 
 
 
