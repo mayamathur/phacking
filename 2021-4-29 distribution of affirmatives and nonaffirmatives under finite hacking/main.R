@@ -33,12 +33,12 @@ library(truncdist)
 
 # parameters also needed later
 p = data.frame( Mu = 1,
-                T2 = 0.1,
-                m = 50,
-                t2w = .1,
-                se = 1,
+                T2 = 0.25,
+                m = 500,
+                t2w = .25,
+                se = .5,
                 
-                Nmax = 1,
+                Nmax = 10,
                 hack = "affirm",
                 
                 k = 2000,
@@ -58,6 +58,8 @@ d = sim_meta(Nmax = p$Nmax,
              k = p$k,
              k.hacked = p$k.hacked )
 
+summary(d$viTrue)
+summary(d$vi)
 
 # dataset of only published results
 dp = d %>% filter(Di == 1)
@@ -69,9 +71,10 @@ dim(dp)
 dph = dp %>% filter(hack == "affirm")
 
 # # save for later
-# setwd( here("2021-4-29 distribution of affirmatives and nonaffirmatives under finite hacking") )
-# # add in the parameters
-# fwrite( cbind( dph, p ), "sim_meta_Nmax1_hugek.csv")
+setwd( here("2021-4-29 distribution of affirmatives and nonaffirmatives under finite hacking") )
+# add in the parameters that aren't already in dataset
+shortParams = p[ , !names(p) %in% names(d) ]
+fwrite( cbind( d, shortParams ), "sim_meta_Nmax10_hugek_hugem_allhacked_all_studies.csv")
 
 
 # read back in
@@ -153,6 +156,10 @@ hackedMargVarTrue; t$`var(yi)`[t$Di == TRUE]
 # seems pretty close
 
 # so the Nmax doesn't seem to matter, but either way the expectation is a little off
+
+
+
+
 
 # SANITY CHECK: SIMULATE DIRECTLY FROM TRUNCATED DISTRIBUTION ------------------------------
 
@@ -303,7 +310,6 @@ vartrunc( spec = "t",
 mean(fake3$yi[ fake3$affirm == 1])
 var(fake3$yi[ fake3$affirm == 1])
 
-#bm
 
 
 # simplify even further
@@ -406,7 +412,6 @@ vartrunc( spec = "t",
           df = p$m-1,
           a = unique( fake5$tcrit ) )
 
-#bm
 
 # this is exactly right
 mean(fake3$vi)
@@ -697,7 +702,336 @@ var(fake5$tstat[ fake5$tstat > 1 ])
 
 
 
+# TRY FULL SIM AGAIN USING ABOVE REALIZATIONS ------------------------------
 
+# read back in
+# note: uses different parameters from sims above
+setwd( here("2021-4-29 distribution of affirmatives and nonaffirmatives under finite hacking") )
+# # keep only 1 draw per study
+# d = fread("sim_meta_no_hack_hugek.csv")
+# d = d[ d$Di == 1, ]
+
+# try instead with huge m to eliminate t vs. normal issues
+d = fread("sim_meta_Nmax1_hugek_hugem_all_studies.csv")
+
+
+# all results, sorted by hacking status and publication status
+t = d %>%
+  group_by(hack, Di) %>%
+  summarise( n(),
+             k = length(unique(study)),
+             mean(affirm),
+             mean(mui),
+             var(mui),
+             mean(yi),
+             var(yi))
+t
+
+
+
+# ~ CHECK AGAINST TRUNCATED DISTRIBUTION ------------------------------
+
+# **use normal based on what I learned above
+
+# first look at t-stats calculated using real vi to avoid vi estimation error
+d$tstat2 = d$yi / sqrt(d$viTrue)
+
+#bm
+
+Mu = unique(d$Mu)
+T2 = unique(d$T2)
+t2w = unique(d$t2w)
+m = unique(d$m)
+se = unique(d$se)
+
+
+Mu / se; mean(d$tstat)
+# **because the CALCULATED t-stats scale by the incomplete (marginal) variance
+# much closer, but true variance still a bit larger
+# probably because of sampling error in se estimate
+(1/se^2) * (T2 + t2w + se^2); var(d$tstat); var(d$tstat2)
+
+
+# x1: yi
+# x2: vi
+library(msm)
+correctedSE = deltamethod( g = ~ x1/sqrt(x2),
+                           mean = c(Mu, se^2),
+                           cov = matrix( c( T2 + t2w + se^2, 0, 0, var(d$vi) ),
+                                         nrow = 2 ) )
+# **a bit closer, but still not quite
+correctedSE^2; var(d$tstat); var(d$tstat2)
+
+
+# empirical moments with cutoff
+var(d$tstat[ d$tstat > cutoff])
+var(d$tstat2[ d$tstat2 > cutoff])
+
+mean(d$tstat[ d$tstat > cutoff])
+mean(d$tstat2[ d$tstat2 > cutoff])
+
+# normal approx without delta method
+cutoff = 2
+vartrunc( spec = "norm",
+          mean = p$Mu / se,
+          sd = sqrt( (1/se^2) * (p$T2 + p$t2w + se^2) ),
+          a = cutoff )
+
+extrunc( spec = "norm",
+         mean = p$Mu / se,
+         sd = sqrt( (1/se^2) * (p$T2 + p$t2w + se^2) ),
+         a = cutoff )
+
+# with delta method variance
+# **this one is much better than above one in this case
+# probably because m isn't very large
+vartrunc( spec = "norm",
+          mean = Mu / se,
+          sd = correctedSE,
+          a = cutoff )
+
+extrunc( spec = "norm",
+         mean = Mu / se,
+         sd = correctedSE,
+         a = cutoff )
+
+
+
+# t-distribution instead (as in the first sims in this script)
+extrunc( spec = "t",
+         ncp = Mu / sqrt( T2 + t2w + se^2 ),
+         df = m-1,
+         a = cutoff )
+
+vartrunc( spec = "t",
+          ncp = Mu / sqrt( T2 + t2w + se^2 ),
+          df = m-1,
+          a = cutoff )
+
+# t-dist with delta method variance
+# makes very little difference to t-distribution
+#   even though it made a pretty big difference to normal
+extrunc( spec = "t",
+         ncp = Mu / correctedSE,
+         df = m-1,
+         a = cutoff )
+
+vartrunc( spec = "t",
+          ncp = Mu / correctedSE,
+          df = m-1,
+          a = cutoff )
+
+
+# NORMAL VS. T ASYMPTOTIC EQUIVALENCE ---------------------------
+
+
+# shouldn't these be the same?
+extrunc( spec = "norm",
+         mean = Mu/se,
+         sd = correctedSE,
+         a = -Inf,
+         b = Inf )
+
+# this is definitely like a bug with package:
+# answer should obviously be 1 still
+extrunc( spec = "norm",
+         mean = Mu,
+         sd = correctedSE,
+         a = -999,
+         b = 999 )
+
+# x = rtrunc( n=2000,
+#             spec = "norm",
+#             mean = Mu / se,
+#             sd = correctedSE,
+#             a = -999,
+#             b = 999 )
+# mean(x)
+
+extrunc( spec = "norm",
+         mean = Mu / se,
+         sd = correctedSE,
+         a = ,
+         b = Inf )
+
+
+
+
+# df -> infty; no truncation
+# **Wikipedia: Limit of noncentral t as df -> infty is N(ncp, 1)
+
+# this definitely DOES need to divide by se in the mean
+vartrunc( spec = "norm",
+         mean = Mu / se,
+         sd = correctedSE,
+         a = -Inf,
+         b = Inf )
+# yes; with large m, this is exactly right
+var(d$tstat)
+var(d$tstat2)
+
+
+# this will always have variance of 1 
+# so how are we supposed to use it?
+vartrunc( spec = "t",
+          ncp = Mu / correctedSE,
+          df = 1000,
+          a = -Inf,
+          b = Inf )
+
+# I think we'd need to actually calculate the t-stats differently:
+var(d$tstat / correctedSE)
+# this works
+
+# # calculated the ESTIMATED corrected SE for the rescaling
+# d %>% rowwise() %>%
+#   mutate( correctedSE.est = deltamethod( g = ~ x1/sqrt(x2),
+#                                          mean = c(Mu, d$vi),
+#                                          cov = matrix( c( p$T2 + p$t2w + sqrt(d$vi)^2, 0, 0, var(d$vi) ),
+#                                                        nrow = 2 ) ) )
+# 
+
+d$tstatRescaled = d$tstat / correctedSE
+
+
+# now look at truncation
+## Method 1: Normal
+# yes, looks good
+cutoff = 2
+extrunc( spec = "norm",
+         mean = Mu / se,
+         sd = correctedSE,
+         a = cutoff )
+mean( d$tstat[d$tstat > cutoff] )
+
+vartrunc( spec = "norm",
+         mean = Mu / se,
+         sd = correctedSE,
+         a = cutoff )
+var( d$tstat[d$tstat > cutoff] )
+
+
+# lower part of truncation
+extrunc( spec = "norm",
+         mean = Mu / se,
+         sd = correctedSE,
+         b = cutoff )
+mean( d$tstat[d$tstat < cutoff] )
+
+vartrunc( spec = "norm",
+          mean = Mu / se,
+          sd = correctedSE,
+          b = cutoff )
+var( d$tstat[d$tstat < cutoff] )
+
+## Method 2: truncated t
+# DOES NOT WORK
+extrunc( spec = "t",
+          ncp = Mu / correctedSE,
+          df = 1000,
+          a = cutoff )
+#*note use of RESCALED t-stat here
+mean( d$tstatRescaled[d$tstatRescaled > cutoff] )
+
+vartrunc( spec = "t",
+          ncp = Mu / correctedSE,
+          df = 1000,
+          a = cutoff )
+var( d$tstatRescaled[d$tstatRescaled > cutoff] )
+
+
+# ~ NOW TRY WITH HACKING ---------------------------------
+
+# read back in
+# note: uses different parameters from sims above
+setwd( here("2021-4-29 distribution of affirmatives and nonaffirmatives under finite hacking") )
+
+# try instead with huge m to eliminate t vs. normal issues
+d = fread("sim_meta_Nmax10_hugek_hugem_allhacked_all_studies.csv")
+
+
+# all results, sorted by hacking status and publication status
+t = d %>%
+  group_by(hack, Di) %>%
+  summarise( n(),
+             k = length(unique(study)),
+             mean(affirm),
+             mean(mui),
+             var(mui),
+             mean(yi),
+             var(yi))
+t
+
+
+d$tstat2 = d$yi / sqrt(d$viTrue)
+
+dph = d[ d$Di == TRUE, ]
+table(dph$affirm)
+
+Mu = unique(d$Mu)
+T2 = unique(d$T2)
+t2w = unique(d$t2w)
+m = unique(d$m)
+se = unique(d$se)
+
+
+library(msm)
+correctedSE = deltamethod( g = ~ x1/sqrt(x2),
+                           mean = c(Mu, se^2),
+                           cov = matrix( c( T2 + t2w + se^2, 0, 0, var(d$vi) ),
+                                         nrow = 2 ) )
+
+crit = unique(d$tcrit)
+
+
+## Method 1: Normal
+# yes, looks good
+cutoff = 2
+extrunc( spec = "norm",
+         mean = Mu / se,
+         sd = correctedSE,
+         a = crit )
+mean( dph$tstat )
+mean(d$tstat[ d$tstat > crit] )
+
+vartrunc( spec = "norm",
+          mean = Mu / se,
+          sd = correctedSE,
+          a = cutoff )
+var( dph$tstat )
+
+
+# lower part of truncation
+extrunc( spec = "norm",
+         mean = Mu / se,
+         sd = correctedSE,
+         b = crit )
+mean( d$tstat[d$tstat < crit] )
+
+vartrunc( spec = "norm",
+          mean = Mu / se,
+          sd = correctedSE,
+          b = crit )
+var( d$tstat[d$tstat < crit] )
+
+
+# NOW BOTH MOMENTS ARE WRONG...
+# BM: TRY TO FIGURE THIS OUT!
+
+
+#bm
+# NEXT UP: THINK ABOUT WHERE WE ARE WRT THE PREVIOUS SIM RESULTS USING T DISTRIBUTION. 
+# SHOULD I ACTUALLY CHANGE ANYTHING ABOUT THAT?
+# OVERALL GOAL WAS TO LOOK AT DIST OF STATS UNDER FINITE VS. INFINITE HACKING. 
+# SO SHOULD PROBABLY SEE IF BIAS IS SAME AT DIFFERENT LEVELS OF NMAX. 
+# ALSO LOOK AT EXPECTATION OF NONAFFIRMATIVES.
+
+# not sure how we're supposed to use truncated t because it always has variance of 1 
+# asymptotically...I guess we'd need to rescale 
+
+
+
+# bm
 
 
 

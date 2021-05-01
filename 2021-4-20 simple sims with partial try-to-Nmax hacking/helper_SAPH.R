@@ -496,6 +496,7 @@ make_one_draw = function(mui,  # mean for this study set
     stop("rho>0 case not implemented yet")
   }
   
+  
   # if (hack == "signif") success = (pval < 0.05)
   # if (hack == "affirm") success = (pval < 0.05 & mean(y) > 0)
   
