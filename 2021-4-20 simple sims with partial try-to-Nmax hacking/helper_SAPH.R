@@ -26,19 +26,19 @@ joint_ll = function(.tstats, .Mu, .T2, .t2w, .se, .crit) {
 # get a corrected MLE from nonaffirms only
 # .t2w and .se are taken to be fixed and known
 nonaffirm_mles = function(.tstats, .t2w, .se, .crit) {
-
+  
   # par given as (Mu, T2)
   optim( par = c( mean(.tstats * .se), 0),  # starting point for optimization
-                f = function(.x) # the negative ll
-                  -joint_ll( .tstats = .tstats,
-                             .Mu = .x[1],
-                             .T2 = .x[2],
-                             .t2w = .t2w,
-                             .se = .se,
-                             .crit = .crit),
-                lower = c(-Inf, 0),
-                method = "L-BFGS-B" )
-
+         f = function(.x) # the negative ll
+           -joint_ll( .tstats = .tstats,
+                      .Mu = .x[1],
+                      .T2 = .x[2],
+                      .t2w = .t2w,
+                      .se = .se,
+                      .crit = .crit),
+         lower = c(-Inf, 0),
+         method = "L-BFGS-B" )
+  
 }
 
 
@@ -458,6 +458,8 @@ sim_one_study_set = function(Nmax,  # max draws to try
   # we use this loop whether there's hacking or not
   while( stop == FALSE & N < Nmax ) {
     
+    #@here, need to pass the previous draw's muin in case rho>0
+    # if ( N == 1 ) just pass muin = NA; else muin = d$muin[length(d)]
     newRow = do.call( make_one_draw, .args )
     
     # number of draws made so far
@@ -587,18 +589,34 @@ sim_one_study_set = function(Nmax,  # max draws to try
 
 
 # draws one unbiased result within the study
+# muin should be NA if either we want uncorrelated draws OR it's the first of a series of correlated draws
 make_one_draw = function(mui,  # mean for this study set
                          t2w,
                          sd.y,  # TRUE SD
                          m,
+                         
+                         # for making correlated draws
                          rho = 0,
+                         last.muin = NA,  
                          ...) {
   
   
   # true mean for draw n (based on within-study heterogeneity)
-  muin = rnorm(mean = mui,
-               sd = sqrt(t2w),
-               n = 1)
+  # either we want uncorrelated draws OR it's the first of a series of correlated draws
+  if ( rho == 0 | is.na(last.muin) ) {
+    muin = rnorm(mean = mui,
+                 sd = sqrt(t2w),
+                 n = 1)
+  }
+  
+  # make correlated draw
+  if ( rho != 0 & !is.na(last.muin) ) {
+    # draw from BVN conditional, given muin from last draw
+    muin = rnorm(mean = mui + rho * (last.muin - mui),
+                 sd = sqrt( t2w * (1 - rho^2) ),
+                 n = 1)
+  }
+  
   
   # draw subject-level data from this study's population effect
   y = rnorm( mean = muin,
@@ -606,17 +624,12 @@ make_one_draw = function(mui,  # mean for this study set
              n = m)
   
   # run a one-sample t-test
-  if ( rho == 0 ) {
-    
-    test = t.test(y,
-                  alternative = "two.sided")
-    
-    pval = test$p.value
-    tstat = test$statistic
-    vi = test$stderr^2  # ESTIMATED variance
-  } else {
-    stop("rho>0 case not implemented yet")
-  }
+  test = t.test(y,
+                alternative = "two.sided")
+  
+  pval = test$p.value
+  tstat = test$statistic
+  vi = test$stderr^2  # ESTIMATED variance
   
   
   # if (hack == "signif") success = (pval < 0.05)
@@ -639,23 +652,64 @@ make_one_draw = function(mui,  # mean for this study set
 #               t2w = 0,
 #               sd.y = 0.3,
 #               m = 30 )
-
-# sanity check by simulation
+# 
+# # rho = 1, so should get exactly the same muin again
+# #bm
+# make_one_draw(mui = 0.1,
+#               t2w = 0.1,
+#               sd.y = 0.3,
+#               m = 30,
+#               rho = 1,
+#               last.muin = 0.8)
+# 
+# # sanity check by simulation: uncorrelated draws
 # for ( i in 1:5000 ) {
+#   
+#   # get last draw
+#   last.muin = NA
+#   if ( i > 1 ) last.muin = .d$muin[ nrow(.d) ]
+#   
 #   newRow = make_one_draw(mui = 0.1,
 #                   t2w = 0.1,
 #                   sd.y = 0.3,
-#                   m = 30 )
+#                   m = 30,
+#                   rho = 0.9,
+#                   last.muin = last.muin)
+# 
+#   if ( i == 1 ) .d = newRow else .d = rbind(.d, newRow)
+# 
+# }
+# 
+# .d %>% summarise( mean(mui),
+#                   mean(muin),
+#                   var(muin),
+#                   mean(yi) )
+# 
+# 
+# # sanity check by simulation: correlated draws
+# for ( i in 1:5000 ) {
+#   newRow = make_one_draw(mui = 0.1,
+#                          t2w = 0.1,
+#                          sd.y = 0.3,
+#                          m = 30,
+#                          rho = 1,
+#                          last.muin = 0.8)
 #   
 #   if ( i == 1 ) .d = newRow else .d = rbind(.d, newRow)
 #   
 # }
 # 
-# .d %>% summarise( 
-#                   mean(mui),
-#                   mean(muin),
-#                   var(muin),
-#                   mean(yi) )
+# .d %>% summarise(
+#   mean(mui),
+#   mean(muin),
+#   var(muin),
+#   mean(yi) )
+# 
+# # look at autocorrelation of muin's (should match rho above)
+# acf(.d$muin, lag = 1)$acf
+# 
+# # look at autocorrelation of yi's (<rho because of SE>0)
+# acf(.d$yi, lag = 1)$acf
 
 
 
