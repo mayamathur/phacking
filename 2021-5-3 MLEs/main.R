@@ -5,7 +5,7 @@
 # borrow helper fns from previous sims
 library(here)
 setwd( here("2021-4-20 simple sims with partial try-to-Nmax hacking") )
-source("helper.R")
+source("helper_SAPH.R")
 
 # data-wrangling packages
 library(dplyr)
@@ -35,9 +35,8 @@ setwd(results.dir)
 
 # ~ EXPT 1 -------------------------
 
-# all unhacked
-# this is just to get the dataset, even though it also does some analyses
-
+# all unhacked with Nmax = 10, so I expect the published nonaffirms
+#  to exactly come from the trunc dist
 p = data.frame( Mu = 1,
                 T2 = 0.25,
                 m = 500,
@@ -52,12 +51,12 @@ p = data.frame( Mu = 1,
 
 
                 sim.name = "expt_1" )
-# 
+
+# this is just to get the dataset, even though it also does some analyses
 # x = quick_sim( .p = p,
-#                results.dir = results.dir )
+#                .results.dir = results.dir )
 
 # read back in
-
 load("expt_1")
 d = x$d
 
@@ -153,6 +152,7 @@ mles[2]; (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
 # par(mfrow=c(3,2))
 # plot(mle.profile1)
 
+# **THIS SEEMS TO WORK PRETTY WELL
 # try with my real data
 mle.fit = mle.tmvnorm( as.matrix(tstats, ncol = 1), lower=-Inf, upper=crit)
 summary(mle.fit)
@@ -164,7 +164,37 @@ mles[2]; (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
 
 
 
+# ~ EXPT 2 -------------------------
 
+# all unhacked with Nmax = 10 (as before), but now draws are correlated
+p = data.frame( Mu = 1,
+                T2 = 0.25,
+                m = 500,
+                t2w = 0.25,
+                se = .5,
+                
+                Nmax = 10,
+                hack = "affirm",
+                
+                k = 10000,
+                k.hacked = 10000,
+                
+                
+                sim.name = "expt_2" )
+
+x = quick_sim( .p = p,
+                .results.dir = results.dir )
+
+# read back in
+load("expt_2")
+d = x$d
+
+crit = unique(d$tcrit)
+
+
+# published only (i.e., last draw of each set)
+dp = d %>% filter(Di == 1)
+expect_equal( 10000, length(unique(dp$study)) )
 
 
 
