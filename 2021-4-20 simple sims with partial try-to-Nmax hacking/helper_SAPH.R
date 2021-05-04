@@ -4,6 +4,43 @@
 # "draw" always refers to within-study draw
 # "study set" refers to all draws, observed and observed, for a given study
 
+# 2021-5-3 ANALYSIS FNS ---------------------------------------------------------------
+
+
+# log-likelihood
+joint_ll = function(.tstats, .Mu, .T2, .t2w, .se, .crit) {
+  sum( log( dtrunc(x = .tstats,
+                   spec = "norm",
+                   mean = .Mu / .se,
+                   #@doesn't yet use the delta-method thing
+                   sd = sqrt( (1/.se^2) * (.T2 + .t2w + .se^2) ),
+                   b = .crit ) ) )
+}
+
+# joint_ll( .tstats = c(1.3, 1.2, 1, 0.9),
+#     .Mu = 1,
+#     .T2 = 0.25,
+#     .t2w = 0.25,
+#     .se = 0.5)
+
+# get a corrected MLE from nonaffirms only
+# .t2w and .se are taken to be fixed and known
+nonaffirm_mles = function(.tstats, .t2w, .se, .crit) {
+
+  # par given as (Mu, T2)
+  optim( par = c( mean(.tstats * .se), 0),  # starting point for optimization
+                f = function(.x) # the negative ll
+                  -joint_ll( .tstats = .tstats,
+                             .Mu = .x[1],
+                             .T2 = .x[2],
+                             .t2w = .t2w,
+                             .se = .se,
+                             .crit = .crit),
+                lower = c(-Inf, 0),
+                method = "L-BFGS-B" )
+
+}
+
 
 
 # ANALYSIS FNS ---------------------------------------------------------------
@@ -140,6 +177,91 @@ report_rma = function(.mod,
 
 
 # DATA SIMULATION ---------------------------------------------------------------
+
+
+# runs a simple simulation to compare empirical moments to theoretical ones 
+#  that I expected to match the empirical ones
+# writes the dataset to .results.dir if it isn't NA (in which case needs to have a variable, .p$sim.name)
+
+quick_sim = function(.p,
+                     .results.dir = NA) {
+  
+  # simulate a huge dataset, all finitely hacked
+  d = sim_meta(Nmax = .p$Nmax,
+               Mu = .p$Mu,
+               T2 = .p$T2,
+               m = .p$m,
+               t2w = .p$t2w,
+               se = .p$se,
+               hack = .p$hack,
+               return.only.published = FALSE,
+               
+               k = .p$k,
+               k.hacked = .p$k.hacked )
+  
+  
+  # add in the parameters that aren't already in dataset
+  shortParams = .p[ , !names(.p) %in% names(d) ]
+  d = cbind( d, shortParams )
+  
+  # dataset of only published results
+  dph = d[ d$Di == TRUE, ]
+  
+  Mu = unique(d$Mu)
+  T2 = unique(d$T2)
+  t2w = unique(d$t2w)
+  m = unique(d$m)
+  se = unique(d$se)
+  
+  library(msm)
+  correctedSE = deltamethod( g = ~ x1/sqrt(x2),
+                             mean = c(Mu, se^2),
+                             cov = matrix( c( T2 + t2w + se^2, 0, 0, var(d$vi) ),
+                                           nrow = 2 ) )
+  
+  crit = unique(d$tcrit)
+  
+  
+  res = data.frame( matrix( NA, nrow = 2, ncol = 2) )
+  names(res) = c("affirms", "nonaffirms")
+  row.names(res) = c("theoryExp", "empiricalExp")
+  
+  
+  ## Expectation of affirmatives
+  res[ "theoryExp", "affirms" ] = extrunc( spec = "norm",
+                                           mean = Mu / se,
+                                           sd = correctedSE,
+                                           a = crit )
+  
+  res[ "empiricalExp", "affirms" ] = mean( dph$tstat )
+  
+  
+  res[ "theoryVar", "affirms" ] = vartrunc( spec = "norm",
+                                            mean = Mu / se,
+                                            sd = correctedSE,
+                                            a = crit )
+  
+  res[ "empiricalVar", "affirms" ] = var( dph$tstat )
+  
+  
+  # would be hard to look at affirms because of duplication within studies (messes up var)
+  
+  print(res)
+  
+  library(Hmisc)
+  returnList = llist(d, res, correctedSE)
+  
+  # save dataset
+  if ( !is.na(.results.dir) & !is.na(.p$sim.name) ) {
+    setwd(.results.dir)
+    save( returnList, file=.p$sim.name )
+  }
+  
+  
+  return( returnList )
+  
+}
+
 
 # *note that the number of reported, hacked studies might be less than k.hacked
 #  if all Nmax draws are unsuccessful
