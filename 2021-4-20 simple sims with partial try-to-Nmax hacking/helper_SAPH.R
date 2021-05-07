@@ -163,6 +163,89 @@ correct_dataset_phack = function( .dp,  # published studies
 }
 
 
+
+
+# use only the nonaffirms to get trunc MLE
+#  and throws away the affirms
+# **note that the returned Vhat is an estimate of T2 + t2w, not T2 itself
+correct_meta_phack1 = function( .dp,  # published studies
+                                  .p  # parameters as dataframe
+                                   ) {
+  
+  # published affirmatives only
+  dpa = .dp[ .dp$affirm == FALSE, ]
+  
+  
+  ### MLEs from trunc normal ###
+  # these are the MLEs of the *t-stats*
+  mle.fit = mle.tmvnorm( as.matrix(dpa$tstat, ncol = 1), lower=-Inf, upper=crit)
+  #summary(mle.fit)
+  mles = coef(mle.fit)
+  
+  #@can't get CIs yet because of package issue
+  #  emailed Wilhelm about this on 2021-5-7
+  # CIs.tstats = confint( profile(mles, dpa$tstat, method="BFGS", trace=TRUE) )
+  
+  # get Wald CI a different way
+  tstat.mu.SE = attr( summary(mle.fit), "coef" )[ "mu_1", "Std. Error" ]
+  tstat.mu.CI = c( mles[1] - tstat.mu.SE * qnorm(0.975),
+                   mles[1] + tstat.mu.SE * qnorm(0.975) )
+
+  # # pretty good :)
+  # mles[1]; p$Mu/p$se
+  # mles[2]; (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
+  
+  # rescale MLEs to represent effect sizes rather than tstats
+  Mhat = mles[1] * p$se
+  # **use Vhat to represent MARGINAL heterogeneity (i.e., T2 + t2w)
+  Vhat = ( mles[2] * p$se^2 ) - p$se^2
+  
+  # and rescale CI limits
+  MhatCI = tstat.mu.CI * p$se
+  
+  ### Sanity checks: Moments of published nonaffirms vs. theory ###
+  # check that moments are what we expect
+
+  theoryExpTstat = extrunc(spec = "norm",
+                          mean = p$Mu / p$se,
+                          #@doesn't yet use the delta-method thing
+                          sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
+                          b = crit )
+  
+  theoryVarTstat = vartrunc(spec = "norm",
+           mean = p$Mu / p$se,
+           #@doesn't yet use the delta-method thing
+           sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
+           b = crit )
+
+ 
+  
+  ### Return all the things ###
+  return( list( metaCorr = data.frame( Mhat = Mhat,
+                                       MhatLo = MhatCI[1],
+                                       MhatHi = MhatCI[2],
+                                       MhatCover = ( MhatCI[1] <= p$Mu ) & ( MhatCI[2] >= p$Mu ),
+                                       Vhat = Vhat),
+
+               
+               # note that all of these stats pertain to only published nonaffirmatives
+               sanityChecks = data.frame( kNonaffirmPub = sum( dpa$affirm == FALSE ),
+                                          
+                                          # check that moments of published nonaffirms are what we expect
+                                          # these should be similar
+                                          theoryExpTstat = theoryExpTstat,
+                                          empExpTstat = mean(dpa$tstat),
+                                          
+                                          theoryVarTstat = theoryVarTstat,
+                                          empVarTstat = var(dpa$tstat),
+                                        
+                                          
+                                          yiMeanNonaffirmPub = mean(dpa$yi),
+                                          viMeanNonaffirmPub = mean(dpa$vi) ) ) )
+  
+}
+
+
 # nicely report a metafor object with optional suffix to denote which model it is
 # includes coverage
 report_rma = function(.mod,
@@ -290,14 +373,15 @@ sim_meta = function(Nmax,  # max draws to try
                     t2w,  # within-study heterogeneity
                     se,  # TRUE SE
                     
-                    rho = 0,
-                    return.only.published = FALSE,
+                    rho = 0,  # autocorrelation of muin's
+                
                     hack,  # mechanism of hacking for studies that DO hack (so not "no")
                     
                     # args not passed to sim_one_study_set:
                     k,  # number of studies
-                    k.hacked  # number of hacked studies
+                    k.hacked,  # number of hacked studies
                     
+                    return.only.published = FALSE
 ) {
   
   # # test only

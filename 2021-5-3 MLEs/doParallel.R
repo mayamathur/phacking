@@ -1,17 +1,8 @@
 
 
+# **note that the returned Vhat is an estimate of T2 + t2w, not T2 itself
 
 
-# simulate meta-analysis with hacking
-
-# bias-correction #1 (omniscient):
-#  we know which studies are hacked
-
-# bias-correction #2 (assume all affirmatives hacked):
-#  should be conservative
-
-
-# audited 2020-6-17
 
 # because Sherlock 2.0 restores previous workspace
 rm( list = ls() )
@@ -90,7 +81,6 @@ if ( run.local == TRUE ) {
   # helper fns
   code.dir = here("2021-4-20 simple sims with partial try-to-Nmax hacking")
   setwd(code.dir)
-  
   source("helper_SAPH.R")
   
   scen.params = data.frame( scen = 1,
@@ -100,11 +90,12 @@ if ( run.local == TRUE ) {
                             t2w = .1,
                             se = 1,
                             
-                            Nmax = 20,
-                            hack = "affirm",
+                            Nmax = 5,
+                            hack = "affirm2",
+                            rho = 0.9,
                             
-                            k = 50,
-                            k.hacked = 20 )
+                            k = 10,
+                            k.hacked = 4 )
   
   
   sim.reps = 1  # reps to run in this iterate
@@ -150,10 +141,11 @@ doParallelTime = system.time({
                  t2w = p$t2w,
                  se = p$se,
                  hack = p$hack,
-                 return.only.published = FALSE,
-                 
+                 rho = p$rho,
+
                  k = p$k,
-                 k.hacked = p$k.hacked )
+                 k.hacked = p$k.hacked,
+                 return.only.published = FALSE )
     
     
     # dataset of only published results
@@ -188,48 +180,60 @@ doParallelTime = system.time({
                     method = "REML",
                     knha = TRUE ) )
     
+    #bm
     
     
+    # ~~ Bias-Corrected Estimator #1: Nonaffirms Only ------------------------------
     
-    # ~~ Bias-Corrected Estimator #1 ------------------------------
-    # omniscient version: we know which studies are unhacked
-    #  (also includes some affirmatives)
-    
-    corr1 = correct_dataset_phack(.dp = dp,
-                                  .p = p,
-                                  hackAssumption = "omniscient")
-    
-    expect_equal( corr1$sanityChecks$kAssumedHacked,
-                  sum(dp$hack == p$hack) )
-    
-    expect_equal( corr1$modUH$k,
-                  sum(dp$hack == "no") )
+    modCorr = correct_meta_phack1( .p = p,
+                                   .dp = dp )
     
     # add to results
     repRes = add_method_result_row(repRes = NA,
-                                   corrObject = corr1,
-                                   methName = "omniscient")
+                                   corrObject = modCorr,
+                                   methName = "nonaffirmsOnly")
     
-    # ~~ Bias-Corrected Estimator #2 ------------------------------
-    # omniscient version: we know which studies are unhacked
-    #  (also includes some affirmatives)
-    
-    corr2 = correct_dataset_phack(.dp = dp,
-                                  .p = p,
-                                  hackAssumption = "allAffirms")
-    
-    # this check assumes p$hack = "affirm" instead of "signif"
-    expect_equal( corr2$sanityChecks$kAssumedHacked,
-                  sum(dp$affirm) )
-    
-    expect_equal( corr2$modUH$k,
-                  sum(dp$affirm == FALSE) )
-    
-    
-    # add to results
-    repRes = add_method_result_row(repRes = repRes,
-                                   corrObject = corr2,
-                                   methName = "allAffirms")
+    # # SAVE 
+    # # methods from earlier simulations where I was bias-correcting the affirmatives
+    # # # ~~ Bias-Corrected Estimator #1 ------------------------------
+    # # omniscient version: we know which studies are unhacked
+    # #  (also includes some affirmatives)
+    # 
+    # corr1 = correct_dataset_phack(.dp = dp,
+    #                               .p = p,
+    #                               hackAssumption = "omniscient")
+    # 
+    # expect_equal( corr1$sanityChecks$kAssumedHacked,
+    #               sum(dp$hack == p$hack) )
+    # 
+    # expect_equal( corr1$modUH$k,
+    #               sum(dp$hack == "no") )
+    # 
+    # # add to results
+    # repRes = add_method_result_row(repRes = NA,
+    #                                corrObject = corr1,
+    #                                methName = "omniscient")
+    # 
+    # # ~~ Bias-Corrected Estimator #2 ------------------------------
+    # # omniscient version: we know which studies are unhacked
+    # #  (also includes some affirmatives)
+    # 
+    # corr2 = correct_dataset_phack(.dp = dp,
+    #                               .p = p,
+    #                               hackAssumption = "allAffirms")
+    # 
+    # # this check assumes p$hack = "affirm" instead of "signif"
+    # expect_equal( corr2$sanityChecks$kAssumedHacked,
+    #               sum(dp$affirm) )
+    # 
+    # expect_equal( corr2$modUH$k,
+    #               sum(dp$affirm == FALSE) )
+    # 
+    # 
+    # # add to results
+    # repRes = add_method_result_row(repRes = repRes,
+    #                                corrObject = corr2,
+    #                                methName = "allAffirms")
     
     
     
