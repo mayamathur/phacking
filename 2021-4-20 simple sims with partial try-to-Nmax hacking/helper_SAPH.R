@@ -292,7 +292,7 @@ sim_meta = function(Nmax,  # max draws to try
                     
                     rho = 0,
                     return.only.published = FALSE,
-                    hack,  # "affirm" or "signif" only
+                    hack,  # mechanism of hacking for studies that DO hack (so not "no")
                     
                     # args not passed to sim_one_study_set:
                     k,  # number of studies
@@ -351,6 +351,7 @@ sim_meta = function(Nmax,  # max draws to try
     
     for ( i in startInd:(startInd + k.hacked - 1) ) {
       
+      
       if ( i %% 50 == 0 ) cat("\nSimulating study #", i)
       
       # for unhacked studies, no need to change argument "hack"
@@ -372,7 +373,7 @@ sim_meta = function(Nmax,  # max draws to try
 }
 
 
-
+# ### Example 1
 # d = sim_meta(Nmax = 20,
 #              Mu = 0.1,
 #              T2 = 0.1,
@@ -400,7 +401,38 @@ sim_meta = function(Nmax,  # max draws to try
 #              mean(mui),
 #              mean(yi) )
 # 
-# # correlated draws
+# ### Example 2: Affirm2 hacking
+# #bm
+# d = sim_meta(Nmax = 5,
+#              Mu = 0.1,
+#              T2 = 0.1,
+#              m = 50,
+#              t2w = .5,
+#              se = 1,
+#              hack = "affirm2",
+#              return.only.published = FALSE,
+# 
+#              k = 100,
+#              k.hacked = 100
+# 
+# )
+# 
+# table(d$N)
+# 
+# # there should be some published nonaffirms
+# d %>% filter(Di == 1) %>%
+#   summarise( mean(affirm) )
+# 
+# # all are hacked, so every published nonaffirm should come from a study set
+# #  that reached Nmax
+# expect_equal( unique( d$N[ d$Di == 1 & d$affirm == FALSE] ),
+#               5 )
+# 
+# 
+# 
+# nrow(d)
+#
+# ### Correlated draws
 # # this is slow
 # d = sim_meta(Nmax = 100,
 #              Mu = -0.5,  # make it hard to get affirms
@@ -436,6 +468,14 @@ sim_meta = function(Nmax,  # max draws to try
 # draws until affirm or signif result is obtained or Nmax is reached
 # then reports the last result
 
+# hack options:
+#  - "no": no hacking (report all Nmax results)
+#  - "affirm": hack until you get an affirmative result or you reach Nmax,
+#    but if you reach Nmax, do NOT report any result at all
+#  - "signif": similar to "affirm", but hack to significance
+#  - "affirm2": similar to "affirm", but you always report the last draw, even
+#    if it was nonaffirm (no file drawer)
+
 # NOTE: If you add args here, need to update quick_sim as well
 sim_one_study_set = function(Nmax,  # max draws to try
                              Mu,  # overall mean for meta-analysis
@@ -444,7 +484,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
                              t2w,  # within-study heterogeneity
                              se,  # TRUE SE for this study
                              return.only.published = FALSE,
-                             hack, # should this study set be hacked? ("no", "affirm", "signif")
+                             hack, # should this study set be hacked? ("no", "affirm","affirm2", "signif")
                              
                              # for correlated draws; see make_one_draw
                              rho = 0
@@ -466,23 +506,23 @@ sim_one_study_set = function(Nmax,  # max draws to try
   mui = Mu + rnorm(mean = 0,
                    sd = sqrt(T2),
                    n = 1)
-  
+
   # TRUE SD (not estimated)
   sd.y = se * sqrt(m)
-  
+
   # collect all args from outer fn, including default ones
   .args = mget(names(formals()), sys.frame(sys.nframe()))
   .args$mui = mui
   .args$sd.y = sd.y
-  
-  
+
+
   stop = FALSE  # indicator for whether to stop drawing results
   N = 0  # counts draws actually made
-  
-  
+
+
   # we use this loop whether there's hacking or not
   while( stop == FALSE & N < Nmax ) {
-    
+
     if ( rho == 0 ) {
       # make uncorrelated draw
       newRow = do.call( make_one_draw, .args )
@@ -493,39 +533,49 @@ sim_one_study_set = function(Nmax,  # max draws to try
       newRow = do.call( make_one_draw, .args )
     }
 
-    
+
     # number of draws made so far
     N = N + 1
-    
+
     # add new draw to dataset
     if ( N == 1 ) d = newRow
     if ( N > 1 ) d = rbind( d, newRow )
-    
+
     # check if it's time to stop drawing results
-    if (hack == "signif") stop = (newRow$pval < 0.05)
-    if (hack == "affirm") stop = (newRow$pval < 0.05 & newRow$yi > 0)
-    # if this study set is unhacked, then success is just whether we've reached Nmax draws
-    if ( hack == "no") stop = (N == Nmax)
-  }
-  
+    if (hack == "signif") {
+      stop = (newRow$pval < 0.05)
+    } else if ( hack %in% c("affirm", "affirm2") ) {
+      stop = (newRow$pval < 0.05 & newRow$yi > 0)
+    } else if ( hack == "no" ) {
+      # if this study set is unhacked, then success is just whether
+      #  we've reached Nmax draws
+      if ( hack == "no") stop = (N == Nmax)
+    } else {
+      stop("No stopping criterion implemented for your chosen hack mechanism")
+    }
+    
+  }  # end while-loop
+
   # record info in dataset
   d$N = N
   d$hack = hack
-  
-  # empirical correlation of muin's (should be close to rho)
+
+  # empirical correlation of muin's
+  #  but note this will be biased for rho in small samples (i.e., Nmax small)
   if ( nrow(d) > 1 ) {
     # get lag-1 autocorrelation
     d$rhoEmp = cor( d$muin[ 2:length(d$muin) ],
                     d$muin[ 1: ( length(d$muin) - 1 ) ] )
-    
+
     # mostly for debugging; could remove later
     d$covEmp = cov( d$muin[ 2:length(d$muin) ],
                     d$muin[ 1: ( length(d$muin) - 1 ) ] )
-    
+
   } else {
     d$rhoEmp = NA
     d$covEmp = NA
   }
+
 
   
   # convenience indicators for significance and affirmative status
@@ -537,8 +587,8 @@ sim_one_study_set = function(Nmax,  # max draws to try
   #  but if we didn't, then it will always be 0
   if ( hack == "signif" ) d$Di = (d$signif == TRUE)
   if (hack == "affirm") d$Di = (d$affirm == TRUE)
-  # if no hacking, assume only last draw is published
-  if ( hack == "no" ) {
+  # if no hacking or affirmative hacking without file drawer, assume only last draw is published
+  if ( hack %in% c("no", "affirm2") ) {
     d$Di = 0
     d$Di[ length(d$Di) ] = 1
   }
@@ -552,13 +602,13 @@ sim_one_study_set = function(Nmax,  # max draws to try
 
 
 # ### example
-# d = sim_one_study_set(Nmax = 1,
+# d = sim_one_study_set(Nmax = 5,
 #                       Mu = 0.1,
 #                       T2 = 0.1,
 #                       m = 50,
 #                       t2w = .5,
 #                       se = 1,
-#                       hack = "affirm",
+#                       hack = "affirm2",
 #                       return.only.published = FALSE)
 # nrow(d)
 # d
