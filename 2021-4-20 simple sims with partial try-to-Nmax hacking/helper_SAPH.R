@@ -4,8 +4,13 @@
 # "draw" always refers to within-study draw
 # "study set" refers to all draws, observed and observed, for a given study
 
-# 2021-5-3 ANALYSIS FNS ---------------------------------------------------------------
+# If Nmax is small, rhoEmp (empirical autocorrelation of muin's) will be smaller
+#  than rho. That's okay because it reflects small-sample bias in autocorrelation
+# estimate itself, not a problem with the simulation code
+# For more about the small-sample bias: # https://www.jstor.org/stable/2332719?seq=1#metadata_info_tab_contents
 
+
+# 2021-5-3 ANALYSIS FNS ---------------------------------------------------------------
 
 # log-likelihood
 joint_ll = function(.tstats, .Mu, .T2, .t2w, .se, .crit) {
@@ -182,10 +187,12 @@ report_rma = function(.mod,
 # runs a simple simulation to compare empirical moments to theoretical ones 
 #  that I expected to match the empirical ones
 # writes the dataset to .results.dir if it isn't NA (in which case needs to have a variable, .p$sim.name)
-
 quick_sim = function(.p,
-                     .results.dir = NA) {
+                     .results.dir = NA,
+                     printRes = FALSE ) {
   
+  # IMPORTANT: IF YOU ADD ARGS TO SIM_ONE_STUDY OR MAKE_ONE_DRAW, MUST ADD THEM 
+  #  HERE OR ELSE QUICK_SIM WILL SILENTLY NOT PASS THEM
   # simulate a huge dataset, all finitely hacked
   d = sim_meta(Nmax = .p$Nmax,
                Mu = .p$Mu,
@@ -195,6 +202,7 @@ quick_sim = function(.p,
                se = .p$se,
                hack = .p$hack,
                return.only.published = FALSE,
+               rho = .p$rho,
                
                k = .p$k,
                k.hacked = .p$k.hacked )
@@ -246,7 +254,7 @@ quick_sim = function(.p,
   
   # would be hard to look at affirms because of duplication within studies (messes up var)
   
-  print(res)
+  if ( printRes == TRUE ) print(res)
   
   library(Hmisc)
   returnList = llist(d, res, correctedSE)
@@ -305,8 +313,6 @@ sim_meta = function(Nmax,  # max draws to try
   # k = 30
   # k.hacked = 20
   
-  #browser()
-  
   # collect arguments
   .args = mget(names(formals()), sys.frame(sys.nframe()))
   # remove unnecessary args for sim_one_study_set
@@ -339,7 +345,7 @@ sim_meta = function(Nmax,  # max draws to try
     }
   }
   
-  ### Simulate hacked studies  ###
+  ### Simulate hacked studies ###
   if ( k.hacked > 0 ) {
     if ( exists(".dat") ) startInd = max(.dat$study) + 1 else startInd = 1
     
@@ -393,18 +399,34 @@ sim_meta = function(Nmax,  # max draws to try
 #              mean(affirm),
 #              mean(mui),
 #              mean(yi) )
+# 
+# # correlated draws
+# # this is slow
+# d = sim_meta(Nmax = 100,
+#              Mu = -0.5,  # make it hard to get affirms
+#              T2 = 0.1,
+#              m = 50,
+#              t2w = .5,
+#              se = .5,
+#              rho = 0.9,
+#              hack = "affirm",
+#              return.only.published = FALSE,
+# 
+#              k = 1000,
+#              k.hacked = 500 )
+# 
+# # all results, even unpublished ones
+# # primarily to check autocorrelation of muin's
+# d %>% filter( !duplicated(study) ) %>%
+#   group_by(hack) %>%
+#   summarise( sum(!is.na(rhoEmp)),
+#              sum(N > 1),
+#              mean(rhoEmp, na.rm = TRUE) )
 
 
-
-
-# simulate a single study from potentially heterogeneous meta-analysis distribution 
-#  and from its own heterogeneous distribution
-
-#~~ bm: want to look at this for rho>0
-#  to do that, need to draw each t-stat from Peng's conditional distribution
-# e.g.: when correlated, do t-stats bunch up more?
-
-# similar to phack_study in earlier helper script (2020-6 folder)
+# ~ Simulate a single study ----------------- 
+# simulated study from potentially heterogeneous meta-analysis distribution
+#  + its own heterogeneous distribution
 
 # for hack = "no":
 # draws exactly Nmax results and treats the last one as the reported one
@@ -414,16 +436,19 @@ sim_meta = function(Nmax,  # max draws to try
 # draws until affirm or signif result is obtained or Nmax is reached
 # then reports the last result
 
+# NOTE: If you add args here, need to update quick_sim as well
 sim_one_study_set = function(Nmax,  # max draws to try
                              Mu,  # overall mean for meta-analysis
                              T2,  # across-study heterogeneity
                              m,  # sample size for this study
                              t2w,  # within-study heterogeneity
                              se,  # TRUE SE for this study
-                             rho = 0,
                              return.only.published = FALSE,
-                             #force.nonaffirm = FALSE, # should we force 
-                             hack ) {  # should this study set be hacked? ("no", "affirm", "signif")
+                             hack, # should this study set be hacked? ("no", "affirm", "signif")
+                             
+                             # for correlated draws; see make_one_draw
+                             rho = 0
+                              ) {  
   
   
   # # test only
@@ -458,9 +483,16 @@ sim_one_study_set = function(Nmax,  # max draws to try
   # we use this loop whether there's hacking or not
   while( stop == FALSE & N < Nmax ) {
     
-    #@here, need to pass the previous draw's muin in case rho>0
-    # if ( N == 1 ) just pass muin = NA; else muin = d$muin[length(d)]
-    newRow = do.call( make_one_draw, .args )
+    if ( rho == 0 ) {
+      # make uncorrelated draw
+      newRow = do.call( make_one_draw, .args )
+    } else {
+      # make correlated draw
+      if ( N == 0 ) .args$last.muin = NA  # on first draw, so there's no previous one
+      if ( N > 0 ) .args$last.muin = d$muin[ nrow(d) ]
+      newRow = do.call( make_one_draw, .args )
+    }
+
     
     # number of draws made so far
     N = N + 1
@@ -479,6 +511,22 @@ sim_one_study_set = function(Nmax,  # max draws to try
   # record info in dataset
   d$N = N
   d$hack = hack
+  
+  # empirical correlation of muin's (should be close to rho)
+  if ( nrow(d) > 1 ) {
+    # get lag-1 autocorrelation
+    d$rhoEmp = cor( d$muin[ 2:length(d$muin) ],
+                    d$muin[ 1: ( length(d$muin) - 1 ) ] )
+    
+    # mostly for debugging; could remove later
+    d$covEmp = cov( d$muin[ 2:length(d$muin) ],
+                    d$muin[ 1: ( length(d$muin) - 1 ) ] )
+    
+  } else {
+    d$rhoEmp = NA
+    d$covEmp = NA
+  }
+
   
   # convenience indicators for significance and affirmative status
   d$signif = d$pval < 0.05
@@ -503,6 +551,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
 }
 
 
+# ### example
 # d = sim_one_study_set(Nmax = 1,
 #                       Mu = 0.1,
 #                       T2 = 0.1,
@@ -515,7 +564,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
 # d
 
 
-# # sanity check by simulation
+# ### sanity check by simulation
 # for ( i in 1:2000 ) {
 #   newRows = sim_one_study_set(Nmax = 20,
 #                          Mu = 0.1,
@@ -540,6 +589,57 @@ sim_one_study_set = function(Nmax,  # max draws to try
 #             var(muin),
 #             mean(yi) )
 # # seems fine
+# 
+# ### check correlated draws: large Nmax
+# # no hacking so that we can get a lot of draws
+# d = sim_one_study_set(Nmax = 1000,
+#                       Mu = 0,
+#                       T2 = 0.1,
+#                       m = 50,
+#                       t2w = .5,
+#                       se = 0.5,
+#                       rho = 0.9,
+#                       hack = "no",
+#                       return.only.published = FALSE)
+# nrow(d)
+# # should match each other and should be close to rho
+# table(d$rhoEmp)
+# acf(d$muin, lag = 1)$acf
+#
+# ### check correlated draws: small Nmax
+# #  wrong because of small-sample bias in autocorrelation (not my fn's fault)
+# #  about the small-sample bias: # https://www.jstor.org/stable/2332719?seq=1#metadata_info_tab_contents
+# # issue is that the sample variance and autocorrelation estimate are non-independent
+# #  in small samples
+# rhoEmp = c()
+# covEmp = c()
+# varEmp = c()
+# for ( i in 1:250 ) {
+#   d = sim_one_study_set(Nmax = 10,
+#                         Mu = 0,
+#                         T2 = 0.1,
+#                         m = 50,
+#                         t2w = .5,
+#                         se = 0.5,
+#                         rho = 0.9,
+#                         hack = "no",
+#                         return.only.published = FALSE)
+#   
+#   covEmp = c(covEmp, unique(d$covEmp))
+#   rhoEmp = c(rhoEmp, unique(d$rhoEmp))
+#   varEmp = c(varEmp, var(d$muin))
+# }
+# 
+# # TOO LOW when Nmax is small! 
+# mean(rhoEmp)  # when Nmax = 10: 0.46; when Nmax = 200: 0.88
+# mean(covEmp)  # when Nmax = 10: 0.09; when Nmax = 200: 0.40
+# mean(varEmp)  # when Nmax = 10: 0.15; when Nmax = 200: 0.47 (should equal t2w = 0.5)
+# # sample variance is biased downward in small samples
+
+
+
+
+
 
 
 # # ~ Sanity check  ---------------------------------------------------------------
@@ -588,7 +688,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
 
 
 
-# draws one unbiased result within the study
+# ~ Draw one unbiased result within one study ------------------
 # muin should be NA if either we want uncorrelated draws OR it's the first of a series of correlated draws
 make_one_draw = function(mui,  # mean for this study set
                          t2w,
@@ -596,7 +696,7 @@ make_one_draw = function(mui,  # mean for this study set
                          m,
                          
                          # for making correlated draws
-                         rho = 0,
+                         rho = 0,  # autocorrelation of muin's (not yi's)
                          last.muin = NA,  
                          ...) {
   
@@ -612,6 +712,8 @@ make_one_draw = function(mui,  # mean for this study set
   # make correlated draw
   if ( rho != 0 & !is.na(last.muin) ) {
     # draw from BVN conditional, given muin from last draw
+    # conditional moments given here:
+    #  https://www.amherst.edu/system/files/media/1150/bivarnorm.PDF
     muin = rnorm(mean = mui + rho * (last.muin - mui),
                  sd = sqrt( t2w * (1 - rho^2) ),
                  n = 1)
@@ -654,7 +756,6 @@ make_one_draw = function(mui,  # mean for this study set
 #               m = 30 )
 # 
 # # rho = 1, so should get exactly the same muin again
-# #bm
 # make_one_draw(mui = 0.1,
 #               t2w = 0.1,
 #               sd.y = 0.3,

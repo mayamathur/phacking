@@ -135,6 +135,8 @@ Mu; T2
 # note that the variance component will include t2w + se^2 here
 # and mean will be Mu/se
 
+
+### With data straight from trunc dist
 # fn wants data given as a matrix
 mle.fit = mle.tmvnorm( as.matrix(x2, ncol = 1), lower=-Inf, upper=crit)
 summary(mle.fit)
@@ -152,6 +154,7 @@ mles[2]; (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
 # par(mfrow=c(3,2))
 # plot(mle.profile1)
 
+### With real data
 # **THIS SEEMS TO WORK PRETTY WELL
 # try with my real data
 mle.fit = mle.tmvnorm( as.matrix(tstats, ncol = 1), lower=-Inf, upper=crit)
@@ -176,26 +179,63 @@ p = data.frame( Mu = 1,
                 Nmax = 10,
                 hack = "affirm",
                 
-                k = 10000,
-                k.hacked = 10000,
                 
+                k = 10000,
+                k.hacked = 0,
+                rho = 0.9,
                 
                 sim.name = "expt_2" )
 
+# simulate from scratch
 x = quick_sim( .p = p,
                 .results.dir = results.dir )
-
-# read back in
-load("expt_2")
 d = x$d
+
+
+# # read back in
+# load("expt_2")
+# d = x$d
+
+#  look at autocorrelation of muin's
+#  but note this will be less than rho because of 
+#  small-sample bias of autocorrelation
+d %>% filter( !duplicated(study) ) %>%
+  summarise( sum(!is.na(rhoEmp)),
+             sum(N > 1),
+             mean(rhoEmp, na.rm = TRUE) )
 
 crit = unique(d$tcrit)
 
 
-# published only (i.e., last draw of each set)
-dp = d %>% filter(Di == 1)
-expect_equal( 10000, length(unique(dp$study)) )
 
+# ~~ Check that moments of published nonaffirms are as expected  -------------------------
+tstats = d$tstat[ d$Di == 1 & d$affirm == 0 ]
+
+# check that moments are what we expect
+extrunc(spec = "norm",
+        mean = p$Mu / p$se,
+        #@doesn't yet use the delta-method thing
+        sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
+        b = crit )
+mean(tstats)  # yes, matches :)
+
+vartrunc(spec = "norm",
+         mean = p$Mu / p$se,
+         #@doesn't yet use the delta-method thing
+         sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
+         b = crit )
+var(tstats)  # pretty close :)
+
+
+# ~~ MLEs  -------------------------
+
+mle.fit = mle.tmvnorm( as.matrix(tstats, ncol = 1), lower=-Inf, upper=crit)
+summary(mle.fit)
+
+mles = coef(mle.fit)
+# pretty good :)
+mles[1]; p$Mu/p$se
+mles[2]; (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
 
 
            
