@@ -74,28 +74,138 @@ run.local = FALSE
 
 # FOR LOCAL USE  ------------------------------
 if ( run.local == TRUE ) {
-  rm(list=ls())
+  #rm(list=ls())
   
   library(here)
+  # data-wrangling packages
+  library(dplyr)
+  library(ggplot2)
+  library(data.table)
+  library(tidyverse)
+  library(fastDummies)
+  # meta-analysis packages
+  library(metafor)
+  library(robumeta)
+  # other
+  library(xtable)
+  library(testthat)
+  # for this project
+  library(truncdist)
+  #library(ExtDist)
+  library(gmm)  # https://stackoverflow.com/questions/63511986/error-package-or-namespace-load-failed-for-gmm-in-dyn-loadfile-dllpath-dl
+  library(tmvtnorm)
   
   # helper fns
   code.dir = here("2021-4-20 simple sims with partial try-to-Nmax hacking")
   setwd(code.dir)
   source("helper_SAPH.R")
   
+  # # doesn't match expectations:
+  # scen.params = data.frame( scen = 1,
+  #                           Mu = 1,
+  #                           T2 = 0.25,
+  #                           m = 50,
+  #                           t2w = .25,
+  #                           se = 0.5,
+  #                           
+  #                           Nmax = 5,
+  #                           hack = "affirm",
+  #                           rho = 0.9,
+  #                           
+  #                           k = 100,
+  #                           k.hacked = 50 )
+  
+  # # try to recreate successful Expt 2:
+  # # this works pretty well for 1 sim rep
+  # #  e.g., TheoryExpTstat = 0.5954914 vs. MeanTstatUnhacked = 0.5765191
+  # #  TheoryVarTstat = 1.076894 vs. EstVarTstatUnhacked = 1.149218
+  # scen.params = data.frame( scen = 1,
+  #                           Mu = 1,
+  #                           T2 = 0.25,
+  #                           m = 500,
+  #                           t2w = .25,
+  #                           se = 0.5,
+  #                           
+  #                           Nmax = 10,
+  #                           hack = "affirm",
+  #                           rho = 0.9,
+  #                           
+  #                           k = 10^3,
+  #                           k.hacked = 0 )
+  
+  # same as above, but m=50 instead of 500
+  # theoretical moments differ from above because tcrit changes based on m:
+  #  tcrit = qt(0.975, df = m-1)
+  # TheoryExpTstat = 0.6241134 vs. MeanTstatUnhacked = 0.5702767
+  # TheoryVarTstat = 1.093762 vs. EstVarTstatUnhacked = 1.259577
   scen.params = data.frame( scen = 1,
                             Mu = 1,
-                            T2 = 0.1,
+                            T2 = 0.25,
                             m = 50,
-                            t2w = .1,
-                            se = 1,
+                            t2w = .25,
+                            se = 0.5,
+
+                            Nmax = 10,
+                            hack = "affirm",
+                            rho = 0.9,
+
+                            k = 10^3,
+                            k.hacked = 0 )
+  
+  # without heterogeneity:
+  # TheoryExpTstat = 1.208201 vs. MeanTstatUnhacked = 1.233518
+  # TheoryVarTstat = 0.365473 vs. EstVarTstatUnhacked = 0.3996075
+  scen.params = data.frame( scen = 1,
+                            Mu = 1,
+                            T2 = 0,
+                            m = 50,
+                            t2w = 0,
+                            se = 0.5,
                             
-                            Nmax = 5,
-                            hack = "affirm2",
+                            Nmax = 10,
+                            hack = "affirm",
                             rho = 0.9,
                             
-                            k = 10,
-                            k.hacked = 4 )
+                            k = 10^3,
+                            k.hacked = 0 )
+  
+  # Nmax = 1 with heterogeneity
+  # TheoryExpTstat = 0.6241134 vs. MeanTstatUnhacked = 0.5515947
+  # TheoryVarTstat = 1.093762 vs. EstVarTstatUnhacked = 1.198789
+  #bm: trying to understand this one
+  scen.params = data.frame( scen = 1,
+                            Mu = 1,
+                            T2 = 0.25,
+                            m = 50,
+                            t2w = .25,
+                            se = 0.5,
+                            
+                            Nmax = 1,
+                            hack = "affirm",
+                            rho = 0.9,
+                            
+                            k = 10^3,
+                            k.hacked = 0 )
+  
+  # reduce m even more to see if empirical moments change
+  # TheoryExpTstat = 1.071456 vs. MeanTstatUnhacked = 0.9725942
+  # TheoryVarTstat = 1.416841 vs. EstVarTstatUnhacked = 1.601244
+  scen.params = data.frame( scen = 1,
+                            Mu = 1,
+                            T2 = 0.25,
+                            m = 5,
+                            t2w = .25,
+                            se = 0.5,
+                            
+                            Nmax = 10,
+                            hack = "affirm",
+                            rho = 0.9,
+                            
+                            k = 10^3,
+                            k.hacked = 0 )
+  
+  #bm: seems like consistently, the mean is lower than trunc mean and var is higher
+  #  except when T2 = t2w = 0
   
   
   sim.reps = 1  # reps to run in this iterate
@@ -149,7 +259,7 @@ doParallelTime = system.time({
     
     
     # dataset of only published results
-    dp = d %>% filter(Di == 1 )
+    dp = d %>% filter(Di == 1)
     
     # # published hacked ones only
     # dph = d %>% filter(hack == p$hack & Di == 1)
@@ -159,31 +269,38 @@ doParallelTime = system.time({
     # # same as second row of above table
     # dpu = d %>% filter(hack == "no" & Di == 1)
     
-    
-    
+
     
     # ~~ Fit Gold-Standard Meta-Analysis to All Results  ------------------------------
     # unbiased meta-analysis of all studies, even unpublished ones
     # account for clustering of draws within studies
     # *the tau^2 estimate will be close to T2
-    ( modAll = rma.mv( yi = yi,
-                       V = vi,
-                       data = d,
-                       method = "REML",
-                       random = ~1 | study ) )
+    
+    # this takes forever and gets hung up if k =10^3
+    # even if I omit the random intercept
+    # ( modAll = rma.mv( yi = yi,
+    #                    V = vi,
+    #                    data = d,
+    #                    method = "REML",
+    #                    random = ~1 | study ) )
+    
     
     
     # ~~ Fit Naive Meta-Analysis on Published Studies  ------------------------------
     # biased meta-analysis of only published studies
-    ( modPub = rma( yi = dp$yi,
-                    vi = dp$vi,
-                    method = "REML",
-                    knha = TRUE ) )
+    # ( modPub = rma( yi = dp$yi,
+    #                 vi = dp$vi,
+    #                 method = "REML",
+    #                 knha = TRUE ) )
     
-    #bm
-    
-    
+ 
     # ~~ Bias-Corrected Estimator #1: Nonaffirms Only ------------------------------
+    
+    #bm: next try rm(list=ls()) and see if below fn still works :)
+    # also think about any diagnostics to add
+    #  like the tstat expectation and variance among affirms from hacked vs. 
+    #  unhacked studies
+    #  then should be able to try running doParallel locally!
     
     modCorr = correct_meta_phack1( .p = p,
                                    .dp = dp )
@@ -191,7 +308,7 @@ doParallelTime = system.time({
     # add to results
     repRes = add_method_result_row(repRes = NA,
                                    corrObject = modCorr,
-                                   methName = "nonaffirmsOnly")
+                                   methName = "AllNonaffirms")
     
     # # SAVE 
     # # methods from earlier simulations where I was bias-correcting the affirmatives
@@ -268,12 +385,12 @@ doParallelTime = system.time({
     
   }  ### end foreach loop
   
-} )[3]  # end timer
+} )[3]  # end system.time
 
 
 
 
-### Estimated time for 1 sim rep ###
+### Put in dataset: Estimated time for 1 sim rep ###
 # use NAs for additional methods so that the SUM of the rep times will be the
 #  total computational time
 nMethods = length(unique(rs$methName))
@@ -283,50 +400,44 @@ rs$repSeconds = rep( c( doParallelTime / sim.reps,
 expect_equal( as.numeric( sum(rs$repSeconds, na.rm = TRUE) ),
               as.numeric(doParallelTime) )
 
-### Local only: quick look at results ###
-# assumes only 1 scenario
-# make coverage variable (won't need it later)
-# rs$MhatNaiveCover = (rs$MhatLoNaive <= scen.params$Mu) & (rs$MhatHiNaive >= scen.params$Mu)
-# rs$MhatCorrCover = (rs$MhatLoCorr <= scen.params$Mu) & (rs$MhatHiCorr >= scen.params$Mu)
 
-#@things to keep an eye on: is T2.UH biased?
-
-
-takeMean = c( "dp.k",
-              "dp.kAffirm",
-              "dp.kNonaffirm",
-              
-              "MhatAll",
-              "MhatCoverAll",
-              
-              "MhatNaive",
-              "MhatCoverNaive",
-              
-              "MhatCorr",
-              "MhatCoverCorr",
-              
-              "Mhat.UH",
-              "T2.UH",
-              
-              "meanHackedExp",
-              "meanHackedExpTrue",
-              "yiMeanAssumedHacked",
-              "yiCorrMeanAssumedHacked",
-              "yiMeanAssumedUnhacked",
-              "viMeanAssumedHacked" )
+### Local only: Quick look at results ###
+takeMean = names(rs)[ !names(rs) %in% c( "repName",
+                                         "scenName",
+                                         "methName",
+                                         names(scen.params) ) ]
 
 
 resTable = rs %>% group_by(methName) %>%
+  #mutate(simReps = n()) %>%
   summarise_at( takeMean,
                 function(x) round( mean(x, na.rm = TRUE), 2 ) )
 View(resTable)
 
-#@keep an eye on T2.UH: why is it too big even in omniscient mode?
-# and yet meanHackedExp is exactly right (compared to using parameter values in meanHackedExpTrue)
+# should be similar:
+# *does NOT match with method = "affirm2"
+resTable$TheoryExpTstat; resTable$MeanTstatUnhacked
+# the other ones:
+resTable$MeanTstat; resTable$MeanTstatHacked; resTable$MeanTstatUnhacked
 
-setwd("Results")
-fwrite(rs, "rs_one_scenario.csv")
-fwrite(resTable, "resTable.csv")
+resTable$TheoryVarTstat; resTable$EstVarTstatUnhacked
+
+#bm
+# bias:
+p$Mu
+resTable$MhatAll
+resTable$MhatNaive
+resTable$MhatCorr
+
+
+# CI coverage:
+resTable$MhatCoverAll  # should definitely be good
+resTable$MhatCoverNaive
+resTable$MhatCoverCorr
+
+# setwd("Results")
+# fwrite(rs, "rs_one_scenario.csv")
+# fwrite(resTable, "resTable.csv")
 
 
 # WRITE LONG RESULTS ------------------------------

@@ -173,18 +173,24 @@ correct_meta_phack1 = function( .dp,  # published studies
                                    ) {
   
   # published affirmatives only
-  dpa = .dp[ .dp$affirm == FALSE, ]
+  dpn = .dp[ .dp$affirm == FALSE, ]
+  
+
+  #@ assumes they all have same se:
+  crit = unique(dpn$tcrit)
   
   
   ### MLEs from trunc normal ###
   # these are the MLEs of the *t-stats*
-  mle.fit = mle.tmvnorm( as.matrix(dpa$tstat, ncol = 1), lower=-Inf, upper=crit)
+  mle.fit = mle.tmvnorm( X = as.matrix(dpn$tstat, ncol = 1),
+                         lower = -Inf,
+                         upper = crit)
   #summary(mle.fit)
   mles = coef(mle.fit)
   
   #@can't get CIs yet because of package issue
   #  emailed Wilhelm about this on 2021-5-7
-  # CIs.tstats = confint( profile(mles, dpa$tstat, method="BFGS", trace=TRUE) )
+  # CIs.tstats = confint( profile(mles, dpn$tstat, method="BFGS", trace=TRUE) )
   
   # get Wald CI a different way
   tstat.mu.SE = attr( summary(mle.fit), "coef" )[ "mu_1", "Std. Error" ]
@@ -221,27 +227,43 @@ correct_meta_phack1 = function( .dp,  # published studies
  
   
   ### Return all the things ###
-  return( list( metaCorr = data.frame( Mhat = Mhat,
-                                       MhatLo = MhatCI[1],
-                                       MhatHi = MhatCI[2],
-                                       MhatCover = ( MhatCI[1] <= p$Mu ) & ( MhatCI[2] >= p$Mu ),
-                                       Vhat = Vhat),
+  return( list( metaCorr = data.frame( MhatCorr = Mhat,
+                                       MhatLoCorr = MhatCI[1],
+                                       MhatHiCorr = MhatCI[2],
+                                       MhatCoverCorr = ( MhatCI[1] <= p$Mu ) & ( MhatCI[2] >= p$Mu ),
+                                       VhatCorr = Vhat),
 
                
                # note that all of these stats pertain to only published nonaffirmatives
-               sanityChecks = data.frame( kNonaffirmPub = sum( dpa$affirm == FALSE ),
+               sanityChecks = data.frame( kNonaffirmPub = nrow(dpn),
+                                          kUnhacked = sum( dpn$hack == "no" ),
+                                          kHacked = sum( dpn$hack == p$hack ),
                                           
                                           # check that moments of published nonaffirms are what we expect
-                                          # these should be similar
-                                          theoryExpTstat = theoryExpTstat,
-                                          empExpTstat = mean(dpa$tstat),
+                                          TheoryExpTstat = theoryExpTstat,
+                                          MeanTstat = mean(dpn$tstat),  # may not match TheoryExpTstat
+                                          # mean of t-stats from published nonaffirms from
+                                          #  unhacked study sets (should match TheoryExpTstat)
+                                          MeanTstatUnhacked = mean( dpn$tstat[dpn$hack == "no" ] ),
+                                          # mean of t-stats from published nonaffirms from
+                                          #  hacked study sets (may not match TheoryExpTstat)
+                                          MeanTstatHacked = mean( dpn$tstat[dpn$hack == p$hack ] ),
                                           
-                                          theoryVarTstat = theoryVarTstat,
-                                          empVarTstat = var(dpa$tstat),
+                                          TheoryVarTstat = theoryVarTstat,
+                                          EstVarTstat = var(dpn$tstat),
+                                          # should match theory:
+                                          EstVarTstatUnhacked = var( dpn$tstat[dpn$hack == "no" ] ),
+                                          EstVarTstatHacked = var( dpn$tstat[dpn$hack == p$hack ] ),
                                         
+                                          # other stats
+                                          Mean.yi = mean(dpn$yi),
+                                          Mean.yi.Unhacked = mean( dpn$yi[dpn$hack == "no" ] ),
+                                          Mean.yi.Hacked = mean( dpn$yi[dpn$hack == p$hack ] ),
                                           
-                                          yiMeanNonaffirmPub = mean(dpa$yi),
-                                          viMeanNonaffirmPub = mean(dpa$vi) ) ) )
+                                          Mean.vi = mean(dpn$vi),
+                                          Mean.vi.Unhacked = mean( dpn$vi[dpn$hack == "no" ] ),
+                                          Mean.vi.Hacked = mean( dpn$vi[dpn$hack == p$hack ] ) )
+  ) )
   
 }
 
