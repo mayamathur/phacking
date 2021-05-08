@@ -89,6 +89,7 @@ if ( run.local == TRUE ) {
   library(data.table)
   library(tidyverse)
   library(fastDummies)
+  library(tidyr)
   # meta-analysis packages
   library(metafor)
   library(robumeta)
@@ -106,27 +107,33 @@ if ( run.local == TRUE ) {
   setwd(code.dir)
   source("helper_SAPH.R")
   
-  # # doesn't match expectations:
-  # scen.params = data.frame( scen = 1,
-  #                           Mu = 1,
-  #                           T2 = 0.25,
-  #                           m = 50,
-  #                           t2w = .25,
-  #                           se = 0.5,
-  #                           
-  #                           Nmax = 5,
-  #                           hack = "affirm",
-  #                           rho = 0.9,
-  #                           
-  #                           k = 100,
-  #                           k.hacked = 50 )
+  # set up sim params for cluster
   
-  # # try to recreate successful Expt 2:
-  # # this works pretty well for 1 sim rep
-  # #  e.g., TheoryExpTstat = 0.5954914 vs. MeanTstatUnhacked = 0.5765191
-  # #  TheoryVarTstat = 1.076894 vs. EstVarTstatUnhacked = 1.149218
+  # 1. Nmax = 1, k.hacked = 0, rho = 0 (basically a sanity check)
+  # 2. Nmax > 1, k.hacked = 0, rho = 0.9 
+  # 3. Nmax > 1, k.hacked = 50, rho = 0 or 0.9 (conservative?)
+
+  
+  # scen.params = tidyr::expand_grid( Mu = 0.1,
+  #                                   T2 = c(0, 0.25),
+  #                                   m = 500,
+  #                                   t2w = c(0, 0.25),
+  #                                   se = 0.5,
+  #                                   
+  #                                   Nmax = c(1, 10),
+  #                                   hack = "affirm",
+  #                                   rho = c(0, 0.9),
+  #                                   
+  #                                   k = 100,
+  #                                   k.hacked = c(0, 50) )
+  
+  # remove nonsense combinations
+  # remove nonsense combinations
+  # rho > 0 is pointless if there's only 1 draw
+  scen.params = scen.params %>% filter( !(rho > 0 & Nmax == 1) )
+  
   scen.params = data.frame( scen = 1,
-                            Mu = 1,
+                            Mu = 0.1,
                             T2 = 0.25,
                             m = 500,
                             t2w = .25,
@@ -136,84 +143,13 @@ if ( run.local == TRUE ) {
                             hack = "affirm",
                             rho = 0.9,
 
-                            k = 10^3,
+                            k = 100,
                             k.hacked = 0 )
   
   
-  # same as above, but m=50 instead of 500
-  # theoretical moments differ from above because tcrit changes based on m:
-  #  tcrit = qt(0.975, df = m-1)
-  # TheoryExpTstat = 0.6241134 vs. MeanTstatUnhacked = 0.5702767
-  # TheoryVarTstat = 1.093762 vs. EstVarTstatUnhacked = 1.259577
-  scen.params = data.frame( scen = 1,
-                            Mu = 1,
-                            T2 = 0.25,
-                            m = 50,
-                            t2w = .25,
-                            se = 0.5,
-
-                            Nmax = 10,
-                            hack = "affirm",
-                            rho = 0.9,
-
-                            k = 10^3,
-                            k.hacked = 0 )
-  
-  # without heterogeneity:
-  # TheoryExpTstat = 1.208201 vs. MeanTstatUnhacked = 1.233518
-  # TheoryVarTstat = 0.365473 vs. EstVarTstatUnhacked = 0.3996075
-  scen.params = data.frame( scen = 1,
-                            Mu = 1,
-                            T2 = 0,
-                            m = 50,
-                            t2w = 0,
-                            se = 0.5,
-                            
-                            Nmax = 10,
-                            hack = "affirm",
-                            rho = 0.9,
-                            
-                            k = 10^3,
-                            k.hacked = 0 )
-  
-  # Nmax = 1 with heterogeneity
-  # TheoryExpTstat = 0.6241134 vs. MeanTstatUnhacked = 0.5515947
-  # TheoryVarTstat = 1.093762 vs. EstVarTstatUnhacked = 1.198789
-  scen.params = data.frame( scen = 1,
-                            Mu = 1,
-                            T2 = 0.25,
-                            m = 50,
-                            t2w = .25,
-                            se = 0.5,
-                            
-                            Nmax = 1,
-                            hack = "affirm",
-                            rho = 0.9,
-                            
-                            k = 10^3,
-                            k.hacked = 0 )
-  
-  # reduce m even more to see if empirical moments change
-  # TheoryExpTstat = 1.071456 vs. MeanTstatUnhacked = 0.9725942
-  # TheoryVarTstat = 1.416841 vs. EstVarTstatUnhacked = 1.601244
-  scen.params = data.frame( scen = 1,
-                            Mu = 1,
-                            T2 = 0.25,
-                            m = 5,
-                            t2w = .25,
-                            se = 0.5,
-                            
-                            Nmax = 10,
-                            hack = "affirm",
-                            rho = 0.9,
-                            
-                            k = 10^3,
-                            k.hacked = 0 )
-  
-  #bm
   
   
-  sim.reps =   # reps to run in this iterate
+  sim.reps = 250  # reps to run in this iterate
   
   
   library(foreach)
@@ -257,7 +193,7 @@ doParallelTime = system.time({
                  se = p$se,
                  hack = p$hack,
                  rho = p$rho,
-
+                 
                  k = p$k,
                  k.hacked = p$k.hacked,
                  return.only.published = FALSE )
@@ -274,7 +210,7 @@ doParallelTime = system.time({
     # # same as second row of above table
     # dpu = d %>% filter(hack == "no" & Di == 1)
     
-
+    
     
     # ~~ Fit Gold-Standard Meta-Analysis to All Results  ------------------------------
     # unbiased meta-analysis of all studies, even unpublished ones
@@ -283,22 +219,28 @@ doParallelTime = system.time({
     
     # this takes forever and gets hung up if k =10^3
     # even if I omit the random intercept
-    # ( modAll = rma.mv( yi = yi,
-    #                    V = vi,
-    #                    data = d,
-    #                    method = "REML",
-    #                    random = ~1 | study ) )
     
+    # only for non-huge k to prevent hangups
+    if ( p$k < 500 ) {
+      modAll = rma.mv( yi = yi,
+                       V = vi,
+                       data = d,
+                       method = "REML",
+                       random = ~1 | study ) 
+    }
     
     
     # ~~ Fit Naive Meta-Analysis on Published Studies  ------------------------------
     # biased meta-analysis of only published studies
-    # ( modPub = rma( yi = dp$yi,
-    #                 vi = dp$vi,
-    #                 method = "REML",
-    #                 knha = TRUE ) )
     
- 
+    # only for non-huge k to prevent hangups
+    if ( nrow(dp) < 500 ) {
+      modPub = rma( yi = dp$yi,
+                    vi = dp$vi,
+                    method = "REML",
+                    knha = TRUE ) 
+    }
+    
     # ~~ Bias-Corrected Estimator #1: Nonaffirms Only ------------------------------
     
     #bm: next try rm(list=ls()) and see if below fn still works :)
@@ -427,12 +369,14 @@ resTable$MeanTstat; resTable$MeanTstatHacked; resTable$MeanTstatUnhacked
 
 resTable$TheoryVarTstat; resTable$EstVarTstatUnhacked
 
-#bm
+
 # bias:
-p$Mu
+scen.params$Mu
 resTable$MhatAll
 resTable$MhatNaive
 resTable$MhatCorr
+
+mean( (rs$MhatLoCorr <= .1 & rs$MhatHiCorr >= .1), ra.rm = TRUE)
 
 
 # CI coverage:

@@ -10,6 +10,10 @@
 # For more about the small-sample bias: # https://www.jstor.org/stable/2332719?seq=1#metadata_info_tab_contents
 
 
+# 2021-5-8 CLUSTER FNS ---------------------------------------------------------------
+
+
+
 # 2021-5-3 ANALYSIS FNS ---------------------------------------------------------------
 
 # log-likelihood
@@ -170,7 +174,9 @@ correct_dataset_phack = function( .dp,  # published studies
 # **note that the returned Vhat is an estimate of T2 + t2w, not T2 itself
 correct_meta_phack1 = function( .dp,  # published studies
                                   .p  # parameters as dataframe
-                                   ) {
+                                   ) { 
+  
+  browser()
   
   # published affirmatives only
   dpn = .dp[ .dp$affirm == FALSE, ]
@@ -214,16 +220,17 @@ correct_meta_phack1 = function( .dp,  # published studies
   ### Sanity checks: Moments of published nonaffirms vs. theory ###
   # check that moments are what we expect
   # without delta method:
+  
   theoryExpTstat = extrunc(spec = "norm",
-                          mean = p$Mu / p$se,
+                          mean =.p$Mu /.p$se,
                           #@doesn't use the delta-method thing
-                          sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
+                          sd = sqrt( (1/.p$se^2) * (.p$T2 +.p$t2w +.p$se^2) ),
                           b = crit )
 
   theoryVarTstat = vartrunc(spec = "norm",
-           mean = p$Mu / p$se,
+           mean =.p$Mu /.p$se,
            #@doesn't use the delta-method thing
-           sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
+           sd = sqrt( (1/.p$se^2) * (.p$T2 +.p$t2w +.p$se^2) ),
            b = crit )
   
   # delta-method version (not checked and seems not to work):
@@ -237,24 +244,23 @@ correct_meta_phack1 = function( .dp,  # published studies
   #                                          nrow = 2 ) )
   # 
   # extrunc(spec = "norm",
-  #         mean = p$Mu / p$se,
+  #         mean =.p$Mu /.p$se,
   #         sd = correctedSE,
   #         b = crit )
   
-  browser()
-  
+
   ### Return all the things ###
   return( list( metaCorr = data.frame( MhatCorr = Mhat,
                                        MhatLoCorr = MhatCI[1],
                                        MhatHiCorr = MhatCI[2],
-                                       MhatCoverCorr = ( MhatCI[1] <= p$Mu ) & ( MhatCI[2] >= p$Mu ),
+                                       MhatCoverCorr = ( MhatCI[1] <=.p$Mu ) & ( MhatCI[2] >=.p$Mu ),
                                        VhatCorr = Vhat),
 
                
                # **note that all of these stats pertain to only published nonaffirmatives
                sanityChecks = data.frame( kNonaffirmPub = nrow(dpn),
                                           kUnhacked = sum( dpn$hack == "no" ),
-                                          kHacked = sum( dpn$hack == p$hack ),
+                                          kHacked = sum( dpn$hack ==.p$hack ),
                                           
                                           # check that moments of published nonaffirms are what we expect
                                           TheoryExpTstat = theoryExpTstat,
@@ -264,15 +270,17 @@ correct_meta_phack1 = function( .dp,  # published studies
                                           MeanTstatUnhacked = mean( dpn$tstat[dpn$hack == "no" ] ),
                                           # mean of t-stats from published nonaffirms from
                                           #  hacked study sets (may not match TheoryExpTstat)
-                                          MeanTstatHacked = mean( dpn$tstat[dpn$hack == p$hack ] ),
+                                          MeanTstatHacked = mean( dpn$tstat[dpn$hack ==.p$hack ] ),
                                           
                                           TheoryVarTstat = theoryVarTstat,
                                           EstVarTstat = var(dpn$tstat),
                                           # should match theory:
                                           EstVarTstatUnhacked = var( dpn$tstat[dpn$hack == "no" ] ),
-                                          EstVarTstatHacked = var( dpn$tstat[dpn$hack == p$hack ] ),
+                                          EstVarTstatHacked = var( dpn$tstat[dpn$hack ==.p$hack ] ),
                                           
                                           # MLEs of the t-stats themselves (before rescaling using the SE)
+                                          # marginal t-stats (underlying distribution rather than truncated one)
+                                          TheoryExpTstatMarg = .p$Mu/.p$se,
                                           tstatMeanMLE = mles[1],
                                           tstatMeanMLELo = tstat.mu.CI[1],
                                           tstatMeanMLEHi = tstat.mu.CI[2],
@@ -281,11 +289,11 @@ correct_meta_phack1 = function( .dp,  # published studies
                                           # other stats
                                           Mean.yi = mean(dpn$yi),
                                           Mean.yi.Unhacked = mean( dpn$yi[dpn$hack == "no" ] ),
-                                          Mean.yi.Hacked = mean( dpn$yi[dpn$hack == p$hack ] ),
+                                          Mean.yi.Hacked = mean( dpn$yi[dpn$hack ==.p$hack ] ),
                                           
                                           Mean.vi = mean(dpn$vi),
                                           Mean.vi.Unhacked = mean( dpn$vi[dpn$hack == "no" ] ),
-                                          Mean.vi.Hacked = mean( dpn$vi[dpn$hack == p$hack ] ) )
+                                          Mean.vi.Hacked = mean( dpn$vi[dpn$hack ==.p$hack ] ) )
   ) )
   
 }
