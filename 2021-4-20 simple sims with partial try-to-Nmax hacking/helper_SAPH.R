@@ -178,10 +178,12 @@ correct_meta_phack1 = function( .dp,  # published studies
 
   #@ assumes they all have same se:
   crit = unique(dpn$tcrit)
-  
+
   
   ### MLEs from trunc normal ###
   # these are the MLEs of the *t-stats*
+  #@ IMPORTANT: for convenience, this is using the normal distribution, 
+  #  so won't work well for small m
   mle.fit = mle.tmvnorm( X = as.matrix(dpn$tstat, ncol = 1),
                          lower = -Inf,
                          upper = crit)
@@ -202,29 +204,44 @@ correct_meta_phack1 = function( .dp,  # published studies
   # mles[2]; (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
   
   # rescale MLEs to represent effect sizes rather than tstats
-  Mhat = mles[1] * p$se
+  Mhat = mles[1] * .p$se
   # **use Vhat to represent MARGINAL heterogeneity (i.e., T2 + t2w)
-  Vhat = ( mles[2] * p$se^2 ) - p$se^2
+  Vhat = ( mles[2] * .p$se^2 ) - .p$se^2
   
   # and rescale CI limits
-  MhatCI = tstat.mu.CI * p$se
+  MhatCI = tstat.mu.CI * .p$se
   
   ### Sanity checks: Moments of published nonaffirms vs. theory ###
   # check that moments are what we expect
-
+  # without delta method:
   theoryExpTstat = extrunc(spec = "norm",
                           mean = p$Mu / p$se,
-                          #@doesn't yet use the delta-method thing
+                          #@doesn't use the delta-method thing
                           sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
                           b = crit )
-  
+
   theoryVarTstat = vartrunc(spec = "norm",
            mean = p$Mu / p$se,
-           #@doesn't yet use the delta-method thing
+           #@doesn't use the delta-method thing
            sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
            b = crit )
-
- 
+  
+  # delta-method version (not checked and seems not to work):
+  # library(msm)
+  # # https://en.wikipedia.org/wiki/Variance#Distribution_of_the_sample_variance
+  # sd.y = .p$se * sqrt(.p$m)
+  # viSE = sqrt( 2 * sd.y^4 / (.p$m-1) )
+  # correctedSE = deltamethod( g = ~ x1/sqrt(x2),  # the t-stat
+  #                            mean = c(.p$Mu, .p$se^2),
+  #                            cov = matrix( c( .p$T2 + .p$t2w + .p$se^2, 0, 0, viSE^2 ),
+  #                                          nrow = 2 ) )
+  # 
+  # extrunc(spec = "norm",
+  #         mean = p$Mu / p$se,
+  #         sd = correctedSE,
+  #         b = crit )
+  
+  browser()
   
   ### Return all the things ###
   return( list( metaCorr = data.frame( MhatCorr = Mhat,
@@ -234,7 +251,7 @@ correct_meta_phack1 = function( .dp,  # published studies
                                        VhatCorr = Vhat),
 
                
-               # note that all of these stats pertain to only published nonaffirmatives
+               # **note that all of these stats pertain to only published nonaffirmatives
                sanityChecks = data.frame( kNonaffirmPub = nrow(dpn),
                                           kUnhacked = sum( dpn$hack == "no" ),
                                           kHacked = sum( dpn$hack == p$hack ),
@@ -254,6 +271,12 @@ correct_meta_phack1 = function( .dp,  # published studies
                                           # should match theory:
                                           EstVarTstatUnhacked = var( dpn$tstat[dpn$hack == "no" ] ),
                                           EstVarTstatHacked = var( dpn$tstat[dpn$hack == p$hack ] ),
+                                          
+                                          # MLEs of the t-stats themselves (before rescaling using the SE)
+                                          tstatMeanMLE = mles[1],
+                                          tstatMeanMLELo = tstat.mu.CI[1],
+                                          tstatMeanMLEHi = tstat.mu.CI[2],
+                                          tstatMeanMLECover = (tstat.mu.CI[1] <= .p$Mu/.p$se) & (tstat.mu.CI[2] >= .p$Mu/.p$se),
                                         
                                           # other stats
                                           Mean.yi = mean(dpn$yi),

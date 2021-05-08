@@ -1,6 +1,12 @@
 
+# IMPORTANT NOTES -----------------------------
 
-# **note that the returned Vhat is an estimate of T2 + t2w, not T2 itself
+
+# - The returned Vhat is an estimate of T2 + t2w, *not* T2 itself
+#
+# - correct_meta_phack1 will NOT work well for small m. I already tried this.
+#   This is because, for computational convenience, I'm using the truncated normal dist
+#   for the tstats, and it won't hold well when m is small. 
 
 
 
@@ -119,19 +125,20 @@ if ( run.local == TRUE ) {
   # # this works pretty well for 1 sim rep
   # #  e.g., TheoryExpTstat = 0.5954914 vs. MeanTstatUnhacked = 0.5765191
   # #  TheoryVarTstat = 1.076894 vs. EstVarTstatUnhacked = 1.149218
-  # scen.params = data.frame( scen = 1,
-  #                           Mu = 1,
-  #                           T2 = 0.25,
-  #                           m = 500,
-  #                           t2w = .25,
-  #                           se = 0.5,
-  #                           
-  #                           Nmax = 10,
-  #                           hack = "affirm",
-  #                           rho = 0.9,
-  #                           
-  #                           k = 10^3,
-  #                           k.hacked = 0 )
+  scen.params = data.frame( scen = 1,
+                            Mu = 1,
+                            T2 = 0.25,
+                            m = 500,
+                            t2w = .25,
+                            se = 0.5,
+
+                            Nmax = 10,
+                            hack = "affirm",
+                            rho = 0.9,
+
+                            k = 10^3,
+                            k.hacked = 0 )
+  
   
   # same as above, but m=50 instead of 500
   # theoretical moments differ from above because tcrit changes based on m:
@@ -172,7 +179,6 @@ if ( run.local == TRUE ) {
   # Nmax = 1 with heterogeneity
   # TheoryExpTstat = 0.6241134 vs. MeanTstatUnhacked = 0.5515947
   # TheoryVarTstat = 1.093762 vs. EstVarTstatUnhacked = 1.198789
-  #bm: trying to understand this one
   scen.params = data.frame( scen = 1,
                             Mu = 1,
                             T2 = 0.25,
@@ -204,11 +210,10 @@ if ( run.local == TRUE ) {
                             k = 10^3,
                             k.hacked = 0 )
   
-  #bm: seems like consistently, the mean is lower than trunc mean and var is higher
-  #  except when T2 = t2w = 0
+  #bm
   
   
-  sim.reps = 1  # reps to run in this iterate
+  sim.reps =   # reps to run in this iterate
   
   
   library(foreach)
