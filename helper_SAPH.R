@@ -321,13 +321,14 @@ report_rma = function(.mod,
 }
 
 
+# ANALYSIS FNS: APPLIED EXAMPLES -----------------------------------------------
 
 # just like correct_meta_phack1, but designed for applied examples instead of sim study
 # use only the nonaffirms to get trunc MLE
 #  and throws away the affirms
 # **note that the returned Vhat is an estimate of T2 + t2w, not T2 itself
 correct_meta_phack2 = function( yi,
-                                vi ) { 
+                                vi) { 
   
   
   d = data.frame(yi = yi, vi = vi)
@@ -372,7 +373,7 @@ correct_meta_phack2 = function( yi,
                        vi = vi,
                        method = "REML", 
                        knha = TRUE )
- 
+  
   ### Return all the things ###
   return( list( metaCorr = data.frame( MhatCorr = Mhat,
                                        MhatLoCorr = MhatCI[1],
@@ -393,6 +394,8 @@ correct_meta_phack2 = function( yi,
                                            tstatMeanMLE = mles[1],
                                            tstatMeanMLELo = tstat.mu.CI[1],
                                            tstatMeanMLEHi = tstat.mu.CI[2],
+                                           
+                                           tstatVarMLE = mles[2],
                                           
                                            
                                            # other stats
@@ -405,29 +408,86 @@ correct_meta_phack2 = function( yi,
                                            dp.kAffirm = sum(d$affirm == TRUE),
                                            dp.kNonaffirm = sum(d$affirm == FALSE)
                                
-                )
+                ),
+                
+                data = d
   ) )
   
 }
 
 
-# nicely report a metafor object with optional suffix to denote which model it is
-# includes coverage
-report_rma = function(.mod,
-                      .Mu,  # true mean (to get coverage)
-                      .suffix = "") {
+# plot empirical data
+
+# .obj: object returned by correct_meta_phack2
+plot_trunc_densities(.obj) {
   
-  .res = data.frame( .mod$b,
-                     .mod$ci.lb,
-                     .mod$ci.ub,
-                     (.mod$ci.lb <= .Mu) & (.mod$ci.ub >= .Mu), 
-                     .mod$pval )
+  # already has affirmative indicator
+  d = .obj$data
+  dn = d[d$affirm == FALSE,]
   
-  names(.res) = paste( c("Mhat", "MhatLo", "MhatHi", "MhatCover", "MhatPval"), .suffix, sep = "" )
-  return(.res)
+  tstatMeanMLE = .obj$sanityChecks$tstatMeanMLE
+  tstatVarMLE = .obj$sanityChecks$tstatVarMLE
+  
+  #bm: Make ggplot with density, oh yeah
+  xmin = floor(min(dn$tstat))
+  xmax = ceiling(max(dn$tstat))
+  
+  ggplot(data = data.frame(x = c(xmin, 3)),
+         aes(x)) +
+    
+    geom_vline(xintercept = 0,
+               lwd = 1,
+               color = "gray"
+    ) +
+    
+    geom_vline(xintercept = tstatMeanMLE,
+               lty = 2,
+               lwd = 1,
+               color = "red"
+    ) +
+    
+    
+
+    
+  geom_histogram( data = dn,
+                  aes(x = tstat),
+                  binwidth = .25,
+                  color = "black",
+                  fill = "white") +
+    
+    # estimated density of estimates
+    geom_density( data = dn,
+                  aes(x = tstat,
+                      y = .25 * ..count..),
+                  adjust = .3 ) +
+    
+    
+    # estimated density from meta-analysis
+    # SAVE
+    stat_function( fun = dtrunc,
+                   n = 101,
+                   args = list( spec = "norm",
+                                mean = tstatMeanMLE,
+                                sd = sqrt(tstatVarMLE),
+                                b = crit),
+                   #aes(y = .25 * ..count..),  # doesn't work
+                   lwd = 1.2,
+                   color = "red") +
+    
+    #bm: got histogram to work with density in terms of scaling, but notyet the stat_function
+
+    
+    ylab("") +
+    scale_x_continuous( breaks = seq(xmin, 3, 0.5)) +
+    xlab("Standardized mean difference") +
+    theme_minimal() +
+    scale_y_continuous(breaks = NULL) +
+    theme(text = element_text(size=20),
+          axis.text.x = element_text(size=20))
+  
+  
+  
 }
-
-
 
 # DATA SIMULATION ---------------------------------------------------------------
 

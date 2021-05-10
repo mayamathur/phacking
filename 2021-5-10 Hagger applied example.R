@@ -52,16 +52,21 @@ dd.cl = dd[dd$IV == "CL",]
 # very similar to correct_meta_phack1, but allows for different SEs across studies
 
 
-correct_meta_phack2(yi = dm$yi,
+.obj = correct_meta_phack2(yi = dm$yi,
                     vi = dm$vi)
 
+.obj$data
 
 #bm: it's not able to get CIs and the MLEs are kind of nuts
 # maybe try the replications for comparison, since they shouldn't have any p-hacking?
 
+# P-HACKING ADJUSTMENT IN HAGGER REPLICATIONS -----------------------------
 
 
+.obj = correct_meta_phack2(yi = dr$yi,
+                           vi = dr$vi)
 
+.obj$data
 
 
 
