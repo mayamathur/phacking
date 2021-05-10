@@ -2,79 +2,93 @@
 # IMPORTANT NOTES -----------------------------
 
 
-# - The returned Vhat is an estimate of T2 + t2w, *not* T2 itself
+# The returned Vhat is an estimate of T2 + t2w, *not* T2 itself
 #
-# - correct_meta_phack1 will NOT work well for small m. I already tried this.
+# correct_meta_phack1 will NOT work well for small m. I already tried this.
 #   This is because, for computational convenience, I'm using the truncated normal dist
 #   for the tstats, and it won't hold well when m is small. 
+# 
+# Key hypotheses to check in simulation results:
+#  - T2 = 0, t2w > 0, Nmax > 1: Nonaffirms should fit the trunc distribution because
+#    there's no selection on mui. So this scenario should look just like T2 = 0, t2w > 0, Nmax = 1.
 
 
 
-# because Sherlock 2.0 restores previous workspace
-rm( list = ls() )
+
+# 2021-5-8: scens that are unbiased, correct coverage, etc., locally:
+# scen  Mu   T2   m  t2w  se Nmax   hack rho   k k.hacked
+# 1    1 0.1 0.25 500 0.25 0.5   10 affirm 0.9 100        0
+
+
+
+
+
+
 
 # are we running locally?
 run.local = FALSE
 
 
+# FOR CLUSTER USE ------------------------------
 
-# # FOR CLUSTER USE ------------------------------
-# if (run.local == FALSE) {
-#   
-#   # load command line arguments
-#   args = commandArgs(trailingOnly = TRUE)
-#   jobname = args[1]
-#   scen = args[2]  # this will be a letter
-#   
-#   # get scen parameters
-#   setwd("/home/groups/manishad/MRM")
-#   scen.params = read.csv( "scen_params.csv" )
-#   p = scen.params[ scen.params$scen.name == scen, ]
-#   
-#   print(p)
-#   
-#   
-#   # simulation reps to run within this job
-#   # this need to match n.reps.in.doParallel in the genSbatch script
-#   sim.reps = 500  # for main sims
-#   # used boot.reps=5,000 in NPPhat but have reduced to 1,000
-#   # MR bt mn both correct still times out with 5:00:00 at 1000 boot.reps
-#   # JUST TO LOOK AT TIMEOUT ISSUE:
-#   # for largest scenario (k=150) with method MR and boot.reps=50 and sim.reps=100, one sbatch took 15 min
-#   #  so boot.reps=1,000 should be about 5 hrs
-#   # reducing sim.reps to 50 should be about 2.5 hrs
-#   boot.reps = 1000
-#   
-#   
-#   # EDITED FOR C++ ISSUE WITH PACKAGE INSTALLATION
-#   library(crayon, lib.loc = "/home/groups/manishad/Rpackages/")
-#   library(dplyr, lib.loc = "/home/groups/manishad/Rpackages/")
-#   library(foreach, lib.loc = "/home/groups/manishad/Rpackages/")
-#   library(doParallel, lib.loc = "/home/groups/manishad/Rpackages/")
-#   library(boot, lib.loc = "/home/groups/manishad/Rpackages/")
-#   library(metafor, lib.loc = "/home/groups/manishad/Rpackages/")
-#   library(robumeta, lib.loc = "/home/groups/manishad/Rpackages/")
-#   library(data.table, lib.loc = "/home/groups/manishad/Rpackages/")
-#   library(purrr, lib.loc = "/home/groups/manishad/Rpackages/")
-#   library(metRology, lib.loc = "/home/groups/manishad/Rpackages/")
-#   library(fansi, lib.loc = "/home/groups/manishad/Rpackages/")
-#   library(MetaUtility, lib.loc = "/home/groups/manishad/Rpackages/")
-#   library(ICC, lib.loc = "/home/groups/manishad/Rpackages/")
-#   library(cfdecomp, lib.loc = "/home/groups/manishad/Rpackages/")
-#   library(tidyr, lib.loc = "/home/groups/manishad/Rpackages/")
-#   
-#   # for use in ml load R
-#   # install.packages( c("ICC", "cfdecomp", "tidyr"), lib = "/home/groups/manishad/Rpackages/" )
-#   
-#   path = "/home/groups/manishad/MRM"
-#   setwd(path)
-#   source("bootfuns.R")
-#   source("helper_MRM.R")
-#   
-#   # set the number of cores
-#   registerDoParallel(cores=16)
-# 
-# }
+
+# because Sherlock 2.0 restores previous workspace
+rm( list = ls() )
+
+
+
+if (run.local == FALSE) {
+
+  # load command line arguments
+  args = commandArgs(trailingOnly = TRUE)
+  jobname = args[1]
+  scen = args[2]  # this will be a letter
+
+  # get scen parameters (made by genSbatch.R)
+  setwd("/home/groups/manishad/SAPH")
+  scen.params = read.csv( "scen_params.csv" )
+  p = scen.params[ scen.params$scen.name == scen, ]
+
+  print(p)
+
+  
+  # locally, with total k = 100, Nmax = 10, and sim.reps = 250, took 93 min total
+
+  # simulation reps to run within this job
+  # **this need to match n.reps.in.doParallel in the genSbatch script
+  sim.reps = 5  #@update this 
+
+
+  library(here, lib.loc = "/home/groups/manishad/Rpackages/")
+  # data-wrangling packages
+  library(magrittr, lib.loc = "/home/groups/manishad/Rpackages/")
+  library(dplyr, lib.loc = "/home/groups/manishad/Rpackages/")
+  library(data.table, lib.loc = "/home/groups/manishad/Rpackages/")
+  library(tidyverse, lib.loc = "/home/groups/manishad/Rpackages/")
+  library(tidyr, lib.loc = "/home/groups/manishad/Rpackages/")
+  # meta-analysis packages
+  library(metafor, lib.loc = "/home/groups/manishad/Rpackages/")
+  library(robumeta, lib.loc = "/home/groups/manishad/Rpackages/")
+  # other
+  library(testthat, lib.loc = "/home/groups/manishad/Rpackages/")
+  # for this project
+  library(truncdist, lib.loc = "/home/groups/manishad/Rpackages/")
+  #library(ExtDist)
+  library(gmm, lib.loc = "/home/groups/manishad/Rpackages/")  # https://stackoverflow.com/questions/63511986/error-package-or-namespace-load-failed-for-gmm-in-dyn-loadfile-dllpath-dl
+  library(tmvtnorm, lib.loc = "/home/groups/manishad/Rpackages/")
+  
+
+  # # for use in ml load R
+  install.packages( c("tidyverse"), lib = "/home/groups/manishad/Rpackages/" )
+
+  path = "/home/groups/manishad/SAPH"
+  setwd(path)
+  source("helper_SAPH.R")
+
+  # set the number of cores
+  registerDoParallel(cores=16)
+
+}
 
 
 
@@ -103,34 +117,9 @@ if ( run.local == TRUE ) {
   library(tmvtnorm)
   
   # helper fns
-  code.dir = here("2021-4-20 simple sims with partial try-to-Nmax hacking")
+  code.dir = here()
   setwd(code.dir)
   source("helper_SAPH.R")
-  
-  # set up sim params for cluster
-  
-  # 1. Nmax = 1, k.hacked = 0, rho = 0 (basically a sanity check)
-  # 2. Nmax > 1, k.hacked = 0, rho = 0.9 
-  # 3. Nmax > 1, k.hacked = 50, rho = 0 or 0.9 (conservative?)
-
-  
-  # scen.params = tidyr::expand_grid( Mu = 0.1,
-  #                                   T2 = c(0, 0.25),
-  #                                   m = 500,
-  #                                   t2w = c(0, 0.25),
-  #                                   se = 0.5,
-  #                                   
-  #                                   Nmax = c(1, 10),
-  #                                   hack = "affirm",
-  #                                   rho = c(0, 0.9),
-  #                                   
-  #                                   k = 100,
-  #                                   k.hacked = c(0, 50) )
-  
-  # remove nonsense combinations
-  # remove nonsense combinations
-  # rho > 0 is pointless if there's only 1 draw
-  scen.params = scen.params %>% filter( !(rho > 0 & Nmax == 1) )
   
   scen.params = data.frame( scen = 1,
                             Mu = 0.1,
@@ -140,11 +129,11 @@ if ( run.local == TRUE ) {
                             se = 0.5,
 
                             Nmax = 10,
-                            hack = "affirm",
+                            hack = "affirm2", # **
                             rho = 0.9,
 
                             k = 100,
-                            k.hacked = 0 )
+                            k.hacked = 100 )  # all published nonaffirms are from hacked studies
   
   
   
@@ -164,7 +153,7 @@ if ( run.local == TRUE ) {
 
 
 
-# ~ RUN SIMULATION ------------------------------
+# RUN SIMULATION ------------------------------
 
 
 #for ( scen in scen.params$scen.name ) {  # can't use this part on the cluster
@@ -308,9 +297,10 @@ doParallelTime = system.time({
     # **note: all columns before methName don't depend on the correction method used
     repRes = repRes %>% add_column(repName = i,
                                    
-                                   dp.k = nrow(dp),
-                                   dp.kAffirm = sum(dp$affirm == TRUE),
-                                   dp.kNonaffirm = sum(dp$affirm == FALSE),
+                                   # dp.k = nrow(dp),
+                                   # dp.kAffirm = sum(dp$affirm == TRUE),
+                                   # dp.kNonaffirm = sum(dp$affirm == FALSE),
+                                   # dp.Nrealized = mean(dp$N),
                                    
                                    report_rma(modAll,
                                               .Mu = p$Mu,
@@ -337,7 +327,9 @@ doParallelTime = system.time({
 
 
 
-### Put in dataset: Estimated time for 1 sim rep ###
+### Add meta-variables to dataset ###
+
+# estimated time for 1 simulation rep
 # use NAs for additional methods so that the SUM of the rep times will be the
 #  total computational time
 nMethods = length(unique(rs$methName))
@@ -348,49 +340,53 @@ expect_equal( as.numeric( sum(rs$repSeconds, na.rm = TRUE) ),
               as.numeric(doParallelTime) )
 
 
-### Local only: Quick look at results ###
-takeMean = names(rs)[ !names(rs) %in% c( "repName",
-                                         "scenName",
-                                         "methName",
-                                         names(scen.params) ) ]
+
+### LOCAL ONLY: Quick look at results ###
+
+if ( run.local == TRUE ) {
+  takeMean = names(rs)[ !names(rs) %in% c( "repName",
+                                           "scenName",
+                                           "methName",
+                                           names(scen.params) ) ]
+  
+  
+  resTable = rs %>% group_by(methName) %>%
+    #mutate(simReps = n()) %>%
+    summarise_at( takeMean,
+                  function(x) round( mean(x, na.rm = TRUE), 2 ) )
+  View(resTable)
+  
+  # should be similar:
+  # *does NOT match with method = "affirm2"
+  resTable$TheoryExpTstat; resTable$MeanTstatUnhacked
+  # the other ones:
+  resTable$MeanTstat; resTable$MeanTstatHacked; resTable$MeanTstatUnhacked
+  
+  resTable$TheoryVarTstat; resTable$EstVarTstatUnhacked
+  
+  
+  # bias:
+  scen.params$Mu
+  resTable$MhatAll
+  resTable$MhatNaive
+  resTable$MhatCorr
+  
+  
+  
+  # CI coverage:
+  resTable$MhatCoverAll  # should definitely be good
+  resTable$MhatCoverNaive
+  resTable$MhatCoverCorr
+  
+  # setwd("Results")
+  # fwrite(resTable, "all_hacked_affirm2_Nmax10.csv")
+  # fwrite(resTable, "resTable.csv")
+}
 
 
-resTable = rs %>% group_by(methName) %>%
-  #mutate(simReps = n()) %>%
-  summarise_at( takeMean,
-                function(x) round( mean(x, na.rm = TRUE), 2 ) )
-View(resTable)
 
-# should be similar:
-# *does NOT match with method = "affirm2"
-resTable$TheoryExpTstat; resTable$MeanTstatUnhacked
-# the other ones:
-resTable$MeanTstat; resTable$MeanTstatHacked; resTable$MeanTstatUnhacked
-
-resTable$TheoryVarTstat; resTable$EstVarTstatUnhacked
-
-
-# bias:
-scen.params$Mu
-resTable$MhatAll
-resTable$MhatNaive
-resTable$MhatCorr
-
-mean( (rs$MhatLoCorr <= .1 & rs$MhatHiCorr >= .1), ra.rm = TRUE)
-
-
-# CI coverage:
-resTable$MhatCoverAll  # should definitely be good
-resTable$MhatCoverNaive
-resTable$MhatCoverCorr
-
-# setwd("Results")
-# fwrite(rs, "rs_one_scenario.csv")
-# fwrite(resTable, "resTable.csv")
-
-
-# WRITE LONG RESULTS ------------------------------
+# ~ WRITE LONG RESULTS ------------------------------
 if ( run.local == FALSE ) {
-  setwd("/home/groups/manishad/MRM/sim_results/long")
-  write.csv( rs, paste( "long_results", jobname, ".csv", sep="_" ) )
+  setwd("/home/groups/manishad/SAPH/long_results")
+  fwrite( rs, paste( "long_results", jobname, ".csv", sep="_" ) )
 }

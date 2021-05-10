@@ -1295,6 +1295,28 @@ x = quick_sim( .p = data.frame( Mu = 1,
 x$res
 
 
+# ~ EXPT 4: ALL HACKED, NMAX = 200 -------------------------
+
+x = quick_sim( .p = data.frame( Mu = 1,
+                                T2 = 0.25,
+                                m = 500,
+                                t2w = .25,
+                                se = .5,
+                                
+                                Nmax = 200,
+                                hack = "affirm",
+                                rho = 0,
+                                
+                                k = 10000,
+                                k.hacked = 10000,
+                                
+                                .results.dir = results.dir,
+                                sim.name = "expt_4_dataset" ) )
+
+x$res
+
+
+
 # ~ EXPT 5: ALL HACKED, NMAX = 10, T2 = t2w = 0 -------------------------
 
 # try without heterogeneity, still Nmax = 10

@@ -1,4 +1,5 @@
 
+# This script is all about the NONaffirmatives.
 
 # PRELIMINARIES ------------------------------
 
