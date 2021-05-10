@@ -419,7 +419,7 @@ correct_meta_phack2 = function( yi,
 # plot empirical data
 
 # .obj: object returned by correct_meta_phack2
-plot_trunc_densities(.obj) {
+plot_trunc_densities = function(.obj) {
   
   # already has affirmative indicator
   d = .obj$data
@@ -432,38 +432,29 @@ plot_trunc_densities(.obj) {
   xmin = floor(min(dn$tstat))
   xmax = ceiling(max(dn$tstat))
   
+
+  
   ggplot(data = data.frame(x = c(xmin, 3)),
          aes(x)) +
     
     geom_vline(xintercept = 0,
                lwd = 1,
-               color = "gray"
-    ) +
+               color = "gray") +
     
-    geom_vline(xintercept = tstatMeanMLE,
-               lty = 2,
-               lwd = 1,
-               color = "red"
-    ) +
+    # geom_vline(xintercept = tstatMeanMLE,
+    #            lty = 2,
+    #            lwd = 1,
+    #            color = "red") +
     
-    
-
-    
-  geom_histogram( data = dn,
-                  aes(x = tstat),
-                  binwidth = .25,
-                  color = "black",
-                  fill = "white") +
-    
+  
     # estimated density of estimates
     geom_density( data = dn,
-                  aes(x = tstat,
-                      y = .25 * ..count..),
-                  adjust = .3 ) +
-    
-    
+                  aes(x = tstat),
+                  adjust = .3 ) + 
+  
+  
+
     # estimated density from meta-analysis
-    # SAVE
     stat_function( fun = dtrunc,
                    n = 101,
                    args = list( spec = "norm",
@@ -474,20 +465,23 @@ plot_trunc_densities(.obj) {
                    lwd = 1.2,
                    color = "red") +
     
-    #bm: got histogram to work with density in terms of scaling, but notyet the stat_function
+    #bm: got histogram to work with density in terms of scaling, but not yet the stat_function
 
-    
+     
+     
     ylab("") +
-    scale_x_continuous( breaks = seq(xmin, 3, 0.5)) +
-    xlab("Standardized mean difference") +
+    #scale_x_continuous( breaks = seq(xmin, 3, 0.5)) +
+    xlab("t-stat") +
     theme_minimal() +
     scale_y_continuous(breaks = NULL) +
-    theme(text = element_text(size=20),
-          axis.text.x = element_text(size=20))
+    theme(text = element_text(size=16),
+          axis.text.x = element_text(size=16))
   
   
   
 }
+
+
 
 # DATA SIMULATION ---------------------------------------------------------------
 
