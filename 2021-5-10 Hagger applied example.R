@@ -52,77 +52,18 @@ dd.cl = dd[dd$IV == "CL",]
 # very similar to correct_meta_phack1, but allows for different SEs across studies
 
 
+correct_meta_phack2(yi = dm$yi,
+                    vi = dm$vi)
 
-# published affirmatives only
-dmn = dm[ dm$affirm == FALSE, ]
-nrow(dmn)
-
-dmn$tstat = dmn$yi / sqrt(dmn$vi)
-summary(dmn$tstat)
-
-crit = qnorm(.975)
-
-
-### MLEs from trunc normal ###
-# these are the MLEs of the *t-stats*
-#@ IMPORTANT: for convenience, this is using the normal distribution, 
-#  so won't work well for small m
-mle.fit = mle.tmvnorm( X = as.matrix(dmn$tstat, ncol = 1),
-                       lower = -Inf,
-                       upper = crit)
-#summary(mle.fit)
-mles = coef(mle.fit)
 
 #bm: it's not able to get CIs and the MLEs are kind of nuts
 # maybe try the replications for comparison, since they shouldn't have any p-hacking?
 
-# get Wald CI a different way
-tstat.mu.SE = attr( summary(mle.fit), "coef" )[ "mu_1", "Std. Error" ]
-tstat.mu.CI = c( mles[1] - tstat.mu.SE * qnorm(0.975),
-                 mles[1] + tstat.mu.SE * qnorm(0.975) )
 
-# # pretty good :)
-# mles[1]; p$Mu/p$se
-# mles[2]; (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
 
-# rescale MLEs to represent effect sizes rather than tstats
-Mhat = mles[1] * .p$se
-# **use Vhat to represent MARGINAL heterogeneity (i.e., T2 + t2w)
-Vhat = ( mles[2] * .p$se^2 ) - .p$se^2
 
-# and rescale CI limits
-MhatCI = tstat.mu.CI * .p$se
 
-### Sanity checks: Moments of published nonaffirms vs. theory ###
-# check that moments are what we expect
-# without delta method:
 
-theoryExpTstat = extrunc(spec = "norm",
-                         mean =.p$Mu /.p$se,
-                         #@doesn't use the delta-method thing
-                         sd = sqrt( (1/.p$se^2) * (.p$T2 +.p$t2w +.p$se^2) ),
-                         b = crit )
-
-theoryVarTstat = vartrunc(spec = "norm",
-                          mean =.p$Mu /.p$se,
-                          #@doesn't use the delta-method thing
-                          sd = sqrt( (1/.p$se^2) * (.p$T2 +.p$t2w +.p$se^2) ),
-                          b = crit )
-
-# delta-method version (not checked and seems not to work):
-# library(msm)
-# # https://en.wikipedia.org/wiki/Variance#Distribution_of_the_sample_variance
-# sd.y = .p$se * sqrt(.p$m)
-# viSE = sqrt( 2 * sd.y^4 / (.p$m-1) )
-# correctedSE = deltamethod( g = ~ x1/sqrt(x2),  # the t-stat
-#                            mean = c(.p$Mu, .p$se^2),
-#                            cov = matrix( c( .p$T2 + .p$t2w + .p$se^2, 0, 0, viSE^2 ),
-#                                          nrow = 2 ) )
-# 
-# extrunc(spec = "norm",
-#         mean =.p$Mu /.p$se,
-#         sd = correctedSE,
-#         b = crit )
 
 
 # FROM EARLIER COMPARISON -----------------------------
