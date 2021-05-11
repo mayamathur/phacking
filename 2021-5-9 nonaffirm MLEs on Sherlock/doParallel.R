@@ -21,12 +21,26 @@
 
 
 
-
-
-
-
 # are we running locally?
 run.local = FALSE
+
+
+allPackages = c("here",
+                "magrittr",
+                "dplyr",
+                "data.table",
+                "tidyverse",
+                "tidyr",
+                "metafor",
+                "robumeta",
+                "testthat",
+                "truncdist",
+                "gmm",
+                "tmvtnorm",
+                "doParallel",
+                "foreach")
+
+
 
 
 # FOR CLUSTER USE ------------------------------
@@ -38,56 +52,46 @@ rm( list = ls() )
 
 
 if (run.local == FALSE) {
-
+  
   # load command line arguments
   args = commandArgs(trailingOnly = TRUE)
   jobname = args[1]
   scen = args[2]  # this will be a letter
-
+  
+  # install any missing packages
+  # find the ones that aren't already installed
+  libDir = "/home/users/mmathur/Rpackages/"
+  ( packagesNeeded = allPackages[ !( allPackages %in% installed.packages(lib.loc = libDir)[,"Package"] ) ] )
+  if( length(packagesNeeded) > 0 ) install.packages(packagesNeeded, lib = libDir)
+  
+  # load all packages
+  lapply( allPackages,
+          require,
+          character.only = TRUE,
+          lib.loc = libDir)
+  
   # get scen parameters (made by genSbatch.R)
   setwd("/home/groups/manishad/SAPH")
   scen.params = read.csv( "scen_params.csv" )
   p = scen.params[ scen.params$scen.name == scen, ]
-
+  
   print(p)
-
+  
   
   # locally, with total k = 100, Nmax = 10, and sim.reps = 250, took 93 min total
-
+  
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
   sim.reps = 5  #@update this 
-
-
-  library(here, lib.loc = "/home/groups/manishad/Rpackages/")
-  # data-wrangling packages
-  library(magrittr, lib.loc = "/home/groups/manishad/Rpackages/")
-  library(dplyr, lib.loc = "/home/groups/manishad/Rpackages/")
-  library(data.table, lib.loc = "/home/groups/manishad/Rpackages/")
-  library(tidyverse, lib.loc = "/home/groups/manishad/Rpackages/")
-  library(tidyr, lib.loc = "/home/groups/manishad/Rpackages/")
-  # meta-analysis packages
-  library(metafor, lib.loc = "/home/groups/manishad/Rpackages/")
-  library(robumeta, lib.loc = "/home/groups/manishad/Rpackages/")
-  # other
-  library(testthat, lib.loc = "/home/groups/manishad/Rpackages/")
-  # for this project
-  library(truncdist, lib.loc = "/home/groups/manishad/Rpackages/")
-  #library(ExtDist)
-  library(gmm, lib.loc = "/home/groups/manishad/Rpackages/")  # https://stackoverflow.com/questions/63511986/error-package-or-namespace-load-failed-for-gmm-in-dyn-loadfile-dllpath-dl
-  library(tmvtnorm, lib.loc = "/home/groups/manishad/Rpackages/")
   
-
-  # # for use in ml load R
-  #install.packages( c("tidyverse"), lib = "/home/groups/manishad/Rpackages/" )
-
+  # helper code
   path = "/home/groups/manishad/SAPH"
   setwd(path)
   source("helper_SAPH.R")
-
+  
   # set the number of cores
   registerDoParallel(cores=16)
-
+  
 }
 
 
@@ -96,25 +100,10 @@ if (run.local == FALSE) {
 if ( run.local == TRUE ) {
   #rm(list=ls())
   
-  library(here)
-  # data-wrangling packages
-  library(dplyr)
-  library(ggplot2)
-  library(data.table)
-  library(tidyverse)
-  library(fastDummies)
-  library(tidyr)
-  # meta-analysis packages
-  library(metafor)
-  library(robumeta)
-  # other
-  library(xtable)
-  library(testthat)
-  # for this project
-  library(truncdist)
-  #library(ExtDist)
-  library(gmm)  # https://stackoverflow.com/questions/63511986/error-package-or-namespace-load-failed-for-gmm-in-dyn-loadfile-dllpath-dl
-  library(tmvtnorm)
+  
+  lapply( allPackages,
+          require,
+          character.only = TRUE)
   
   # helper fns
   code.dir = here()
@@ -127,11 +116,11 @@ if ( run.local == TRUE ) {
                             m = 500,
                             t2w = .25,
                             se = 0.5,
-
+                            
                             Nmax = 10,
                             hack = "affirm2", # **
                             rho = 0.9,
-
+                            
                             k = 100,
                             k.hacked = 100 )  # all published nonaffirms are from hacked studies
   

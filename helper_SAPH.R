@@ -344,6 +344,7 @@ correct_meta_phack2 = function( yi,
   # these are the MLEs of the *t-stats*
   #@ IMPORTANT: for convenience, this is using the normal distribution, 
   #  so won't work well for small m
+  #bm
   mle.fit = mle.tmvnorm( X = as.matrix(dpn$tstat, ncol = 1),
                          lower = -Inf,
                          upper = crit)
@@ -431,8 +432,6 @@ plot_trunc_densities = function(.obj) {
   #bm: Make ggplot with density, oh yeah
   xmin = floor(min(dn$tstat))
   xmax = ceiling(max(dn$tstat))
-  
-
   
   ggplot(data = data.frame(x = c(xmin, 3)),
          aes(x)) +
