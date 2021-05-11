@@ -57,6 +57,8 @@ dd.cl = dd[dd$IV == "CL",]
 # **plot shows that the MLE is so big because the nonaffirmative t-stats are actually left-skewed
 # very interesting
 plot_trunc_densities(.obj)
+plot_trunc_densities(.obj, showAffirms = TRUE)
+
 
 hist(dm$yi/sqrt(dm$vi), breaks = 20)
 hist(.obj$data$tstat, breaks = 20)
@@ -81,6 +83,7 @@ mean( dm$yi/sqrt(dm$vi) )  # 2.45
 mean( dr$yi/sqrt(dr$vi) )
 
 plot_trunc_densities(.obj)
+plot_trunc_densities(.obj, showAffirms = TRUE)
 
 .obj$sanityChecks$tstatMeanMLE  # 0.25
 # quite close to the mean in all the replications
@@ -105,7 +108,7 @@ d3 = fread("mathur_data_prepped.csv")
 mean( d3$yi/sqrt(d3$vi) )  # 1.44
 
 plot_trunc_densities(.obj)
-
+plot_trunc_densities(.obj, showAffirms = TRUE)
 
 .obj$metaCorr  # 0.29
 .obj$metaNaive  # 0.21

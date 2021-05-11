@@ -207,7 +207,7 @@ correct_meta_phack1 = function( .dp,  # published studies
   # mles[1]; p$Mu/p$se
   # mles[2]; (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
   
-  # rescale MLEs to represent effect sizes rather than tstats
+  # APPROXIMATELY rescale MLEs to represent effect sizes rather than tstats
   Mhat = mles[1] * .p$se
   # **use Vhat to represent MARGINAL heterogeneity (i.e., T2 + t2w)
   Vhat = ( mles[2] * .p$se^2 ) - .p$se^2
@@ -359,7 +359,11 @@ correct_meta_phack2 = function( yi,
   # rescale MLEs to represent effect sizes rather than tstats
   # SEs could differ across studies, so use the tstat MLE to rescale for each study's vi
   #@ is that right?
-  Mhat = mean( mles[1] * sqrt(dpn$vi) )
+  # this is using the approximation E[tstat] = E[yi/SE] \approx E[yi]/E[SE]
+  #  for now because otherwise we'd have to treat the yi's as non-iid in the likelihood
+  # the approximation holds if yi and SEi are independent
+  #   (in the underlying population, I think)
+  Mhat = mles[1] * mean( sqrt(dpn$vi) )
   # **use Vhat to represent MARGINAL heterogeneity (i.e., T2 + t2w)
   Vhat = mean( ( mles[2] * dpn$vi ) - dpn$vi )
   
@@ -420,7 +424,8 @@ correct_meta_phack2 = function( yi,
 # plot empirical data
 
 # .obj: object returned by correct_meta_phack2
-plot_trunc_densities = function(.obj) {
+plot_trunc_densities = function(.obj,
+                                showAffirms = FALSE) {
   
   # already has affirmative indicator
   d = .obj$data
@@ -433,7 +438,7 @@ plot_trunc_densities = function(.obj) {
   xmin = floor(min(dn$tstat))
   xmax = ceiling(max(dn$tstat))
   
-  ggplot(data = data.frame(x = c(xmin, 3)),
+  p = ggplot(data = data.frame(x = c(xmin, 3)),
          aes(x)) +
     
     geom_vline(xintercept = 0,
@@ -466,8 +471,7 @@ plot_trunc_densities = function(.obj) {
     
     #bm: got histogram to work with density in terms of scaling, but not yet the stat_function
 
-     
-     
+    
     ylab("") +
     #scale_x_continuous( breaks = seq(xmin, 3, 0.5)) +
     xlab("t-stat") +
@@ -477,6 +481,16 @@ plot_trunc_densities = function(.obj) {
           axis.text.x = element_text(size=16))
   
   
+  # also show density of all t-stats, not just the nonaffirms
+  if ( showAffirms == TRUE ) {
+    p = p + geom_density( data = d,
+                          aes(x = tstat),
+                          color = "blue",
+                          adjust = .3 )
+  }
+  
+  
+  return(p)
   
 }
 

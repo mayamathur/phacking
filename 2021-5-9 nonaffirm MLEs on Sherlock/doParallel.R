@@ -12,13 +12,16 @@
 #  - T2 = 0, t2w > 0, Nmax > 1: Nonaffirms should fit the trunc distribution because
 #    there's no selection on mui. So this scenario should look just like T2 = 0, t2w > 0, Nmax = 1.
 
-
+#@To do before running:
+# - Make sure sbatches uses R/4.0.2
 
 
 # 2021-5-8: scens that are unbiased, correct coverage, etc., locally:
 # scen  Mu   T2   m  t2w  se Nmax   hack rho   k k.hacked
 # 1    1 0.1 0.25 500 0.25 0.5   10 affirm 0.9 100        0
 
+# because Sherlock 2.0 restores previous workspace
+rm( list = ls() )
 
 
 # are we running locally?
@@ -46,9 +49,6 @@ allPackages = c("here",
 # FOR CLUSTER USE ------------------------------
 
 
-# because Sherlock 2.0 restores previous workspace
-rm( list = ls() )
-
 
 
 if (run.local == FALSE) {
@@ -70,13 +70,35 @@ if (run.local == FALSE) {
           character.only = TRUE,
           lib.loc = libDir)
   
+  # debugging
+  require()
+  
   # get scen parameters (made by genSbatch.R)
-  setwd("/home/groups/manishad/SAPH")
+  path = "/home/groups/manishad/SAPH"
+  setwd(path)
   scen.params = read.csv( "scen_params.csv" )
   p = scen.params[ scen.params$scen.name == scen, ]
-  
   print(p)
   
+  # # alternatively, generate a simple scen.params in order to run doParallel manually in 
+  # #  Sherlock as a test
+  # scen.params = data.frame( scen = 1,
+  #                           Mu = 0.1,
+  #                           T2 = 0.25,
+  #                           m = 500,
+  #                           t2w = .25,
+  #                           se = 0.5,
+  #                           
+  #                           Nmax = 10,
+  #                           hack = "affirm2", # **
+  #                           rho = 0.9,
+  #                           
+  #                           k = 100,
+  #                           k.hacked = 100 )  # all published nonaffirms are from hacked studies
+  
+  
+  # helper code
+  source("helper_SAPH.R")
   
   # locally, with total k = 100, Nmax = 10, and sim.reps = 250, took 93 min total
   
@@ -84,11 +106,7 @@ if (run.local == FALSE) {
   # **this need to match n.reps.in.doParallel in the genSbatch script
   sim.reps = 5  #@update this 
   
-  # helper code
-  path = "/home/groups/manishad/SAPH"
-  setwd(path)
-  source("helper_SAPH.R")
-  
+
   # set the number of cores
   registerDoParallel(cores=16)
   
@@ -129,10 +147,6 @@ if ( run.local == TRUE ) {
   
   sim.reps = 250  # reps to run in this iterate
   
-  
-  library(foreach)
-  library(doParallel)
-  
   # set the number of local cores
   registerDoParallel(cores=8)
   
@@ -160,7 +174,7 @@ doParallelTime = system.time({
     # exclude the column with the scenario name itself (col) 
     p = scen.params[ scen.params$scen == scen, names(scen.params) != "scen"]
     
-    
+    #bm
     # ~~ Simulate Dataset ------------------------------
     # includes unpublished studies
     d = sim_meta(Nmax = p$Nmax,
