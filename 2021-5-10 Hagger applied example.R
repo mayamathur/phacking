@@ -112,14 +112,82 @@ d$affirm = d$tstat > crit
 dpn = d[ d$affirm == FALSE, ]
 
 # MLE for EACH t-stat individually
-mle.fit = mle.tmvnorm( X = as.matrix(dpn$tstat[1], ncol = 1),
-                       lower = -Inf,
-                       upper = crit)
-mles = coef(mle.fit)
-dpn$tstat[1]
+dpn %>% rowwise() %>%
+   mutate( )
 
 
+#@THINK ABOUT: Currently this allows the within-study variance (t2w + SE^2)
+#  to be estimated. We could alternatively set t2w = 0, for example, using the "fixed"
+#  argument of mle.tmvnorm
+one_nonaffirm_mle = function(.tstat,
+                             .se = NA, # of yi, not tstat
+                             .t2w = NA,
+                             .crit
+) {
+   
+   if (length(.tstat) > 1) stop("fn not intended for more than 1 observation")
+   
+   # if we're given the components of the WITHIN-study variance,
+   #  treat as fixed rather than estimating it
+   if ( !is.na(.se) & !is.na(.t2w) ) Vw = (1/.se^2) * (.t2w + .se^2)
+   
+   if ( exists("Vw") ) {
+      mle.fit = mle.tmvnorm( X = as.matrix(.tstat, ncol = 1),
+                             lower = -Inf,
+                             upper = .crit,
+                             # fixed parameters must be named exactly as
+                             #  coef(mle.fit) returns them
+                             fixed = list(sigma_1.1 = Vw) )
+   } else{
+      mle.fit = mle.tmvnorm( X = as.matrix(.tstat, ncol = 1),
+                             lower = -Inf,
+                             upper = .crit)
+   }
+   
+   
+   mles = coef(mle.fit)
+   
+   return( data.frame( tstat.mu.hat = as.numeric(mles[1]),
+                     muiHat = as.numeric(mles[1]) * .se,
+                       VwHat = as.numeric(mles[2]) ) )
+   
+}
 
+one_nonaffirm_mle( .tstat = dpn$tstat[1],
+                   .se = sqrt(dpn$vi[1]),
+                   .t2w = 0,
+                   .crit = qnorm(.975) )
+
+one_nonaffirm_mle( .tstat = dpn$tstat[1],
+                   # .se = sqrt(dpn$vi[1]),
+                   # .t2w = 0,
+                   .crit = qnorm(.975) )
+
+one_nonaffirm_mle( .tstat = dpn$tstat[1],
+                   .se = sqrt(dpn$vi[1]),
+                   .t2w = 0,
+                   .crit = qnorm(.975) )
+
+
+dpn[1,]
+
+
+# mle.fit = mle.tmvnorm( X = as.matrix(dpn$tstat[1], ncol = 1),
+#                        lower = -Inf,
+#                        fixed = list(sigma_1.1 = 1),
+#                        upper = crit)
+# 
+# mle.fit = mle.tmvnorm( X = as.matrix(dpn$tstat[1], ncol = 1),
+#                        lower = -Inf,
+#                        fixed = list(mu_1 = 0),
+#                        upper = crit)
+# 
+# 
+# mles = coef(mle.fit)
+# dpn$tstat[1]
+# 
+# 
+# dpn$vi[1]
 
 # P-HACKING ADJUSTMENT IN HAGGER REPLICATIONS -----------------------------
 

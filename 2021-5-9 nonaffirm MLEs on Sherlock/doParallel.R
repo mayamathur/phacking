@@ -368,68 +368,69 @@ doParallelTime = system.time({
 
 
 
-#@commented out temporarily
+#@if using the for-loop for debugging instead of foreach, need to comment
+#  out these parts that look for "rs"
 
-# ### Add meta-variables to dataset ###
-# 
-# # estimated time for 1 simulation rep
-# # use NAs for additional methods so that the SUM of the rep times will be the
-# #  total computational time
-# nMethods = length(unique(rs$methName))
-# rs$repSeconds = rep( c( doParallelTime / sim.reps,
-#                         rep( NA, nMethods - 1 ) ), sim.reps )
-# 
-# expect_equal( as.numeric( sum(rs$repSeconds, na.rm = TRUE) ),
-#               as.numeric(doParallelTime) )
-# 
-# 
-# 
-# ### LOCAL ONLY: Quick look at results ###
-# 
-# if ( run.local == TRUE ) {
-#   takeMean = names(rs)[ !names(rs) %in% c( "repName",
-#                                            "scenName",
-#                                            "methName",
-#                                            names(scen.params) ) ]
-#   
-#   
-#   resTable = rs %>% group_by(methName) %>%
-#     #mutate(simReps = n()) %>%
-#     summarise_at( takeMean,
-#                   function(x) round( mean(x, na.rm = TRUE), 2 ) )
-#   View(resTable)
-#   
-#   # should be similar:
-#   # *does NOT match with method = "affirm2"
-#   resTable$TheoryExpTstat; resTable$MeanTstatUnhacked
-#   # the other ones:
-#   resTable$MeanTstat; resTable$MeanTstatHacked; resTable$MeanTstatUnhacked
-#   
-#   resTable$TheoryVarTstat; resTable$EstVarTstatUnhacked
-#   
-#   
-#   # bias:
-#   scen.params$Mu
-#   resTable$MhatAll
-#   resTable$MhatNaive
-#   resTable$MhatCorr
-#   
-#   
-#   
-#   # CI coverage:
-#   resTable$MhatCoverAll  # should definitely be good
-#   resTable$MhatCoverNaive
-#   resTable$MhatCoverCorr
-#   
-#   # setwd("Results")
-#   # fwrite(resTable, "all_hacked_affirm2_Nmax10.csv")
-#   # fwrite(resTable, "resTable.csv")
-# }
-# 
-# 
-# 
-# # ~ WRITE LONG RESULTS ------------------------------
-# if ( run.local == FALSE ) {
-#   setwd("/home/groups/manishad/SAPH/long_results")
-#   fwrite( rs, paste( "long_results", jobname, ".csv", sep="_" ) )
-# }
+### Add meta-variables to dataset ###
+
+# estimated time for 1 simulation rep
+# use NAs for additional methods so that the SUM of the rep times will be the
+#  total computational time
+nMethods = length(unique(rs$methName))
+rs$repSeconds = rep( c( doParallelTime / sim.reps,
+                        rep( NA, nMethods - 1 ) ), sim.reps )
+
+expect_equal( as.numeric( sum(rs$repSeconds, na.rm = TRUE) ),
+              as.numeric(doParallelTime) )
+
+
+
+### LOCAL ONLY: Quick look at results ###
+
+if ( run.local == TRUE ) {
+  takeMean = names(rs)[ !names(rs) %in% c( "repName",
+                                           "scenName",
+                                           "methName",
+                                           names(scen.params) ) ]
+
+
+  resTable = rs %>% group_by(methName) %>%
+    #mutate(simReps = n()) %>%
+    summarise_at( takeMean,
+                  function(x) round( mean(x, na.rm = TRUE), 2 ) )
+  View(resTable)
+
+  # should be similar:
+  # *does NOT match with method = "affirm2"
+  resTable$TheoryExpTstat; resTable$MeanTstatUnhacked
+  # the other ones:
+  resTable$MeanTstat; resTable$MeanTstatHacked; resTable$MeanTstatUnhacked
+
+  resTable$TheoryVarTstat; resTable$EstVarTstatUnhacked
+
+
+  # bias:
+  scen.params$Mu
+  resTable$MhatAll
+  resTable$MhatNaive
+  resTable$MhatCorr
+
+
+
+  # CI coverage:
+  resTable$MhatCoverAll  # should definitely be good
+  resTable$MhatCoverNaive
+  resTable$MhatCoverCorr
+
+  # setwd("Results")
+  # fwrite(resTable, "all_hacked_affirm2_Nmax10.csv")
+  # fwrite(resTable, "resTable.csv")
+}
+
+
+
+# ~ WRITE LONG RESULTS ------------------------------
+if ( run.local == FALSE ) {
+  setwd("/home/groups/manishad/SAPH/long_results")
+  fwrite( rs, paste( "long_results", jobname, ".csv", sep="_" ) )
+}

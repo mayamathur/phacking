@@ -32,29 +32,6 @@ lapply( allPackages,
 
 #**you need to see all "TRUE" printed by this in order for the package to actually be loaded
 
-
-# library(here, lib.loc = "/home/groups/manishad/Rpackages/")
-# # data-wrangling packages
-# library(magrittr, lib.loc = "/home/groups/manishad/Rpackages/")
-# library(dplyr, lib.loc = "/home/groups/manishad/Rpackages/")
-# library(data.table, lib.loc = "/home/groups/manishad/Rpackages/")
-# library(tidyverse)
-# library(tidyr, lib.loc = "/home/groups/manishad/Rpackages/")
-# # meta-analysis packages
-# library(metafor, lib.loc = "/home/groups/manishad/Rpackages/")
-# library(robumeta, lib.loc = "/home/groups/manishad/Rpackages/")
-# # other
-# library(testthat)
-# # for this project
-# library(truncdist, lib.loc = "/home/groups/manishad/Rpackages/")
-# #library(ExtDist)
-# library(gmm, lib.loc = "/home/groups/manishad/Rpackages/")  # https://stackoverflow.com/questions/63511986/error-package-or-namespace-load-failed-for-gmm-in-dyn-loadfile-dllpath-dl
-# library(tmvtnorm, lib.loc = "/home/groups/manishad/Rpackages/")
-# 
-# # in case packages need to be installed
-# # install.packages("tidyr", lib = "/home/groups/manishad/Rpackages/")
-
-
 # set up sim params for cluster
 
 # main scenarios of interest:
@@ -97,8 +74,8 @@ write.csv( scen.params, "scen_params.csv", row.names = FALSE )
 source("helper_SAPH.R")
 
 # number of sbatches to generate (i.e., iterations within each scenario)
-n.reps.per.scen = 5  # if you want to generate only 1 file, set this to 10
-n.reps.in.doParallel = 5  #@update these
+n.reps.per.scen = 500  
+n.reps.in.doParallel = 100  #@update these
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
@@ -114,7 +91,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "0:30:00",  #@update this
+                            jobtime = "2:00:00",  #@update this
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -137,7 +114,7 @@ n.files
 # max hourly submissions seems to be 300, which is 12 seconds/job
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:1) {
+for (i in 2:120) {
   #system( paste("sbatch -p owners /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
   #Sys.sleep(2)  # delay in seconds
