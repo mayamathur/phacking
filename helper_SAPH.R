@@ -500,6 +500,46 @@ plot_trunc_densities = function(.obj,
 
 
 
+
+# get MLE for ONE nonaffirmative study
+# can either estimate the total within-study variance (t2w + SE^2)
+#  by providing both .se and .t2w, or can allow it to be estimated by not providing 
+# BUT in the latter case, could end up being smaller than SE^2,
+#  which is illogical
+one_nonaffirm_mle = function(.tstat,
+                             .se = NA, # of yi, not tstat
+                             .t2w = NA,
+                             .crit
+) {
+  
+  if (length(.tstat) > 1) stop("fn not intended for more than 1 observation")
+  
+  # if we're given the components of the WITHIN-study variance,
+  #  treat as fixed rather than estimating it
+  if ( !is.na(.se) & !is.na(.t2w) ) Vw = (1/.se^2) * (.t2w + .se^2)
+  
+  if ( exists("Vw") ) {
+    mle.fit = mle.tmvnorm( X = as.matrix(.tstat, ncol = 1),
+                           lower = -Inf,
+                           upper = .crit,
+                           # fixed parameters must be named exactly as
+                           #  coef(mle.fit) returns them
+                           fixed = list(sigma_1.1 = Vw) )
+  } else{
+    mle.fit = mle.tmvnorm( X = as.matrix(.tstat, ncol = 1),
+                           lower = -Inf,
+                           upper = .crit)
+  }
+  
+  
+  mles = coef(mle.fit)
+  
+  return( data.frame( tstat.mu.hat = as.numeric(mles[1]),
+                      muiHat = as.numeric(mles[1]) * .se,
+                      VwHat = as.numeric(mles[2]) ) )
+  
+}
+
 # DATA SIMULATION ---------------------------------------------------------------
 
 
