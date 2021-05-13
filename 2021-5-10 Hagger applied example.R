@@ -227,8 +227,10 @@ plot_trunc_densities(.obj, showAffirms = TRUE)
 # SEPARATE MLES FOR EACH NONAFFIRMATIVE -----------------------------
 
 
-# ~ Explore doing MLE for each nonaffirm individually ---------------------
+# ~ Explore ---------------------
 
+
+# for the troublesome Hagger example:
 d = dm
 d$tstat = d$yi / sqrt(d$vi)
 d$affirm = d$tstat > crit
@@ -237,44 +239,117 @@ d$affirm = d$tstat > crit
 # published affirmatives only
 dpn = d[ d$affirm == FALSE, ]
 
-# MLE for EACH t-stat individually
-dpn %>% rowwise() %>%
-   mutate( )
-
-
-
-
+# MLE for the first one assuming no within-study heterogeneity
 one_nonaffirm_mle( .tstat = dpn$tstat[1],
                    .se = sqrt(dpn$vi[1]),
                    .t2w = 0,
                    .crit = qnorm(.975) )
 
+# MLE for the first one allowing arbitrary within-study heterogeneity
 one_nonaffirm_mle( .tstat = dpn$tstat[1],
                    # .se = sqrt(dpn$vi[1]),
                    # .t2w = 0,
                    .crit = qnorm(.975) )
 
-one_nonaffirm_mle( .tstat = 0,
-                   .se = sqrt(dpn$vi[1]),
-                   .t2w = 0,
-                   .crit = qnorm(.975) )
-
-
+# c.f. observed t-stat
 dpn[1,]
 
 
 
+# ~ Plot single-study MLEs: t2w = 0 ---------------------
+
+dpn = dpn %>% rowwise() %>%
+   mutate( one_nonaffirm_mle(.tstat = tstat,
+                             .se = sqrt(vi),
+                             .t2w = 0,
+                             .crit = qnorm(.975) ) )
+
+#@SAVE THIS IN PROJECT LOG! VERY INTERESTING AND INFORMATIVE.
+# t-stats that are close to the truncation point receive by far the most
+#  upward correction
+#  small ones get little upward correction
+ggplot( data = dpn, 
+        aes(x = tstat,
+            y = tstat.mu.hat) ) +
+   geom_abline(slope = 1, 
+               intercept = 0) +
+   geom_point(shape = 21) +
+   theme_bw()
+
+# also look at the effect sizes
+# with inverse-variance sizing
+ggplot( data = dpn, 
+        aes(x = yi,
+            y = muiHat,
+            size = 1/vi),
+        ) +
+   
+   geom_abline(slope = 1, 
+               intercept = 0) +
+   geom_point(shape = 21) +
+   theme_bw()
 
 
+# try meta-analyzing the corrected ones
+rma.uni( yi = dpn$muiHat, 
+         vi = dpn$vi,  #@ultimately will need to include SE of the MLE itself, I think
+         method = "REML",
+         knha = TRUE)
+
+# 2.82: still very large
+#bm
+# @meta-analysis MLE was 16.8
+# vs. naive: 0.68
 
 
+# ~ Plot single-study MLEs: t2w unrestricted ---------------------
+
+#bm: seems like these are the same as the above ones?
+# maybe also look at how the single-study corrections work in another
+#  applied example
+
+dpn = dpn %>% rowwise() %>%
+   mutate( one_nonaffirm_mle(.tstat = tstat,
+                             # .se = sqrt(vi),
+                             # .t2w = 0,
+                             .crit = qnorm(.975) ) )
+
+#@SAVE THIS IN PROJECT LOG! VERY INTERESTING AND INFORMATIVE.
+# t-stats that are close to the truncation point receive by far the most
+#  upward correction
+#  small ones get little upward correction
+ggplot( data = dpn, 
+        aes(x = tstat,
+            y = tstat.mu.hat) ) +
+   geom_abline(slope = 1, 
+               intercept = 0) +
+   geom_point(shape = 21) +
+   theme_bw()
+
+# also look at the effect sizes
+# with inverse-variance sizing
+ggplot( data = dpn, 
+        aes(x = yi,
+            y = muiHat,
+            size = 1/vi),
+) +
+   
+   geom_abline(slope = 1, 
+               intercept = 0) +
+   geom_point(shape = 21) +
+   theme_bw()
 
 
+# try meta-analyzing the corrected ones
+rma.uni( yi = dpn$muiHat, 
+         vi = dpn$vi,  #@ultimately will need to include SE of the MLE itself, I think
+         method = "REML",
+         knha = TRUE)
 
-
-
-
-
+# 2.82: still very large
+#bm
+# @meta-analysis MLE was 16.8
+# vs. naive: 0.68
 
 
 
