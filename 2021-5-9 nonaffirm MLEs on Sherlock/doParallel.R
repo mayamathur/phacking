@@ -3,6 +3,8 @@
 
 # MUST USE ml load R/4.0.2!!!!
 
+# Before running, search "#@"
+
 # The returned Vhat is an estimate of T2 + t2w, *not* T2 itself
 #
 # correct_meta_phack1 will NOT work well for small m. I already tried this.
@@ -121,7 +123,7 @@ if (run.local == FALSE) {
   
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
-  sim.reps = 5  #@update this 
+  sim.reps = 100  #@update this 
   
 
   # set the number of cores
@@ -181,9 +183,9 @@ if ( run.local == TRUE ) {
 # system.time is in seconds
 doParallelTime = system.time({
   #@change this back before running for real
-  #rs = foreach( i = 1:sim.reps, .combine=rbind ) %dopar% {
+  rs = foreach( i = 1:sim.reps, .combine=rbind ) %dopar% {
     # for debugging (out file will contain all printed things):
-    for ( i in 1:sim.reps ) {
+    #for ( i in 1:sim.reps ) {
       
     cat("\n\n~~~~~~~~~~~~~~~~ BEGIN SIM REP", i, "~~~~~~~~~~~~~~~~")
     
@@ -197,7 +199,6 @@ doParallelTime = system.time({
     cat("\n\nHEAD OF SCEN.PARAMS:")
     print(p)
     
-    #bm
     # ~~ Simulate Dataset ------------------------------
     # includes unpublished studies
     d = sim_meta( Nmax = p$Nmax,
@@ -261,6 +262,9 @@ doParallelTime = system.time({
     
     
     cat("\n\nSURVIVED MODPUB STEP")
+    
+    cat("\n\nHEAD OF DP AFTER MODPUB STEP:")
+    print(head(dp))
     
     # ~~ Bias-Corrected Estimator #1: Nonaffirms Only ------------------------------
     

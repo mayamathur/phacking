@@ -70,7 +70,7 @@ mean( dm$yi/sqrt(dm$vi) )  # 2.45
 .obj$metaCorr  # corrected: 16.8
 .obj$metaNaive  # naive: 0.68
 
-# ~ Sanity check ---------------------
+# ~ Sanity check: No truncation ---------------------
 
 # use a really high cutoff so that it's just the regular MLE
 
@@ -99,7 +99,25 @@ plot_trunc_densities(.obj, showAffirms = FALSE) +
 .obj$sanityChecks$tstatMeanMLE  # now matches the mean nicely
 plot_trunc_densities(.obj, showAffirms = FALSE)
 
-# ~ Sanity check ---------------------
+
+
+# ~ Explore doing MLE for each nonaffirm individually ---------------------
+
+d = dm
+d$tstat = d$yi / sqrt(d$vi)
+d$affirm = d$tstat > crit
+
+
+# published affirmatives only
+dpn = d[ d$affirm == FALSE, ]
+
+# MLE for EACH t-stat individually
+mle.fit = mle.tmvnorm( X = as.matrix(dpn$tstat[1], ncol = 1),
+                       lower = -Inf,
+                       upper = crit)
+mles = coef(mle.fit)
+dpn$tstat[1]
+
 
 
 
