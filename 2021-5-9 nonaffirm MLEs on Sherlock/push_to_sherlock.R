@@ -12,6 +12,8 @@ sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 squeue -u mmathur -t RUNNING
 squeue -u mmathur -t PENDING
 
+# /home/groups/manishad/SAPH/sbatch_files/1.sbatch
+
 
 # see the datasets
 vim /home/groups/manishad/SAPH/sim_results/long/long_results_job_1_.csv
@@ -31,7 +33,7 @@ nano /home/groups/manishad/SAPH/sim_results/overall_stitched/sti*
   
 # CODE -> SHERLOCK ----------------------------------
 
-# push each code files
+# push helper.SAPH
 scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/helper_SAPH.R mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH
 
 scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/2021-5-9\ nonaffirm\ MLEs\ on\ Sherlock/doParallel.R mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH
@@ -72,9 +74,15 @@ scp mmathur@login.sherlock.stanford.edu /home/groups/manishad/SAPH/results/overa
 rm /home/groups/manishad/SAPH/sim_results/long/*
   
   rm /home/groups/manishad/SAPH/sim_results/overall_stitched/*
+  
+  
+# clean up "rm" files
+  rm /home/users/mmathur/rm*
+  rm /home/groups/manishad/SAPH/rm*
   rm /home/groups/manishad/SAPH/sbatch_files/rm*
   rm /home/groups/manishad/SAPH/sbatch_files/slurm*
   
+  
   # remove all sbatches
-  rm -r /home/groups/manishad/SAPH/sbatch_files/*
+  #  rm -r /home/groups/manishad/SAPH/sbatch_files/*
   

@@ -294,10 +294,11 @@ correct_meta_phack1 = function( .dp,  # published studies
                                           Mean.vi.Hacked = mean( dpn$vi[dpn$hack ==.p$hack ] ),
                                           
                                           # stats about all published studies
-                                          dp.k = nrow(dp),
-                                          dp.kAffirm = sum(dp$affirm == TRUE),
-                                          dp.kNonaffirm = sum(dp$affirm == FALSE),
-                                          dp.Nrealized = mean(dp$N)
+                                          #bm
+                                          dp.k = nrow(.dp),
+                                          dp.kAffirm = sum(.dp$affirm == TRUE),
+                                          dp.kNonaffirm = sum(.dp$affirm == FALSE),
+                                          dp.Nrealized = mean(.dp$N)
                                           )
   ) )
   
@@ -327,13 +328,14 @@ report_rma = function(.mod,
 # use only the nonaffirms to get trunc MLE
 #  and throws away the affirms
 # **note that the returned Vhat is an estimate of T2 + t2w, not T2 itself
+# crit: value at which to truncate the dataset; using a non-default value is only for sanity checks
 correct_meta_phack2 = function( yi,
-                                vi) { 
+                                vi,
+                                crit = qnorm(.975) ) { 
   
   
   d = data.frame(yi = yi, vi = vi)
   d$tstat = d$yi / sqrt(d$vi)
-  crit = qnorm(0.975)
   d$affirm = d$tstat > crit
   
   
@@ -415,7 +417,8 @@ correct_meta_phack2 = function( yi,
                                
                 ),
                 
-                data = d
+                data = d,
+                crit = crit
   ) )
   
 }
@@ -424,6 +427,7 @@ correct_meta_phack2 = function( yi,
 # plot empirical data
 
 # .obj: object returned by correct_meta_phack2
+# showAffirms: should it show all studies, even affirms?
 plot_trunc_densities = function(.obj,
                                 showAffirms = FALSE) {
   
@@ -464,7 +468,7 @@ plot_trunc_densities = function(.obj,
                    args = list( spec = "norm",
                                 mean = tstatMeanMLE,
                                 sd = sqrt(tstatVarMLE),
-                                b = crit),
+                                b = .obj$crit),
                    #aes(y = .25 * ..count..),  # doesn't work
                    lwd = 1.2,
                    color = "red") +
@@ -1259,7 +1263,7 @@ sbatch_skeleton <- function() {
 #SBATCH --cpus-per-task=CPUS_PER_TASK
 #now run normal batch commands
 
-ml load R
+ml load R/4.0.2
 R -f PATH_TO_R_SCRIPT ARGS_TO_R_SCRIPT")
 }
 

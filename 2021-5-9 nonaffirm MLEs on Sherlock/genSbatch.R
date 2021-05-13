@@ -6,26 +6,53 @@ path = "/home/groups/manishad/SAPH"
 setwd(path)
 source("helper_SAPH.R")
 
-library(here, lib.loc = "/home/groups/manishad/Rpackages/")
-# data-wrangling packages
-library(magrittr, lib.loc = "/home/groups/manishad/Rpackages/")
-library(dplyr, lib.loc = "/home/groups/manishad/Rpackages/")
-library(data.table, lib.loc = "/home/groups/manishad/Rpackages/")
-library(tidyverse)
-library(tidyr, lib.loc = "/home/groups/manishad/Rpackages/")
-# meta-analysis packages
-library(metafor, lib.loc = "/home/groups/manishad/Rpackages/")
-library(robumeta, lib.loc = "/home/groups/manishad/Rpackages/")
-# other
-library(testthat)
-# for this project
-library(truncdist, lib.loc = "/home/groups/manishad/Rpackages/")
-#library(ExtDist)
-library(gmm, lib.loc = "/home/groups/manishad/Rpackages/")  # https://stackoverflow.com/questions/63511986/error-package-or-namespace-load-failed-for-gmm-in-dyn-loadfile-dllpath-dl
-library(tmvtnorm, lib.loc = "/home/groups/manishad/Rpackages/")
+allPackages = c("here",
+                "magrittr",
+                "dplyr",
+                "data.table",
+                "tidyverse",
+                "tidyr",
+                "metafor",
+                "robumeta",
+                "testthat",
+                "truncdist",
+                "gmm",
+                "tmvtnorm",
+                "doParallel",
+                "foreach")
 
-# in case packages need to be installed
-# install.packages("tidyr", lib = "/home/groups/manishad/Rpackages/")
+
+( packagesNeeded = allPackages[ !( allPackages %in% installed.packages()[,"Package"] ) ] )
+if( length(packagesNeeded) > 0 ) install.packages(packagesNeeded)
+
+# load all packages
+lapply( allPackages,
+        require,
+        character.only = TRUE)
+
+#**you need to see all "TRUE" printed by this in order for the package to actually be loaded
+
+
+# library(here, lib.loc = "/home/groups/manishad/Rpackages/")
+# # data-wrangling packages
+# library(magrittr, lib.loc = "/home/groups/manishad/Rpackages/")
+# library(dplyr, lib.loc = "/home/groups/manishad/Rpackages/")
+# library(data.table, lib.loc = "/home/groups/manishad/Rpackages/")
+# library(tidyverse)
+# library(tidyr, lib.loc = "/home/groups/manishad/Rpackages/")
+# # meta-analysis packages
+# library(metafor, lib.loc = "/home/groups/manishad/Rpackages/")
+# library(robumeta, lib.loc = "/home/groups/manishad/Rpackages/")
+# # other
+# library(testthat)
+# # for this project
+# library(truncdist, lib.loc = "/home/groups/manishad/Rpackages/")
+# #library(ExtDist)
+# library(gmm, lib.loc = "/home/groups/manishad/Rpackages/")  # https://stackoverflow.com/questions/63511986/error-package-or-namespace-load-failed-for-gmm-in-dyn-loadfile-dllpath-dl
+# library(tmvtnorm, lib.loc = "/home/groups/manishad/Rpackages/")
+# 
+# # in case packages need to be installed
+# # install.packages("tidyr", lib = "/home/groups/manishad/Rpackages/")
 
 
 # set up sim params for cluster
@@ -52,6 +79,8 @@ scen.params = expand_grid( Mu = 0.1,
 # rho > 0 is pointless if there's only 1 draw
 scen.params = scen.params %>% dplyr::filter( !(rho > 0 & Nmax == 1) )
 
+scen.params = scen.params %>% add_column( scen = 1:nrow(scen.params),
+                                          .before = 1 )
 
 
 ( n.scen = nrow(scen.params) )
@@ -75,7 +104,7 @@ n.reps.in.doParallel = 5  #@update these
 
 path = "/home/groups/manishad/SAPH"
 
-scen.name = rep( scen.params$scen.name, each = ( n.files / n.scen ) )
+scen.name = rep( scen.params$scen, each = ( n.files / n.scen ) )
 jobname = paste("job", 1:n.files, sep="_")
 outfile = paste("rm_", 1:n.files, ".out", sep="")
 errorfile = paste("rm_", 1:n.files, ".err", sep="")

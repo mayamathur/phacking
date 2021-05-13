@@ -70,6 +70,38 @@ mean( dm$yi/sqrt(dm$vi) )  # 2.45
 .obj$metaCorr  # corrected: 16.8
 .obj$metaNaive  # naive: 0.68
 
+# ~ Sanity check ---------------------
+
+# use a really high cutoff so that it's just the regular MLE
+
+.obj = correct_meta_phack2(yi = dm$yi,
+                           vi = dm$vi,
+                           crit = 100)
+
+.obj$sanityChecks$tstatMeanMLE  # **now matches the mean nicely
+
+.obj$metaCorr  # corrected: 16.8
+.obj$metaNaive  # naive: 0.68
+
+# **This is very informative: I think the issue with the truncated MLE is that the distribution is
+#  really light-tailed
+plot_trunc_densities(.obj, showAffirms = FALSE) +
+   # superimpose the actual critical value
+   geom_vline(xintercept = 1.96, color = "gray")
+
+
+
+# try an intermediate cutoff
+.obj = correct_meta_phack2(yi = dm$yi,
+                           vi = dm$vi,
+                           crit = 3)
+
+.obj$sanityChecks$tstatMeanMLE  # now matches the mean nicely
+plot_trunc_densities(.obj, showAffirms = FALSE)
+
+# ~ Sanity check ---------------------
+
+
 
 # P-HACKING ADJUSTMENT IN HAGGER REPLICATIONS -----------------------------
 
@@ -113,14 +145,50 @@ plot_trunc_densities(.obj, showAffirms = TRUE)
 .obj$metaCorr  # 0.29
 .obj$metaNaive  # 0.21
 
-# Conclusion: The more left-skewed the nonaffirmative t-stats are, the
+# **Conclusion: The more left-skewed the nonaffirmative t-stats are, the
 #  larger the corrected estimate will be 
+
+
+
+# ~ Try doing it with only preregistered studies ----------------------
+d = d3 %>% filter(qual.prereg2 == 1)
+
+
+.obj = correct_meta_phack2(yi = d$yi,
+                           vi = d$vi)
+
+.obj$sanityChecks$tstatMeanMLE
+mean(d$yi/sqrt(d$vi))  # from all studies
+
+.obj$metaCorr  
+.obj$metaNaive 
+
+#@ strange because the tstat MLE is less than the overall one, 
+# yet metaCorr > metaNaive
+# I think that means that the rescaling approximation doesn't work very well?
+cor(d$yi, d$vi)
+
+
+
+# look at all of them by setting crit = 100
+.obj = correct_meta_phack2(yi = d$yi,
+                           vi = d$vi,
+                           crit = 100)
+
+
+# these match exactly :)
+.obj$metaCorr  
+.obj$metaNaive  
+
+.obj$sanityChecks$tstatMeanMLE; mean(d$yi/sqrt(d$vi))
+plot_trunc_densities(.obj, showAffirms = TRUE)
+
 
 
 # P-HACKING ADJUSTMENT IN SIMULATED META-ANALYSIS -----------------------------
 
 d = sim_meta(Nmax = 1,  
-             Mu = 5,  
+             Mu = 0,  
              T2 = 2,  
              
              # study parameters, assumed same for all studies:
@@ -146,12 +214,16 @@ table(dp$affirm)
 .obj$sanityChecks$tstatMeanMLE  
 mean( d$yi/sqrt(d$vi) )  
 
-plot_trunc_densities(.obj)
+plot_trunc_densities(.obj, showAffirms = TRUE)
 
 
 .obj$metaCorr  
 .obj$metaNaive 
 
+#hmm...seems pretty noisy?
+#bm
+
+# SEPARATE MLES FOR EACH NONAFFIRMATIVE -----------------------------
 
 
 
@@ -161,152 +233,18 @@ plot_trunc_densities(.obj)
 
 
 
-# # FROM EARLIER COMPARISON -----------------------------
-# 
-# # ~ REANALYZE HAGGER'S META-ANALYSIS -----------------------------
-# 
-# 
-# # plain meta-analysis
-# meta.m = rma.uni( yi = yi,
-#                   vi = vi,
-#                   data = dm,
-#                   method = "REML",
-#                   knha = TRUE )
-# summary(meta.m)
-# 
-# ##### Funnel Plots ######
-# setwd(res.dir)
-# pdf( file = paste( "funnel_hagger_meta", sep = "" ) )
-# funnel.rma(meta.m,
-#            level = c(0.95),
-#            legend = TRUE,
-#            main = "Hagger meta-analysis",
-#            refline = 0)
-# dev.off()
-# 
-# 
-# # ** reported corrected muhat: 0.45 (vs. uncorrected 0.68)
-# #  in original analysis, 3PSM corrected to 0.50, so our result isn't that different
-# ( meta.wtr = weightfunct( effect = dm$yi,
-#                           v = dm$vi ) )
-# 
-# 
-# 
-# ##### Normality #####
-# dm$ens = calib_ests(yi = dm$yi,
-#                     sei = sqrt(dm$vi))
-# # looks fairly non-normal
-# setwd(res.dir)
-# pdf( file = paste( "calib_ests_meta", sep = "" ) )
-# plot( stats::density(dm$ens),
-#       main = "Hagger meta-analysis" )
-# dev.off()
-# 
-# 
-# ##### Worst-Case Meta-Analysis ######
-# temp = dm[ dm$affirm == 0, ]
-# # ** worst-case: 0.30
-# library(robumeta)
-# robu( yi ~ 1,
-#       data = temp,
-#       studynum = 1:nrow(temp),
-#       var.eff.size = vi,
-#       modelweights = "HIER",
-#       small = TRUE )
-# 
-# 
-# 
-# 
-# # ~ REANALYZE HAGGER'S REPLICATIONS -----------------------------
-# 
-# # plain meta-analysis
-# meta.r = rma.uni( yi = yi,
-#                   vi = vi,
-#                   data = dr,
-#                   method = "REML",
-#                   knha = TRUE )
-# summary(meta.r)
-# 
-# ##### Funnel Plots ######
-# setwd(res.dir)
-# pdf( file = paste( "funnel_hagger_rep", sep = "" ) )
-# funnel.rma(meta.r,
-#            level = c(0.95),
-#            legend = TRUE,
-#            main = "Hagger replications",
-#            refline = 0)
-# dev.off()
-# 
-# 
-# ##### Normality #####
-# dr$ens = calib_ests(yi = dr$yi,
-#                     sei = sqrt(dr$vi))
-# # looks fairly non-normal
-# setwd(res.dir)
-# pdf( file = paste( "calib_ests_rep", sep = "" ) )
-# plot( stats::density(dr$ens),
-#       main = "Hagger replications" )
-# dev.off()
-# 
-# 
-# # ~ REANALYZE DANG META-ANALYSIS -----------------------------
-# 
-# # keep only crossing-out-letter tasks
-# 
-# # plain meta-analysis
-# # correct number of studies per Dang's Table 1, but our estimate is a bit higher than reported 0.58
-# #  even when using DL
-# meta.d = rma.uni( yi = yi,
-#                   vi = vi,
-#                   data = dd.cl,
-#                   method = "REML",
-#                   knha = TRUE )
-# summary(meta.d)
-# 
-# ##### Funnel Plots ######
-# setwd(res.dir)
-# pdf( file = paste( "funnel_dang_meta", sep = "" ) )
-# funnel.rma(meta.d,
-#            level = c(0.95),
-#            legend = TRUE,
-#            main = "Dang meta-analysis",
-#            refline = 0)
-# dev.off()
-# 
-# 
-# # ** barely changed: 0.65 (tau=0.42)
-# ( meta.wtr = weightfunct( effect = dd.cl$yi,
-#                           v = dd.cl$vi ) )
-# 
-# 
-# 
-# ##### Normality #####
-# dd.cl$ens = calib_ests(yi = dd.cl$yi,
-#                        sei = sqrt(dd.cl$vi))
-# 
-# setwd(res.dir)
-# pdf( file = paste( "calib_ests_meta", sep = "" ) )
-# plot( stats::density(dd.cl$ens),
-#       main = "Dang meta-analysis" )
-# dev.off()
-# 
-# 
-# ##### Worst-Case Meta-Analysis ######
-# temp = dd.cl[ dd.cl$affirm == 0, ]
-# 
-# # # robumeta has SVD problem here
-# # library(robumeta)
-# # robu( yi ~ 1,
-# #       data = temp,
-# #       studynum = 1:nrow(temp),
-# #       var.eff.size = vi,
-# #       modelweights = "HIER",
-# #       small = TRUE )
-# 
-# # point estimate still 0.19! 
-# rma.uni( yi = yi,
-#          vi = vi,
-#          data = temp,
-#          method = "REML",
-#          knha = TRUE )
-# 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

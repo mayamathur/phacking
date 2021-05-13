@@ -1,6 +1,7 @@
 
 # IMPORTANT NOTES -----------------------------
 
+# MUST USE ml load R/4.0.2!!!!
 
 # The returned Vhat is an estimate of T2 + t2w, *not* T2 itself
 #
@@ -54,33 +55,48 @@ allPackages = c("here",
 if (run.local == FALSE) {
   
   # load command line arguments
-  args = commandArgs(trailingOnly = TRUE)
+  args = commandArgs(trailingOnly = TRUE); print(args)
   jobname = args[1]
-  scen = args[2]  # this will be a letter
+  scen = args[2]  # this will be a number
   
-  # install any missing packages
-  # find the ones that aren't already installed
-  libDir = "/home/users/mmathur/Rpackages/"
-  ( packagesNeeded = allPackages[ !( allPackages %in% installed.packages(lib.loc = libDir)[,"Package"] ) ] )
-  if( length(packagesNeeded) > 0 ) install.packages(packagesNeeded, lib = libDir)
+  # # install any missing packages
+  # # find the ones that aren't already installed
+  # libDir = "/home/users/mmathur/Rpackages/"
+  # ( packagesNeeded = allPackages[ !( allPackages %in% installed.packages(lib.loc = libDir)[,"Package"] ) ] )
+  # if( length(packagesNeeded) > 0 ) install.packages(packagesNeeded, lib = libDir)
+  # 
+  # # load all packages
+  # lapply( allPackages,
+  #         require,
+  #         character.only = TRUE,
+  #         lib.loc = libDir)
+  
+  # version without libDir
+ #  cd $HOME
+ #  rm -rf R/
+ #    rm -rf .Rprofile
+ #  rm -rf R_libs
+ #  ml R/4.0.2
+ # R
+  
+  ( packagesNeeded = allPackages[ !( allPackages %in% installed.packages()[,"Package"] ) ] )
+  if( length(packagesNeeded) > 0 ) install.packages(packagesNeeded)
   
   # load all packages
   lapply( allPackages,
           require,
-          character.only = TRUE,
-          lib.loc = libDir)
+          character.only = TRUE)
   
-  # debugging
-  require()
+  #**you need to see all "TRUE" printed by this in order for the package to actually be loaded
   
   # get scen parameters (made by genSbatch.R)
   path = "/home/groups/manishad/SAPH"
   setwd(path)
   scen.params = read.csv( "scen_params.csv" )
-  p = scen.params[ scen.params$scen.name == scen, ]
+  p <<- scen.params[ scen.params$scen == scen, ]
   print(p)
   
-  # # alternatively, generate a simple scen.params in order to run doParallel manually in 
+  # # alternatively, generate a simple scen.params in order to run doParallel manually in
   # #  Sherlock as a test
   # scen.params = data.frame( scen = 1,
   #                           Mu = 0.1,
@@ -88,16 +104,17 @@ if (run.local == FALSE) {
   #                           m = 500,
   #                           t2w = .25,
   #                           se = 0.5,
-  #                           
+  # 
   #                           Nmax = 10,
   #                           hack = "affirm2", # **
   #                           rho = 0.9,
-  #                           
+  # 
   #                           k = 100,
   #                           k.hacked = 100 )  # all published nonaffirms are from hacked studies
-  
-  
+  # scen = 1
+
   # helper code
+  setwd(path)
   source("helper_SAPH.R")
   
   # locally, with total k = 100, Nmax = 10, and sim.reps = 250, took 93 min total
@@ -139,13 +156,13 @@ if ( run.local == TRUE ) {
                             hack = "affirm2", # **
                             rho = 0.9,
                             
-                            k = 100,
-                            k.hacked = 100 )  # all published nonaffirms are from hacked studies
+                            k = 10,
+                            k.hacked = 10 )  # all published nonaffirms are from hacked studies
   
   
   
   
-  sim.reps = 250  # reps to run in this iterate
+  sim.reps = 2  # reps to run in this iterate
   
   # set the number of local cores
   registerDoParallel(cores=8)
@@ -163,9 +180,12 @@ if ( run.local == TRUE ) {
 
 # system.time is in seconds
 doParallelTime = system.time({
-  rs = foreach( i = 1:sim.reps, .combine=rbind ) %dopar% {
-    # for debugging:
-    #for ( i in 1:sim.reps ) {
+  #@change this back before running for real
+  #rs = foreach( i = 1:sim.reps, .combine=rbind ) %dopar% {
+    # for debugging (out file will contain all printed things):
+    for ( i in 1:sim.reps ) {
+      
+    cat("\n\n~~~~~~~~~~~~~~~~ BEGIN SIM REP", i, "~~~~~~~~~~~~~~~~")
     
     # results for just this simulation rep
     if ( exists("repRes") ) rm(repRes)
@@ -174,10 +194,13 @@ doParallelTime = system.time({
     # exclude the column with the scenario name itself (col) 
     p = scen.params[ scen.params$scen == scen, names(scen.params) != "scen"]
     
+    cat("\n\nHEAD OF SCEN.PARAMS:")
+    print(p)
+    
     #bm
     # ~~ Simulate Dataset ------------------------------
     # includes unpublished studies
-    d = sim_meta(Nmax = p$Nmax,
+    d = sim_meta( Nmax = p$Nmax,
                  Mu = p$Mu,
                  T2 = p$T2,
                  m = p$m,
@@ -193,6 +216,9 @@ doParallelTime = system.time({
     
     # dataset of only published results
     dp = d %>% filter(Di == 1)
+    
+    cat("\n\nHEAD OF DP:")
+    print(head(dp))
     
     # # published hacked ones only
     # dph = d %>% filter(hack == p$hack & Di == 1)
@@ -233,6 +259,9 @@ doParallelTime = system.time({
                     knha = TRUE ) 
     }
     
+    
+    cat("\n\nSURVIVED MODPUB STEP")
+    
     # ~~ Bias-Corrected Estimator #1: Nonaffirms Only ------------------------------
     
     #bm: next try rm(list=ls()) and see if below fn still works :)
@@ -243,6 +272,9 @@ doParallelTime = system.time({
     
     modCorr = correct_meta_phack1( .p = p,
                                    .dp = dp )
+    
+    cat("\n\nSURVIVED MODCORR STEP")
+    #print(head(dp))
     
     # add to results
     repRes = add_method_result_row(repRes = NA,
@@ -323,73 +355,77 @@ doParallelTime = system.time({
     
     repRes
     
+    cat("\nSURVIVED MAKING REPRES:")
+    print(repRes)
+    
   }  ### end foreach loop
   
 } )[3]  # end system.time
 
 
 
+#@commented out temporarily
 
-### Add meta-variables to dataset ###
-
-# estimated time for 1 simulation rep
-# use NAs for additional methods so that the SUM of the rep times will be the
-#  total computational time
-nMethods = length(unique(rs$methName))
-rs$repSeconds = rep( c( doParallelTime / sim.reps,
-                        rep( NA, nMethods - 1 ) ), sim.reps )
-
-expect_equal( as.numeric( sum(rs$repSeconds, na.rm = TRUE) ),
-              as.numeric(doParallelTime) )
-
-
-
-### LOCAL ONLY: Quick look at results ###
-
-if ( run.local == TRUE ) {
-  takeMean = names(rs)[ !names(rs) %in% c( "repName",
-                                           "scenName",
-                                           "methName",
-                                           names(scen.params) ) ]
-  
-  
-  resTable = rs %>% group_by(methName) %>%
-    #mutate(simReps = n()) %>%
-    summarise_at( takeMean,
-                  function(x) round( mean(x, na.rm = TRUE), 2 ) )
-  View(resTable)
-  
-  # should be similar:
-  # *does NOT match with method = "affirm2"
-  resTable$TheoryExpTstat; resTable$MeanTstatUnhacked
-  # the other ones:
-  resTable$MeanTstat; resTable$MeanTstatHacked; resTable$MeanTstatUnhacked
-  
-  resTable$TheoryVarTstat; resTable$EstVarTstatUnhacked
-  
-  
-  # bias:
-  scen.params$Mu
-  resTable$MhatAll
-  resTable$MhatNaive
-  resTable$MhatCorr
-  
-  
-  
-  # CI coverage:
-  resTable$MhatCoverAll  # should definitely be good
-  resTable$MhatCoverNaive
-  resTable$MhatCoverCorr
-  
-  # setwd("Results")
-  # fwrite(resTable, "all_hacked_affirm2_Nmax10.csv")
-  # fwrite(resTable, "resTable.csv")
-}
-
-
-
-# ~ WRITE LONG RESULTS ------------------------------
-if ( run.local == FALSE ) {
-  setwd("/home/groups/manishad/SAPH/long_results")
-  fwrite( rs, paste( "long_results", jobname, ".csv", sep="_" ) )
-}
+# ### Add meta-variables to dataset ###
+# 
+# # estimated time for 1 simulation rep
+# # use NAs for additional methods so that the SUM of the rep times will be the
+# #  total computational time
+# nMethods = length(unique(rs$methName))
+# rs$repSeconds = rep( c( doParallelTime / sim.reps,
+#                         rep( NA, nMethods - 1 ) ), sim.reps )
+# 
+# expect_equal( as.numeric( sum(rs$repSeconds, na.rm = TRUE) ),
+#               as.numeric(doParallelTime) )
+# 
+# 
+# 
+# ### LOCAL ONLY: Quick look at results ###
+# 
+# if ( run.local == TRUE ) {
+#   takeMean = names(rs)[ !names(rs) %in% c( "repName",
+#                                            "scenName",
+#                                            "methName",
+#                                            names(scen.params) ) ]
+#   
+#   
+#   resTable = rs %>% group_by(methName) %>%
+#     #mutate(simReps = n()) %>%
+#     summarise_at( takeMean,
+#                   function(x) round( mean(x, na.rm = TRUE), 2 ) )
+#   View(resTable)
+#   
+#   # should be similar:
+#   # *does NOT match with method = "affirm2"
+#   resTable$TheoryExpTstat; resTable$MeanTstatUnhacked
+#   # the other ones:
+#   resTable$MeanTstat; resTable$MeanTstatHacked; resTable$MeanTstatUnhacked
+#   
+#   resTable$TheoryVarTstat; resTable$EstVarTstatUnhacked
+#   
+#   
+#   # bias:
+#   scen.params$Mu
+#   resTable$MhatAll
+#   resTable$MhatNaive
+#   resTable$MhatCorr
+#   
+#   
+#   
+#   # CI coverage:
+#   resTable$MhatCoverAll  # should definitely be good
+#   resTable$MhatCoverNaive
+#   resTable$MhatCoverCorr
+#   
+#   # setwd("Results")
+#   # fwrite(resTable, "all_hacked_affirm2_Nmax10.csv")
+#   # fwrite(resTable, "resTable.csv")
+# }
+# 
+# 
+# 
+# # ~ WRITE LONG RESULTS ------------------------------
+# if ( run.local == FALSE ) {
+#   setwd("/home/groups/manishad/SAPH/long_results")
+#   fwrite( rs, paste( "long_results", jobname, ".csv", sep="_" ) )
+# }
