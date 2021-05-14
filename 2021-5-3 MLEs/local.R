@@ -139,6 +139,7 @@ Mu; T2
 
 ### With data straight from trunc dist
 # fn wants data given as a matrix
+# MLE = 2.04 vs. theory = 2
 mle.fit = mle.tmvnorm( as.matrix(x2, ncol = 1), lower=-Inf, upper=crit)
 summary(mle.fit)
 
@@ -156,8 +157,7 @@ mles[2]; (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
 # plot(mle.profile1)
 
 ### With real data
-# **THIS SEEMS TO WORK PRETTY WELL
-# try with my real data
+# MLE = 2.12 vs. theory = 2 (seems biased upward?)
 mle.fit = mle.tmvnorm( as.matrix(tstats, ncol = 1), lower=-Inf, upper=crit)
 summary(mle.fit)
 
@@ -166,6 +166,18 @@ mles = coef(mle.fit)
 mles[1]; p$Mu/p$se
 mles[2]; (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
 
+### Visually compare distribution of meta-analysis data vs. random generates straight from distribution
+
+ggplot() + 
+  geom_density( aes(x = x2),
+                adjust = 0.3 ) + 
+  
+  geom_density( aes(x = tstats),
+                adjust = 0.3,
+                color = "red") + 
+  theme_bw()
+
+# looks damn similar
 
 
 # ~ EXPT 2 -------------------------

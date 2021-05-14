@@ -260,9 +260,11 @@ correct_meta_phack1 = function( .dp,  # published studies
                                           kNonaffirmPubUnhacked = sum( dpn$hack == "no" ),
                                           kNonaffirmPubHacked = sum( dpn$hack ==.p$hack ),
                                           
-                                          # check that moments of published nonaffirms are what we expect
+                                          ### check that moments of published nonaffirms are what we expect
                                           TheoryExpTstat = theoryExpTstat,
-                                          MeanTstat = mean(dpn$tstat),  # may not match TheoryExpTstat
+                                          # below should match TheoryExpTstat IF all nonaffirms are from unhacked
+                                          #  study sets, but otherwise may not match:
+                                          MeanTstat = mean(dpn$tstat), 
                                           # mean of t-stats from published nonaffirms from
                                           #  unhacked study sets (should match TheoryExpTstat)
                                           MeanTstatUnhacked = mean( dpn$tstat[dpn$hack == "no" ] ),
@@ -277,7 +279,7 @@ correct_meta_phack1 = function( .dp,  # published studies
                                           EstVarTstatHacked = var( dpn$tstat[dpn$hack ==.p$hack ] ),
                                           
                                           # MLEs of the t-stats themselves (before rescaling using the SE)
-                                          # marginal t-stats (underlying distribution rather than truncated one)
+                                          # *marginal* t-stats (underlying distribution rather than truncated one)
                                           TheoryExpTstatMarg = .p$Mu/.p$se,
                                           tstatMeanMLE = mles[1],
                                           tstatMeanMLELo = tstat.mu.CI[1],
@@ -294,7 +296,6 @@ correct_meta_phack1 = function( .dp,  # published studies
                                           Mean.vi.Hacked = mean( dpn$vi[dpn$hack ==.p$hack ] ),
                                           
                                           # stats about all published studies
-                                          #bm
                                           dp.k = nrow(.dp),
                                           dp.kAffirm = sum(.dp$affirm == TRUE),
                                           dp.kNonaffirm = sum(.dp$affirm == FALSE),
