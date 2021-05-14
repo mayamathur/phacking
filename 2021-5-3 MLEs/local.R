@@ -118,8 +118,8 @@ x2 = rtrunc(n = 5000,
            b = crit)
 
 nonaffirm_mles( .tstats = x2, 
-                .t2w = t2w, 
-                .se = se,
+                .t2w = p$t2w, 
+                .se = p$se,
                 .crit = crit )
 Mu; T2
 
@@ -130,6 +130,7 @@ Mu; T2
            .t2w = t2w,
            .se = se,
            .crit = unique(d$tcrit) )
+
 
 # ~~ Try a different package for truncated MLEs -------------------------
 
@@ -177,7 +178,93 @@ ggplot() +
                 color = "red") + 
   theme_bw()
 
-# looks damn similar
+# looks damn similar to me...
+
+
+
+# ~~ Bigger simulation with random generates straight from dist -----------------
+
+sim.reps = 500
+
+meanHat = c()
+varHat = c()
+
+
+for ( i in 1:sim.reps ) {
+  
+  if ( i %% 25 == 0 ) cat( paste("\n\nStarting rep", i ) )
+  
+  x2 = rtrunc(n = 5000,
+              spec = "norm",
+              mean = p$Mu / p$se,
+              sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
+              b = crit)
+  
+  mle.fit = mle.tmvnorm( as.matrix(x2, ncol = 1), lower=-Inf, upper=crit)
+  mles = coef(mle.fit)
+  
+  meanHat = c(meanHat, mles[1])
+  varHat = c(meanHat, mles[2])
+}
+
+
+# **THIS LOOKS JUST FINE
+mean(meanHat); p$Mu/p$se
+mean(varHat); (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
+
+# should be normal
+hist(meanHat)
+
+
+
+# ~~ Very similar but using sim_meta -----------------
+
+#bm
+
+meanHat = c()
+varHat = c()
+# all tstats from all sims
+tstats = c()
+
+for ( i in 1:sim.reps ) {
+  
+  if ( i %% 25 == 0 ) cat( paste("\n\nStarting rep", i ) )
+  
+  dp = sim_meta(Nmax = p$Nmax,
+                Mu = p$Mu,
+                T2 = p$T2,
+                
+                
+                m = p$m,
+                t2w = p$t2w,
+                se = p$se, 
+                
+                rho = 0,
+                
+                hack = p$hack,
+                
+                k = p$k,
+                k.hacked = p$k.hacked,
+                return.only.published = TRUE)
+  
+  dpn = dp[ dp$affirm == FALSE, ]
+  
+  mle.fit = mle.tmvnorm( as.matrix(dpn$tstats, ncol = 1), lower=-Inf, upper=crit)
+  mles = coef(mle.fit)
+  
+  meanHat = c(meanHat, mles[1])
+  varHat = c(meanHat, mles[2])
+  tstats = c(tstats, dpn$tstats)
+}
+
+
+
+mean(meanHat); p$Mu/p$se
+mean(varHat); (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
+
+# should be normal
+hist(meanHat)
+
 
 
 # ~ EXPT 2 -------------------------
@@ -253,3 +340,135 @@ mles[2]; (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
 
            
                
+
+
+# EXPT 3 ------------------------------------------
+
+# Goal: Find out why the MLEs are biased by comparing to MLEs when data come
+#  straight from distribution.
+
+# set parameters
+# exactly as in row 20 of "agg_rounded_annotated", where the tstat MLE was 0.24 instead of 0.2
+p = data.frame( Mu = 0.1,
+                T2 = 0.25,
+                m = 500,
+                t2w = 0.25,
+                se = .5,
+                
+                Nmax = 1,
+                hack = "affirm",
+                
+                k = 6000,  # to get about 5000 nonaffirmatives
+                k.hacked = 0 )
+
+
+# ~~ Random generates straight from dist -----------------
+
+sim.reps = 500
+
+meanHat = c()
+varHat = c()
+tstats = c()
+
+for ( i in 1:sim.reps ) {
+  
+  if ( i %% 25 == 0 ) cat( paste("\n\nStarting rep", i ) )
+  
+  x2 = rtrunc(n = 5000,
+              spec = "norm",
+              mean = p$Mu / p$se,
+              sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
+              b = crit)
+  
+  mle.fit = mle.tmvnorm( as.matrix(x2, ncol = 1), lower=-Inf, upper=crit)
+  mles = coef(mle.fit)
+  
+  meanHat = c(meanHat, mles[1])
+  varHat = c(varHat, mles[2])
+  tstats = c(tstats, x2)
+}
+
+
+# **THIS LOOKS JUST FINE
+mean(meanHat); p$Mu/p$se
+mean(varHat); (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
+
+# should be normal
+hist(meanHat)
+
+# trunc normal
+hist(tstats)
+
+
+# ~~ Very similar but using sim_meta -----------------
+
+# fewer sim reps because takes longer
+sim.reps = 250
+
+meanHat2 = c()
+varHat2 = c()
+# all tstats from all sims
+tstats2 = c()
+
+for ( i in 1:sim.reps ) {
+  
+  if ( i %% 10 == 0 ) cat( paste("\n\nStarting rep", i ) )
+  
+  dp = sim_meta(Nmax = p$Nmax,
+                Mu = p$Mu,
+                T2 = p$T2,
+                
+                
+                m = p$m,
+                t2w = p$t2w,
+                se = p$se, 
+                
+                rho = 0,
+                
+                hack = p$hack,
+                
+                k = p$k,
+                k.hacked = p$k.hacked,
+                return.only.published = TRUE)
+  
+  dpn = dp[ dp$affirm == FALSE, ]
+  
+  mle.fit = mle.tmvnorm( as.matrix(dpn$tstat, ncol = 1), lower=-Inf, upper=crit)
+  mles = coef(mle.fit)
+  
+  meanHat2 = c(meanHat2, mles[1])
+  varHat2 = c(varHat2, mles[2])
+  tstats2 = c(tstats2, dpn$tstat)
+}
+
+# THIS ONE IS ALSO FINE?????
+# FASCINATING
+mean(meanHat2); p$Mu/p$se
+mean(varHat2); (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
+
+# should be normal
+hist(meanHat2)
+
+
+
+
+
+# ~~ Visually compare tstats' dist -----------------
+
+ggplot() +
+  # straight from dist
+  geom_density( aes(x = tstats),
+                adjust = 0.3 ) +
+
+  # from sim_meta
+  geom_density( aes(x = tstats2),
+                adjust = 0.3,
+                color = "red") +
+  theme_bw()
+
+
+
+
+
+
+
