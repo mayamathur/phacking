@@ -667,3 +667,61 @@ hist(meanHat)
 
 # trunc normal
 hist(tstats)
+
+
+
+# EXPT 3.4: Look for lowest k with little bias ------------------------------------------
+
+p = data.frame( Mu = 0.1,
+                T2 = 0.25,
+                m = 500,
+                t2w = 0.25,
+                se = .5,
+                
+                Nmax = 1,
+                hack = "affirm",
+                
+                k = 300, 
+                k.hacked = 0 )
+
+
+
+# ~~ Random generates straight from dist -----------------
+
+# this is also very biased!
+# meanHat = 0.4442739
+# varHat = 3.349863
+
+sim.reps = 1000
+
+meanHat = c()
+varHat = c()
+tstats = c()
+
+for ( i in 1:sim.reps ) {
+  
+  if ( i %% 25 == 0 ) cat( paste("\n\nStarting rep", i ) )
+  
+  x2 = rtrunc(n = p$k - p$k.hacked,
+              spec = "norm",
+              mean = p$Mu / p$se,
+              sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
+              b = crit)
+  
+  mle.fit = mle.tmvnorm( as.matrix(x2, ncol = 1), lower=-Inf, upper=crit)
+  mles = coef(mle.fit)
+  
+  meanHat = c(meanHat, mles[1])
+  varHat = c(varHat, mles[2])
+  tstats = c(tstats, x2)
+}
+
+
+mean(meanHat); p$Mu/p$se
+mean(varHat); (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
+
+# should be normal
+hist(meanHat)
+
+# trunc normal
+hist(tstats)

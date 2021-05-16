@@ -46,10 +46,10 @@ scen.params = expand_grid( Mu = 0.1,
                            se = 0.5,
                            
                            Nmax = c(1, 10),
-                           hack = "affirm",
+                           hack = "affirm2",
                            rho = c(0, 0.9),
                            
-                           k = 100,
+                           k = 800,
                            k.hacked = c(0, 50) )
 
 # remove nonsense combinations
