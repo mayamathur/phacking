@@ -342,10 +342,12 @@ mles[2]; (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
                
 
 
-# EXPT 3 ------------------------------------------
+# EXPT 3.1: k=6000 ------------------------------------------
 
 # Goal: Find out why the MLEs are biased by comparing to MLEs when data come
 #  straight from distribution.
+# Conclusion: Here the MLEs are PERFECT even when using data from sim_meta: 
+#  could it be the very large k?
 
 # set parameters
 # exactly as in row 20 of "agg_rounded_annotated", where the tstat MLE was 0.24 instead of 0.2
@@ -443,6 +445,7 @@ for ( i in 1:sim.reps ) {
 
 # THIS ONE IS ALSO FINE?????
 # FASCINATING
+# both are exactly right
 mean(meanHat2); p$Mu/p$se
 mean(varHat2); (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
 
@@ -458,17 +461,209 @@ hist(meanHat2)
 ggplot() +
   # straight from dist
   geom_density( aes(x = tstats),
-                adjust = 0.3 ) +
+                adjust = 0.3,
+                lty = 2) +
 
   # from sim_meta
   geom_density( aes(x = tstats2),
                 adjust = 0.3,
-                color = "red") +
+                color = "red",
+                lty = 2) +
+  theme_bw()
+
+
+# EXPT 3.2: k=100 as on Sherlock ------------------------------------------
+
+# Goal: Find out if lowering k explains discrepancy between Expt 3 and the Sherlock
+#  results in agg_rounded_annotated. 
+#  Here I'm reducing k to 100 to exactly match the Sherlock sims. 
+
+# Now I get meanHat2 = 0.210, varHat2 = 2.96
+
+# set parameters
+# exactly as in row 20 of "agg_rounded_annotated", where the tstat MLE was 0.24 instead of 0.2
+p = data.frame( Mu = 0.1,
+                T2 = 0.25,
+                m = 500,
+                t2w = 0.25,
+                se = .5,
+                
+                Nmax = 1,
+                hack = "affirm",
+                
+                k = 100, 
+                k.hacked = 0 )
+
+
+# fewer sim reps because takes longer
+sim.reps = 250
+
+meanHat2 = c()
+varHat2 = c()
+# all tstats from all sims
+tstats2 = c()
+
+for ( i in 1:sim.reps ) {
+  
+  if ( i %% 10 == 0 ) cat( paste("\n\nStarting rep", i ) )
+  
+  dp = sim_meta(Nmax = p$Nmax,
+                Mu = p$Mu,
+                T2 = p$T2,
+                
+                
+                m = p$m,
+                t2w = p$t2w,
+                se = p$se, 
+                
+                rho = 0,
+                
+                hack = p$hack,
+                
+                k = p$k,
+                k.hacked = p$k.hacked,
+                return.only.published = TRUE)
+  
+  dpn = dp[ dp$affirm == FALSE, ]
+  
+  mle.fit = mle.tmvnorm( as.matrix(dpn$tstat, ncol = 1), lower=-Inf, upper=crit)
+  mles = coef(mle.fit)
+  
+  meanHat2 = c(meanHat2, mles[1])
+  varHat2 = c(varHat2, mles[2])
+  tstats2 = c(tstats2, dpn$tstat)
+}
+
+# THIS ONE IS ALSO FINE?????
+# FASCINATING
+# both are exactly right
+mean(meanHat2); p$Mu/p$se
+mean(varHat2); (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
+
+# should be normal
+hist(meanHat2)
+
+
+
+
+# EXPT 3.3: k = 20 ------------------------------------------
+
+# Reduce k even more. Now the MLEs are horrible! 
+
+# Now I get meanHat2 = 0.4829075, varHat2 = 3.433637
+
+# set parameters
+# exactly as in row 20 of "agg_rounded_annotated", where the tstat MLE was 0.24 instead of 0.2
+p = data.frame( Mu = 0.1,
+                T2 = 0.25,
+                m = 500,
+                t2w = 0.25,
+                se = .5,
+                
+                Nmax = 1,
+                hack = "affirm",
+                
+                k = 20, 
+                k.hacked = 0 )
+
+
+sim.reps = 1000
+
+
+# ~~ From sim_meta -----------------
+
+meanHat2 = c()
+varHat2 = c()
+# all tstats from all sims
+tstats2 = c()
+
+for ( i in 1:sim.reps ) {
+  
+  if ( i %% 10 == 0 ) cat( paste("\n\nStarting rep", i ) )
+  
+  dp = sim_meta(Nmax = p$Nmax,
+                Mu = p$Mu,
+                T2 = p$T2,
+                
+                
+                m = p$m,
+                t2w = p$t2w,
+                se = p$se, 
+                
+                rho = 0,
+                
+                hack = p$hack,
+                
+                k = p$k,
+                k.hacked = p$k.hacked,
+                return.only.published = TRUE)
+  
+  dpn = dp[ dp$affirm == FALSE, ]
+  
+  mle.fit = mle.tmvnorm( as.matrix(dpn$tstat, ncol = 1), lower=-Inf, upper=crit)
+  mles = coef(mle.fit)
+  
+  meanHat2 = c(meanHat2, mles[1])
+  varHat2 = c(varHat2, mles[2])
+  tstats2 = c(tstats2, dpn$tstat)
+}
+
+# VERY, very wrong
+# both are exactly right
+mean(meanHat2); p$Mu/p$se
+mean(varHat2); (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
+
+# should be normal
+hist(meanHat2)
+
+
+ggplot() + 
+  geom_density( aes(x = x2),
+                adjust = 0.3 ) + 
+  
+  geom_density( aes(x = tstats),
+                adjust = 0.3,
+                color = "red") + 
   theme_bw()
 
 
 
+# ~~ Random generates straight from dist -----------------
+
+# this is also very biased!
+# meanHat = 0.4442739
+# varHat = 3.349863
+
+sim.reps = 1000
+
+meanHat = c()
+varHat = c()
+tstats = c()
+
+for ( i in 1:sim.reps ) {
+  
+  if ( i %% 25 == 0 ) cat( paste("\n\nStarting rep", i ) )
+  
+  x2 = rtrunc(n = 20,
+              spec = "norm",
+              mean = p$Mu / p$se,
+              sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
+              b = crit)
+  
+  mle.fit = mle.tmvnorm( as.matrix(x2, ncol = 1), lower=-Inf, upper=crit)
+  mles = coef(mle.fit)
+  
+  meanHat = c(meanHat, mles[1])
+  varHat = c(varHat, mles[2])
+  tstats = c(tstats, x2)
+}
 
 
+mean(meanHat); p$Mu/p$se
+mean(varHat); (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
 
+# should be normal
+hist(meanHat)
 
+# trunc normal
+hist(tstats)
