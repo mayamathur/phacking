@@ -15,9 +15,10 @@ library(robumeta)
 library(xtable)
 library(testthat)
 
-setwd(here("2021-5-9 nonaffirm MLEs on Sherlock"))
-source("analyze_sims_helper.R")
+setwd(here("*2021-5-9 nonaffirm MLEs on Sherlock/Code archive"))
+source("_analyze_sims_helper.R")
 
+setwd(here("*2021-5-9 nonaffirm MLEs on Sherlock"))
 s = fread("stitched.csv")
 
 length(unique(s$scenName))
@@ -46,9 +47,9 @@ summarise( n = n(),
 expect_equal( unique(t$n), 500 )
 
 
-# AGGREGATE  --------------------------------------------
 
-# bm :)
+
+# AGGREGATE  --------------------------------------------
 
 # aggregate by scenario
 agg = s %>% 
@@ -107,4 +108,35 @@ fwrite(aggRounded, "agg_rounded.csv")
 # 
 # scen.params = scen.params %>% add_column( scen = 1:nrow(scen.params),
 #                                           .before = 1 )
+
+
+# REP TIME --------------------------------------------
+
+# note that repSeconds is constant within a job because I calculated it as the average
+
+reps.in.doParallel = max(s$repName)
+
+#bm
+
+# 24 scenarios each with 5 jobs (500 sim.reps / 100 reps.in.doParallel)
+
+# only keep 1 rep per doParallel (NOT per scenario)
+t = s %>% filter(repName == 1) %>%
+  summarise( scenName = scenName,
+             n(),
+             doParallelMin = reps.in.doParallel * repSeconds / 60,
+             doParallelHrs = reps.in.doParallel * repSeconds / 60^2 )
+
+summary(t$doParallelMin)
+summary(t$doParallelHrs)
+
+# how much time should we expect if we run k = 800 instead of k = 100?
+8 * summary(t$doParallelMin)
+8 * summary(t$doParallelHrs)
+
+
+
+
+
+
 

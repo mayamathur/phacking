@@ -371,6 +371,7 @@ doParallelTime = system.time({
 # use NAs for additional methods so that the SUM of the rep times will be the
 #  total computational time
 nMethods = length(unique(rs$methName))
+rs$doParallelTime = doParallelTime
 rs$repSeconds = rep( c( doParallelTime / sim.reps,
                         rep( NA, nMethods - 1 ) ), sim.reps )
 

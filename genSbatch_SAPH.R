@@ -50,7 +50,7 @@ scen.params = expand_grid( Mu = 0.1,
                            rho = c(0, 0.9),
                            
                            k = 800,
-                           k.hacked = c(0, 50) )
+                           k.hacked = c(0, 400) )
 
 # remove nonsense combinations
 # rho > 0 is pointless if there's only 1 draw
@@ -88,10 +88,15 @@ errorfile = paste("rm_", 1:n.files, ".err", sep="")
 write_path = paste(path, "/sbatch_files/", 1:n.files, ".sbatch", sep="")
 runfile_path = paste(path, "/testRunFile.R", sep="")
 
+# time with k = 100, reps.in.doParallel = 100:
+# > summary(t$doParallelMin)
+# Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+# 0.03563  0.06377  0.68358  1.46078  0.99570 78.15405 
+
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "2:00:00",  #@update this
+                            jobtime = "1:00:00",  #@update this
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
