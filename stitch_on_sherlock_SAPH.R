@@ -14,6 +14,7 @@ source("helper_SAPH.R")
 ######## STITCH LONG FILES ########
 
 library(data.table)
+library(dplyr)
 # s = stitch_files(.results.singles.path = "/home/groups/manishad/SAPH/sim_results/long",
 #                  .results.stitched.write.path = "/home/groups/manishad/SAPH/sim_results/overall_stitched",
 #                  .name.prefix = "long_results",
@@ -29,19 +30,28 @@ all.files = list.files(.results.singles.path, full.names=TRUE)
 
 # we only want the ones whose name includes .name.prefix
 keepers = all.files[ grep( .name.prefix, all.files ) ]
+length(keepers)
 
 # grab variable names from first file
-names = names( read.csv(keepers[1] )[-1] )
+names = names( read.csv(keepers[1] ) )
 
 # read in and rbind the keepers
 tables <- lapply( keepers, function(x) read.csv(x, header= TRUE) )
 
+# sanity check: do all files have the same names?
+# if not, could be because some jobs were killed early so didn't get doParallelTime
+#  variable added at the end
+#  can be verified by looking at out-file for a job without name "doParallelTime"
+allNames = lapply( tables, names )
+# # find out which jobs had wrong number of names
+# lapply( allNames, function(x) all.equal(x, names ) )
+# allNames[[1]][ !allNames[[1]] %in% allNames[[111]] ]
 
-# setwd("/home/groups/manishad/SAPH")
-# scen.params = read.csv( "scen_params.csv" )
+# bind_rows works even if datasets have different names
+#  will fill in NAs
+s <- do.call(bind_rows, tables)
 
 
-s <- do.call(rbind, tables)
 
 names(s) = names( read.csv(keepers[1], header= TRUE) )
 

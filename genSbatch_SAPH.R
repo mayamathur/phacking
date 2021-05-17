@@ -50,7 +50,11 @@ scen.params = expand_grid( Mu = 0.1,
                            rho = c(0, 0.9),
                            
                            k = 800,
-                           k.hacked = c(0, 400) )
+                           k.hacked = c(0, 800) )
+
+# hold constant the number of UNHACKED studies to 800
+scen.params$k[ scen.params$k.hacked == 800 ] = 800*2
+table(scen.params$k, scen.params$k.hacked)
 
 # remove nonsense combinations
 # rho > 0 is pointless if there's only 1 draw
@@ -96,7 +100,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "1:00:00",  #@update this
+                            jobtime = "2:00:00",  #@update this
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -104,7 +108,7 @@ sbatch_params <- data.frame(jobname,
                             user_email = "mmathur@stanford.edu",
                             tasks_per_node = 16,
                             cpus_per_task = 1,
-                            path_to_r_script = paste(path, "/doParallel.R", sep=""),
+                            path_to_r_script = paste(path, "/doParallel_SAPH.R", sep=""),
                             args_to_r_script = paste("--args", jobname, scen.name, sep=" "),
                             write_path,
                             stringsAsFactors = F,
@@ -119,7 +123,7 @@ n.files
 # max hourly submissions seems to be 300, which is 12 seconds/job
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 2:120) {
+for (i in 1:n.files) {
   #system( paste("sbatch -p owners /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
   #Sys.sleep(2)  # delay in seconds

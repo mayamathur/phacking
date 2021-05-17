@@ -15,9 +15,6 @@
 #  - T2 = 0, t2w > 0, Nmax > 1: Nonaffirms should fit the trunc distribution because
 #    there's no selection on mui. So this scenario should look just like T2 = 0, t2w > 0, Nmax = 1.
 
-#@To do before running:
-# - Make sure sbatches uses R/4.0.2
-
 
 # 2021-5-8: scens that are unbiased, correct coverage, etc., locally:
 # scen  Mu   T2   m  t2w  se Nmax   hack rho   k k.hacked
@@ -181,7 +178,8 @@ doParallelTime = system.time({
     # for debugging (out file will contain all printed things):
     #for ( i in 1:sim.reps ) {
       
-    cat("\n\n~~~~~~~~~~~~~~~~ BEGIN SIM REP", i, "~~~~~~~~~~~~~~~~")
+    # only print info for first sim rep for visual clarity
+    if ( i == 1 ) cat("\n\n~~~~~~~~~~~~~~~~ BEGIN SIM REP", i, "~~~~~~~~~~~~~~~~")
     
     # results for just this simulation rep
     if ( exists("repRes") ) rm(repRes)
@@ -190,8 +188,8 @@ doParallelTime = system.time({
     # exclude the column with the scenario name itself (col) 
     p = scen.params[ scen.params$scen == scen, names(scen.params) != "scen"]
     
-    cat("\n\nHEAD OF SCEN.PARAMS:")
-    print(p)
+    if ( i == 1 ) cat("\n\nHEAD OF SCEN.PARAMS:")
+    if ( i == 1 ) print(p)
     
     # ~~ Simulate Dataset ------------------------------
     # includes unpublished studies
@@ -212,8 +210,8 @@ doParallelTime = system.time({
     # dataset of only published results
     dp = d %>% filter(Di == 1)
     
-    cat("\n\nHEAD OF DP:")
-    print(head(dp))
+    if ( i == 1 ) cat("\n\nHEAD OF DP:")
+    if ( i == 1 ) print(head(dp))
     
     # # published hacked ones only
     # dph = d %>% filter(hack == p$hack & Di == 1)
@@ -234,12 +232,16 @@ doParallelTime = system.time({
     # even if I omit the random intercept
     
     # only for non-huge k to prevent hangups
-    if ( p$k < 500 ) {
+    # k = 500 hangs up locally
+    if ( p$k < 10^5 ) {
       modAll = rma.mv( yi = yi,
                        V = vi,
                        data = d,
                        method = "REML",
                        random = ~1 | study ) 
+    } else {
+      # set to NULL so that report_rma will work
+      modAll = NULL
     }
     
     
@@ -247,18 +249,21 @@ doParallelTime = system.time({
     # biased meta-analysis of only published studies
     
     # only for non-huge k to prevent hangups
-    if ( nrow(dp) < 500 ) {
+    if ( nrow(dp) < 10^5 ) {
       modPub = rma( yi = dp$yi,
                     vi = dp$vi,
                     method = "REML",
                     knha = TRUE ) 
+    } else {
+      # set to NULL so that report_rma will work
+      modPub = NULL
     }
     
     
-    cat("\n\nSURVIVED MODPUB STEP")
+    if ( i == 1 ) cat("\n\nSURVIVED MODPUB STEP")
     
-    cat("\n\nHEAD OF DP AFTER MODPUB STEP:")
-    print(head(dp))
+    if ( i == 1 ) cat("\n\nHEAD OF DP AFTER MODPUB STEP:")
+    if ( i == 1 ) print(head(dp))
     
     # ~~ Bias-Corrected Estimator #1: Nonaffirms Only ------------------------------
     
@@ -343,7 +348,6 @@ doParallelTime = system.time({
                                               .suffix = "Naive"),
                                    
                                    .before = 1 )
-    
     
     # add in scenario parameters
     repRes = repRes %>% add_column( scenName = scen,

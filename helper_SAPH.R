@@ -312,12 +312,21 @@ report_rma = function(.mod,
                       .Mu,  # true mean (to get coverage)
                       .suffix = "") {
   
-  .res = data.frame( .mod$b,
-                     .mod$ci.lb,
-                     .mod$ci.ub,
-                     (.mod$ci.lb <= .Mu) & (.mod$ci.ub >= .Mu), 
-                     .mod$pval )
+  if ( !is.null(.mod) ) {
+    .res = data.frame( .mod$b,
+                       .mod$ci.lb,
+                       .mod$ci.ub,
+                       (.mod$ci.lb <= .Mu) & (.mod$ci.ub >= .Mu), 
+                       .mod$pval )
+  } else {
+    .res = data.frame( NA,
+                       NA,
+                       NA,
+                       NA, 
+                       NA )
+  }
   
+
   names(.res) = paste( c("Mhat", "MhatLo", "MhatHi", "MhatCover", "MhatPval"), .suffix, sep = "" )
   return(.res)
 }
