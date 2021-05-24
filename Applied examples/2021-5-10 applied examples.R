@@ -394,13 +394,13 @@ plot1
 # ~~ Get MLEs meta-analysis-style -----------------------
 
 # corpus is too large for memory limits, so let's try downsampling 
+# 10^3 is okay locally
 s2 = s[ sample( nrow(s),
-                 size = 5000,
+                 size = 10^3,
                  replace = FALSE ), ] 
 
 .obj = correct_meta_phack2(yi = s2$Dr,
                            vi = s2$SE^2)
-
 
 
 
@@ -411,8 +411,8 @@ mean( d3$yi/sqrt(d3$vi) )  # 1.44
 plot_trunc_densities(.obj)
 plot_trunc_densities(.obj, showAffirms = TRUE)
 
-.obj$metaCorr  # 0.29
-.obj$metaNaive  # 0.21
+.obj$metaCorr  
+.obj$metaNaive  
 
 #bm
 

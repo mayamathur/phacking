@@ -5,20 +5,23 @@
 
 # Before running, search "#@"
 
-# The returned Vhat is an estimate of T2 + t2w, *not* T2 itself
+# Important things to remember: 
 #
-# correct_meta_phack1 will NOT work well for small m. I already tried this.
+# - The returned Vhat is an estimate of T2 + t2w, *not* T2 itself
+#
+# - correct_meta_phack1 will NOT work well for small m. I already tried this.
 #   This is because, for computational convenience, I'm using the truncated normal dist
 #   for the tstats, and it won't hold well when m is small. 
 # 
-# Key hypotheses to check in simulation results:
-#  - T2 = 0, t2w > 0, Nmax > 1: Nonaffirms should fit the trunc distribution because
+# - Key hypotheses to check in simulation results: T2 = 0, t2w > 0, Nmax > 1: Nonaffirms should fit the trunc distribution because
 #    there's no selection on mui. So this scenario should look just like T2 = 0, t2w > 0, Nmax = 1.
 
+# Debugging help:
+# 
+# - The jobs may fail before fitting modAll with no apparent errors if 
+#   k is too large for rma.mv. In that case, try setting p$k < 500 for modAll
+#  and modPub small to prevent those models from being fit. 
 
-# 2021-5-8: scens that are unbiased, correct coverage, etc., locally:
-# scen  Mu   T2   m  t2w  se Nmax   hack rho   k k.hacked
-# 1    1 0.1 0.25 500 0.25 0.5   10 affirm 0.9 100        0
 
 # because Sherlock 2.0 restores previous workspace
 rm( list = ls() )
@@ -111,10 +114,11 @@ if (run.local == FALSE) {
   source("helper_SAPH.R")
   
   # locally, with total k = 100, Nmax = 10, and sim.reps = 250, took 93 min total
+  # for that I did sim.reps = 100 per doParallel
   
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
-  sim.reps = 100  #@update this 
+  sim.reps = 5  #@update this 
   
 
   # set the number of cores
@@ -233,7 +237,10 @@ doParallelTime = system.time({
     
     # only for non-huge k to prevent hangups
     # k = 500 hangs up locally
-    if ( p$k < 10^5 ) {
+    # even on cluster, when I had k > 1000, the jobs would fail at this step 
+    #  with no apparent errors but then were fine as soon as I skipped this step 
+    #  via the p$k < 500 criterion
+    if ( p$k < 500 ) {
       modAll = rma.mv( yi = yi,
                        V = vi,
                        data = d,
@@ -249,7 +256,7 @@ doParallelTime = system.time({
     # biased meta-analysis of only published studies
     
     # only for non-huge k to prevent hangups
-    if ( nrow(dp) < 10^5 ) {
+    if ( nrow(dp) < 500 ) {
       modPub = rma( yi = dp$yi,
                     vi = dp$vi,
                     method = "REML",

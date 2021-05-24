@@ -64,10 +64,10 @@ write.csv(s, paste(.results.stitched.write.path, .stitch.file.name, sep="/") )
 
 ##### Look for Missed Jobs #####
 # look for missed jobs
-missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/sim_results/long",
-                              "/home/groups/manishad/SAPH/sim_results",
+missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
+                              "/home/groups/manishad/SAPH/long_results",
                               .name.prefix = "long",
-                              .max.sbatch.num = 1600)
+                              .max.sbatch.num = 2400)
 
 path = "/home/groups/manishad/SAPH"
 

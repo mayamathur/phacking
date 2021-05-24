@@ -71,9 +71,8 @@ scp mmathur@login.sherlock.stanford.edu /home/groups/manishad/SAPH/results/overa
 ####################### CLEAN UP ####################### 
 
 # clean up the directory
-rm /home/groups/manishad/SAPH/sim_results/*
-  
-  rm /home/groups/manishad/SAPH/sim_results/overall_stitched/*
+rm /home/groups/manishad/SAPH/stitched_results/*
+rm /home/groups/manishad/SAPH/long_results/*
   
   
 # clean up "rm" files

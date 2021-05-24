@@ -15,9 +15,10 @@ library(robumeta)
 library(xtable)
 library(testthat)
 
-setwd(here("2021-5-9 nonaffirm MLEs on Sherlock"))
-source("analyze_sims_helper.R")
+setwd(here())
+source("analyze_sims_helper_SAPH.R")
 
+setwd(here("*2021-5-17 nonaffirm MLEs with large k and affirm2 hacking"))
 s = fread("stitched.csv")
 
 length(unique(s$scenName))
@@ -25,7 +26,9 @@ length(unique(s$scenName))
 # check reps run vs. expected
 expect_equal( unique(table(s$scenName)), 500 )
 
-
+# TEMP ONLY
+# remove old files
+s = s[ s$hack == "affirm2", ]
 
 
 paramVars = names(s)[ 1 : ( which( names(s) == "MhatAll" ) - 1 ) ]
@@ -40,15 +43,20 @@ firstOnly = "scenName"
 # sanity check:
 # make sure we listed all the param vars
 t = s %>% group_by_at(paramVars) %>%
-summarise( n = n(),
+  summarise( scenName = scenName[1],
+             reps = n(),
              .groups = "keep" )
 # 500 such that each scenario is uniquely defined by the param vars
-expect_equal( unique(t$n), 500 )
+expect_equal( unique(t$reps), 500 )
+
+# if some scenarios timed out, might have fewer than 500 reps
+table(t$reps)
+
+
 
 
 # AGGREGATE  --------------------------------------------
 
-# bm :)
 
 # aggregate by scenario
 agg = s %>% 
@@ -66,7 +74,7 @@ agg = s %>%
 
 # I expect k.hacked scenarios to be unbiased
 # order from smallest to largest corrected estimate
-View( agg[ order(agg$MhatCorr)], )
+View( agg[ order(agg$MhatCorr), ] )
 
 agg %>% group_by( k.hacked, T2, t2w ) %>%
   summarise( MhatAll = meanNA(MhatAll),
