@@ -26,9 +26,6 @@ length(unique(s$scenName))
 # check reps run vs. expected
 expect_equal( unique(table(s$scenName)), 500 )
 
-# TEMP ONLY
-# remove old files
-s = s[ s$hack == "affirm2", ]
 
 
 paramVars = names(s)[ 1 : ( which( names(s) == "MhatAll" ) - 1 ) ]
@@ -80,6 +77,11 @@ agg %>% group_by( k.hacked, T2, t2w ) %>%
   summarise( MhatAll = meanNA(MhatAll),
              MhatCorr = meanNA(MhatCorr),
              MhatCoverCorr = meanNA(MhatCoverCorr) )
+
+#@ONLY FOR CERTAIN SIMS:
+# remove MhatAll and MhatNaive because they were too computationally costly
+if ( all( is.na(s$MhatAll) ) ) agg = agg[ , !grepl( pattern = "All", names(agg) ) ]
+if ( all( is.na(s$MhatNaive) ) ) agg = agg[ , !grepl( pattern = "Naive", names(agg) ) ]
 
 fwrite(agg, "agg.csv")
 
