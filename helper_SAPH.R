@@ -448,7 +448,6 @@ plot_trunc_densities = function(.obj,
   tstatMeanMLE = .obj$sanityChecks$tstatMeanMLE
   tstatVarMLE = .obj$sanityChecks$tstatVarMLE
   
-  #bm: Make ggplot with density, oh yeah
   xmin = floor(min(dn$tstat))
   xmax = ceiling(max(dn$tstat))
   
@@ -1263,6 +1262,24 @@ add_method_result_row = function(repRes = NA,
   if ( is.null( nrow(repRes) ) ) repRes = newRow else repRes = rbind(repRes, newRow)
   return(repRes)
 }
+
+
+my_ggsave = function(name,
+                     width,
+                     height,
+                     .results.dir = results.dir,
+                     .overleaf.dir = overleaf.dir) {
+  setwd(.results.dir)
+  ggsave( name,
+          width = width, 
+          height = height)
+  
+  setwd(.overleaf.dir)
+  ggsave( name,
+          width = width, 
+          height = height)
+}
+
 
 
 
