@@ -439,3 +439,186 @@ d = x$d
                var(tstat) ) )
 
 
+# ~ EXPT 9: ALL HACKED (NOW AFFIRM2), NMAX = 10, T2 = 0, t2w > 0 -------------------------
+
+# mathced with Expt 7 (which had worked), except now we're using affirm2 hacking
+#  for the first time
+x = quick_sim( .p = data.frame( Mu = 1,
+                                T2 = 0,
+                                m = 500,
+                                t2w = 0.25,
+                                se = .5,
+                                
+                                Nmax = 10,
+                                hack = "affirm2",
+                                rho = 0,
+                                
+                                k = 10000,
+                                k.hacked = 10000,
+                                
+                                sim.name = "expt_9_res" ),
+               
+               .results.dir = results.dir )
+
+# alternatively, re-load saved object, including dataset
+setwd(results.dir)
+load("expt_9_res")
+d = x$d
+
+x$res
+
+
+# ~ EXPT 10: ALL HACKED (AFFIRM), NMAX = 10, T2 = 0, t2w > 0, NOW RHO=0.9 -------------------------
+
+# matched with Expt 7 (which had worked), except now we're using rho>0
+#  for the first time
+x = quick_sim( .p = data.frame( Mu = 1,
+                                T2 = 0,
+                                m = 500,
+                                t2w = 0.25,
+                                se = .5,
+                                
+                                Nmax = 10,
+                                hack = "affirm",
+                                rho = 0.9,
+                                
+                                k = 10000,
+                                k.hacked = 10000,
+                                
+                                sim.name = "expt_10_res" ),
+               
+               .results.dir = results.dir )
+
+# alternatively, re-load saved object, including dataset
+setwd(results.dir)
+load("expt_10_res")
+d = x$d
+
+x$res
+
+# first draw of each study set
+( t1 = d %>% filter( !duplicated(study) ) %>%
+    summarise( n(),
+               var(mui),
+               var(muin),
+               var(yi),
+               mean(tstat),
+               var(tstat) ) )
+
+# all draws from each study set
+( t2 = d %>% 
+    summarise( n(),
+               var(mui),
+               var(muin),
+               var(yi),
+               mean(tstat),
+               var(tstat) ) )
+
+
+
+# ~ EXPT 11: ALL HACKED (AFFIRM), NMAX = 10, T2 = 0, t2w > 0, RHO=1 -------------------------
+
+# matched with Expt 10 (which had NOT worked), except now rho=1
+# this should behave exactly like Nmax=1 version in Expt 12
+x = quick_sim( .p = data.frame( Mu = 1,
+                                T2 = 0,
+                                m = 500,
+                                t2w = 0.25,
+                                se = .5,
+                                
+                                Nmax = 10,
+                                hack = "affirm",
+                                rho = 1,
+                                
+                                k = 10000,
+                                k.hacked = 10000,
+                                
+                                sim.name = "expt_11_res" ),
+               
+               .results.dir = results.dir )
+
+# alternatively, re-load saved object, including dataset
+setwd(results.dir)
+load("expt_11_res")
+d = x$d
+
+x$res
+
+
+# first draw of each study set
+( t1 = d %>% filter( !duplicated(study) ) %>%
+    summarise( n(),
+               var(mui),
+               var(muin),
+               var(yi),
+               mean(tstat),
+               var(tstat) ) )
+
+# all draws from each study set
+( t2 = d %>% 
+    summarise( n(),
+               var(mui),
+               var(muin),
+               var(yi),
+               mean(tstat),
+               var(tstat) ) )
+
+
+
+# ~ EXPT 12: ALL HACKED (AFFIRM), NMAX = 10, T2 = 0, t2w > 0, RHO=0.9 -------------------------
+
+# matched with Expt 11, except now Nmax = 1 
+#  goal is to check that rho=1 (Expt 12) behaves like Nmax = 1 (this expt)
+x = quick_sim( .p = data.frame( Mu = 1,
+                                T2 = 0,
+                                m = 500,
+                                t2w = 0.25,
+                                se = .5,
+                                
+                                Nmax = 1,
+                                hack = "affirm",
+                                rho = 0.9,
+                                
+                                k = 10000,
+                                k.hacked = 10000,
+                                
+                                sim.name = "expt_12_res" ),
+               
+               .results.dir = results.dir )
+
+# alternatively, re-load saved object, including dataset
+setwd(results.dir)
+load("expt_12_res")
+d = x$d
+
+x$res
+
+
+
+# ~ EXPT 13: ALL HACKED (AFFIRM), NMAX = 10, T2 = 0, t2w = 0, RHO=0.9 -------------------------
+
+# matched with Expt 5, except now rho=0.9
+x = quick_sim( .p = data.frame( Mu = 1,
+                                T2 = 0,
+                                m = 500,
+                                t2w = 0,
+                                se = .5,
+                                
+                                Nmax = 10,
+                                hack = "affirm",
+                                rho = 0.9,
+                                
+                                k = 10000,
+                                k.hacked = 10000,
+                                
+                                sim.name = "expt_13_res" ),
+               
+               .results.dir = results.dir )
+
+# alternatively, re-load saved object, including dataset
+setwd(results.dir)
+load("expt_13_res")
+d = x$d
+
+x$res
+
