@@ -1,8 +1,10 @@
 
 # Goal: Try to correct small-sample bias using the Firth 1993 
-# approach of doing Bayesian estimation with Jeffreys prior.
+# approach of doing Bayesian estimation with Jeffreys prior
+# (e.g., Zhou paper)
+# and other analytic bias corrections as in Godwin paper
 
-# Remember: You'll need to use canonical parameterization! 
+# Remember: You'll need to use canonical parameterization for Jeffreys! 
 
 # PRELIMINARIES -----------------------------
 
@@ -35,12 +37,61 @@ library(tmvtnorm)
 library(TruncatedNormal)
 library(mle.tools)
 library(fitdistrplus)
+library(numDeriv)
 
 # **note that mle.tools package will also calculate Fisher info in case we 
 #   want to try the Jeffreys correction
 # see expected.varcov 
 
-# TOY EXAMPLE FROM PACKAGE -----------------------------
+# 2021-5-31: TRY CORDEIRA CORRECTION AS IN GODWIN -----------------------------
+
+# ~ Check my theory -----------------------------
+
+# check the derivatives and partial derivatives I got on iPad
+
+# simple package example
+func2 <- function(vec){
+  vec[1]^2 + vec[2]^2
+}
+# first derivatives wrt vec[1] and wrt x[2], evaluated at (2,3)
+jacobian(func2, c(2,3))  
+# second derivatives wrt vec[1] and wrt x[2] and the mixed ones, evaluated at (2,3)
+hessian(func2, c(2,3))  # second derivative evaluated at x=4
+
+
+# params: (mu, sigma)
+myLPDF = function(params, .x, .crit) {
+  mu = params[1]
+  sigma = params[2]
+  -log(sigma) - 0.5/sigma^2 * (.x - mu)^2 + pnorm( q = .crit, mean = mu, sd = sigma, log=TRUE)
+}
+myLPDF( c(0, .5), 0, 1.96)
+
+# second derivatives wrt mu and sigma, evaluated at (2,3)
+hessian(myLPDF, c(2,3), .x = 0, .crit = 1.96 )
+
+# ~~ Check my first derivatives -----------------------------
+
+# mine
+myHessian = function(params, .x, .crit) {
+  
+}
+
+
+# ~~ Check my first derivatives -----------------------------
+
+
+# second derivatives wrt mu and sigma, evaluated at (2,3)
+jacobian(myLPDF, c(2,3), .x = 0, .crit = 1.96 )
+
+#bm
+
+
+
+
+# 2021-5-18: TRY COX-SNELL BIAS CORRECTION -----------------------------
+
+# ~ Toy example from package -----------------------------
 
 # simple example from mle.tools::coxsnell.bc
 # not the Jeffreys correction, but rather a different correction that also uses 
@@ -57,10 +108,7 @@ x <- rnorm(n = 100, mean = 0.0, sd = 1.0)
 coxsnell.bc(density = pdf, logdensity = lpdf, n = length(x), parms = c("mu", "sigma"),
             mle = c(mu.hat, sigma.hat), lower = '-Inf', upper = 'Inf')
 
-
-# TRY COX-SNELL BIAS CORRECTION -----------------------------
-
-# ~~ Random generates straight from dist -----------------
+# ~ Random generates straight from trunc dist -----------------
 
 # try one example using parameters that yielded very biased estimates in 
 #   2021-5-3 folder, Expt 3.3
@@ -151,7 +199,7 @@ hist(tstats)
 
 
 
-# TRY JEFFREYS BIAS CORRECTION -----------------------------
+# 2021-5-18: TRY JEFFREYS BIAS CORRECTION -----------------------------
 
 # ~ Is Zhou's variance wrong? -----------------------------
 
