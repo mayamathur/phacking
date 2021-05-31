@@ -60,26 +60,79 @@ hessian(func2, c(2,3))  # second derivative evaluated at x=4
 
 
 # params: (mu, sigma)
+# NOTE parameterization in terms of sigma rather than sigma^2
 myLPDF = function(params, .x, .crit) {
   mu = params[1]
   sigma = params[2]
-  -log(sigma) - 0.5/sigma^2 * (.x - mu)^2 + pnorm( q = .crit, mean = mu, sd = sigma, log=TRUE)
+  -log( sqrt(2*pi) * sigma) - (.x - mu)^2 / (2 * sigma^2 ) -
+    pnorm( q = .crit, mean = mu, sd = sigma, log=TRUE)
 }
 myLPDF( c(0, .5), 0, 1.96)
+
+# same, but separating parameters
+myLPDF2 = function(mu, sigma, .x, .crit) {
+  -log( sqrt(2*pi) * sigma) - (.x - mu)^2 / (2 * sigma^2 ) -
+    pnorm( q = .crit, mean = mu, sd = sigma, log=TRUE)
+  
+}
 
 # second derivatives wrt mu and sigma, evaluated at (2,3)
 hessian(myLPDF, c(2,3), .x = 0, .crit = 1.96 )
 
 # ~~ Check my first derivatives -----------------------------
 
+# Mills ratio for right truncation
+mills = function(params, .crit) {
+  mu = params[1]
+  sigma = params[2]
+  uStar = (.crit - mu)/sigma
+  dnorm(uStar) / pnorm(uStar) 
+}
+
+#bm: stopped here :)
 # mine
-myHessian = function(params, .x, .crit) {
+myJacobian = function(params, .x, .crit) {
   
+  mu = params[1]
+  sigma = params[2]
+  
+  # entry 1: derivative wrt mu
+  J1 = ( (.x - mu) / sigma^2 ) +  # this part matches Deriv!
+    mills(params = params, .crit = .crit) * (1/sigma)
+  
+  # entry 2: derivative wrt sigma
+  J2 = (-1/sigma) + ( (.x - mu)^2 / sigma^3 ) +
+    mills(params = params, .crit = .crit) * (.crit - mu)/sigma^2
+  
+  return( matrix( c(J1, J2), nrow = 1 ) )
 }
 
 
-# ~~ Check my first derivatives -----------------------------
+params = c(-0.1, .2)
+x = 0
+crit = 3
+mu = params[1]
+sigma = params[2]
+myLPDF(params, .x = x, .crit = crit)
 
+# dl/dmu matches :)
+( myJ = myJacobian( params = params,
+            .x = x, 
+            .crit = crit) )
+
+library(Deriv)
+J1 = Deriv(myLPDF2, "mu")
+expect_equal( J1( mu = params[1], sigma = params[2], .x = x, .crit = crit ),
+              myJ[1] )
+
+
+# dl/dmu matches :)
+J2 = Deriv(myLPDF2, "sigma")
+expect_equal( J2( mu = params[1], sigma = params[2], .x = x, .crit = crit ),
+              myJ[2] )
+
+
+# ~~ Check my second derivatives -----------------------------
 
 # second derivatives wrt mu and sigma, evaluated at (2,3)
 jacobian(myLPDF, c(2,3), .x = 0, .crit = 1.96 )
