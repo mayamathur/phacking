@@ -123,7 +123,7 @@ n.files
 # max hourly submissions seems to be 300, which is 12 seconds/job
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:10) {
+for (i in 11:2400) {
   #system( paste("sbatch -p owners /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
   #Sys.sleep(2)  # delay in seconds
