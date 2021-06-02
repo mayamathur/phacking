@@ -1,17 +1,24 @@
 
-# Goal: Try to correct small-sample bias using the Firth 1993 
-# approach of doing Bayesian estimation with Jeffreys prior
-# (e.g., Zhou paper)
-# and other analytic bias corrections as in Godwin paper
+# This script goes with the theory in iPad PDF "SAPH - trunc Normal Jeffreys prior"
+
+# Goal:
+#  - Try the analytic bias corrections in Godwin paper (based on Cordeiro)
+#  - Could also try the Firth 1993 approach of doing Bayesian estimation with
+#   Jeffreys prior (e.g., Zhou paper)
 
 # Remember: You'll need to use canonical parameterization for Jeffreys! 
 
 # PRELIMINARIES -----------------------------
 
 library(here)
+
+# general helpers
 setwd(here())
 source("helper_SAPH.R")
 
+# helpers for the theory herein
+setwd(here("2021-5-18 analytic nonaffirm MLE bias corrections"))
+source("2021-5-18 helper.R")
 
 library(metafor)
 library(weightr)
@@ -39,9 +46,11 @@ library(mle.tools)
 library(fitdistrplus)
 library(Deriv)
 
-# **note that mle.tools package will also calculate Fisher info in case we 
+# **note that mle.tools package will also calculate Fisher info
+# in case we 
 #   want to try the Jeffreys correction
 # see expected.varcov 
+
 
 # 2021-5-31: TRY CORDEIRA CORRECTION AS IN GODWIN -----------------------------
 
@@ -58,53 +67,10 @@ jacobian(func2, c(2,3))
 # second derivatives wrt vec[1] and wrt x[2] and the mixed ones, evaluated at (2,3)
 hessian(func2, c(2,3))  # second derivative evaluated at x=4
 
-
-# params: (mu, sigma)
-# NOTE parameterization in terms of sigma rather than sigma^2
-myLPDF = function(params, .x, .crit) {
-  mu = params[1]
-  sigma = params[2]
-  -log( sqrt(2*pi) * sigma) - (.x - mu)^2 / (2 * sigma^2 ) -
-    pnorm( q = .crit, mean = mu, sd = sigma, log=TRUE)
-}
-myLPDF( c(0, .5), 0, 1.96)
-
-# same, but separating parameters
-myLPDF2 = function(mu, sigma, .x, .crit) {
-  -log( sqrt(2*pi) * sigma) - (.x - mu)^2 / (2 * sigma^2 ) -
-    pnorm( q = .crit, mean = mu, sd = sigma, log=TRUE)
-  
-}
-
 # second derivatives wrt mu and sigma, evaluated at (2,3)
 hessian(myLPDF, c(2,3), .x = 0, .crit = 1.96 )
 
 # ~~ Check my first derivatives -----------------------------
-
-# Mills ratio for right truncation
-mills = function(params, .crit) {
-  mu = params[1]
-  sigma = params[2]
-  uStar = (.crit - mu)/sigma
-  dnorm(uStar) / pnorm(uStar) 
-}
-
-# mine
-myJacobian = function(params, .x, .crit) {
-  
-  mu = params[1]
-  sigma = params[2]
-  
-  # entry 1: derivative wrt mu
-  J1 = ( (.x - mu) / sigma^2 ) +  # this part matches Deriv!
-    mills(params = params, .crit = .crit) * (1/sigma)
-  
-  # entry 2: derivative wrt sigma
-  J2 = (-1/sigma) + ( (.x - mu)^2 / sigma^3 ) +
-    mills(params = params, .crit = .crit) * (.crit - mu)/sigma^2
-  
-  return( matrix( c(J1, J2), nrow = 1 ) )
-}
 
 # set up some values to plug in
 params = c(-0.1, .2)
@@ -119,7 +85,6 @@ myLPDF(params, .x = x, .crit = crit)
                     .x = x, 
                     .crit = crit) )
 
-library(Deriv)
 J1 = Deriv(myLPDF2, "mu")
 expect_equal( J1( mu = params[1], sigma = params[2], .x = x, .crit = crit ),
               myJ[1] )
@@ -132,30 +97,6 @@ expect_equal( J2( mu = params[1], sigma = params[2], .x = x, .crit = crit ),
 
 
 # ~~ Check my second derivatives -----------------------------
-
-
-myHessian = function(params, .x, .crit) {
-  
-  mu = params[1]
-  sigma = params[2]
-  mills = mills(params = params, .crit = .crit)
-  uStar = (.crit - mu)/sigma
-  
-  # entry 1,1: dl/dmu^2
-  H11 = (-1/sigma^2) + (1/sigma^2) * ( mills^2 + uStar * mills )
-  
-  # entry 2,2: dl/dsigma^2
-  H22 = (1/sigma^2) - ( 3 * (.x - mu)^2 / sigma^4 ) +
-    ( mills^2 + uStar * mills ) * ( ( .crit - mu ) / sigma^2 )^2 -
-    mills * ( 2 * (.crit - mu) / sigma^3 )
-  
-  # entry 1,2 and 2,1: dl / dmu dsigma
-  H12 = ( -2 * (.x - mu) / sigma^3 ) +
-    ( mills^2 + uStar * mills ) * ( ( .crit - mu ) / sigma^3 ) -
-    mills / sigma^2
-  
-  return( matrix( c(H11, H12, H12, H22), nrow = 2 ) )
-}
 
 
 # dl/dmu^2 matches :)
@@ -183,59 +124,6 @@ expect_equal( H12( mu = params[1], sigma = params[2], .x = x, .crit = crit ),
 # ~~ Check my third derivatives -----------------------------
 # these ones are needed for Cordeiro correction, but not Jeffreys prior
 
-# entry: a number like "121" to say which derivative we want
-#  where parameter 1 is mu and parameter 2 is sigma
-myThirdDerivs = function(params, .x, .crit, .entry) {
-  
-  mu = params[1]
-  sigma = params[2]
-  
-  # terms that will show up a lot
-  mills = mills(params = params, .crit = .crit)
-  uStar = (.crit - mu)/sigma
-  termA = mills^2 + uStar * mills
-  termB = 2*mills + uStar
-  termC = termA * termB - mills
-  
-  ### third erivatives wrt mu
-  # entry 111: dl/dmu^3
-  if ( .entry == 111 ) {
-    return( (1/sigma^3) * termC )
-  }
-  
-  # entry 221=212=122: dl/(dsigma^2 dmu)
-  if ( .entry %in% c(221, 212, 122) ) {
-    return( (1/sigma^4) * ( 6*(.x - mu) - 2*(.crit - mu)*termA +
-                              (.crit - mu)^2/sigma * termC +
-                              2*mills*sigma ) )
-  }
-  
-  # entry 121=211=112: dl/(dmu dsigma dmu)
-  if ( .entry %in% c(121, 211, 112) ) {
-    return( (1/sigma^3) * ( 2 - 2*termA + uStar*termC ) )
-  }
-  
-  # entry 222: dl/(dsigma^3)
-  if ( .entry == 222 ) {
-    return( (1/sigma^4) * ( (-2*sigma) + (12/sigma)*(.x-mu)^2 -
-              ( 4*(.crit - mu)^2/sigma )*termA +
-              ( (.crit - mu)^3/sigma^2 )*termC +
-              6*(.crit - mu)*mills + 2*( (.crit - mu)^2/sigma )*termA ) )
-    }
-  
-  # H11 = (-1/sigma^2) + (1/sigma^2) * ( mills^2 + uStar * mills )
-  # 
-  # # entry 2,2: dl/dsigma^2
-  # H22 = (1/sigma^2) - ( 3 * (.x - mu)^2 / sigma^4 ) +
-  #   ( mills^2 + uStar * mills ) * ( ( .crit - mu ) / sigma^2 )^2 -
-  #   mills * ( 2 * (.crit - mu) / sigma^3 )
-  # 
-  # # entry 1,2 and 2,1: dl / dmu dsigma
-  # H12 = ( -2 * (.x - mu) / sigma^3 ) +
-  #   ( mills^2 + uStar * mills ) * ( ( .crit - mu ) / sigma^3 ) -
-  #   mills / sigma^2
-  
-}
 
 # check entry 111
 ( mine = myThirdDerivs( params = params,
@@ -302,6 +190,19 @@ expect_equal( func( mu = params[1],
 #@SHOULD PROBABLY SAVE THIS AS SEPARATE FILE AND CLEAN UP THE 
 # THREE FUNCTIONS INTO A SINGLE FUNCTION THAT GIVES JUST THE DERIVATIVE
 #(OF WHATEVER ORDER) THAT YOU ASKED FOR
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
