@@ -68,6 +68,35 @@ myHessian = function(params, .x, .crit) {
   return( matrix( c(H11, H12, H12, H22), nrow = 2 ) )
 }
 
+
+# 2 x 2 matrix of -E[second derivatives of log-lkl]
+expectFisher = function(params, .crit) {
+  
+  mu = params[1]
+  sigma = params[2]
+
+  # terms that will show up a lot
+  mills = mills(params = params, .crit = .crit)
+  uStar = (.crit - mu)/sigma
+  termA = mills^2 + uStar * mills
+  # termB = 2*mills + uStar
+  # termC = termA * termB - mills
+  
+  # entry 11
+  F11 = (1/sigma^2) * ( 1 - termA )
+  
+  # entry 22
+  F22 = (1/sigma^2) * (2 - uStar*mills - 3*mills^2 - mills^2*uStar^2 - mills*uStar^3)
+  
+  # entry 12=21
+  F12 = (mills/sigma^2) * (3 - mills*uStar - uStar^2)
+  
+  return( matrix( c(F11, F12, F12, F22), nrow = 2 ) )
+}
+
+
+
+
 # get a particular third derivative of log-lkl, evaluated at .x
 # .entry: a number like "121" to say which derivative we want
 #  where parameter 1 is mu and parameter 2 is sigma

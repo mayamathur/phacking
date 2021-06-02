@@ -46,6 +46,8 @@ library(mle.tools)
 library(fitdistrplus)
 library(Deriv)
 
+options(scipen=99)
+
 # **note that mle.tools package will also calculate Fisher info
 # in case we 
 #   want to try the Jeffreys correction
@@ -121,8 +123,46 @@ expect_equal( H12( mu = params[1], sigma = params[2], .x = x, .crit = crit ),
 
 
 
+# ~~ Check my expected Fisher info -----------------------------
+
+# because I simplified these expressions manually
+
+#bm
+( myF = expectFisher( params = params,
+                      .crit = crit) )
+
+# check entry 11
+# nothing stochastic, so:
+expect_equal( -myH[1,1], myF[1,1 ])
+
+# check entry 22
+# do this by directly plugging in the trunc normal moment into 
+# unsimplified entry from Hessian function
+mills = mills(params = params, .crit = crit)
+uStar = (crit - mu)/sigma
+truncNormalVar = sigma^2*(1 - uStar*mills - mills^2) 
+
+F22 = -( (1/sigma^2) - ( 3 * truncNormalVar / sigma^4 ) +
+  ( mills^2 + uStar * mills ) * ( ( crit - mu ) / sigma^2 )^2 -
+  mills * ( 2 * (crit - mu) / sigma^3 ) )
+
+expect_equal(F22, myF[2,2])
+
+# entry 12
+truncNormalMean = mills*sigma
+F12 = -( ( -2 * truncNormalMean / sigma^3 ) +
+  ( mills^2 + uStar * mills ) * ( ( crit - mu ) / sigma^3 ) -
+  mills / sigma^2 )
+
+expect_equal(F12, myF[1,2], tol = 0.0000000001)
+expect_equal(F12, myF[2,1], tol = 0.0000000001)
+
+
+# interesting that off-diagonal entries are so close to 0
+round(myF, 3)
+
+
 # ~~ Check my third derivatives -----------------------------
-# these ones are needed for Cordeiro correction, but not Jeffreys prior
 
 
 # check entry 111
