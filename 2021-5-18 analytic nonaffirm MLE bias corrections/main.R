@@ -126,8 +126,6 @@ expect_equal( H12( mu = params[1], sigma = params[2], .x = x, .crit = crit ),
 # ~~ Check my expected Fisher info -----------------------------
 
 # because I simplified these expressions manually
-
-#bm
 ( myF = expectFisher( params = params,
                       .crit = crit) )
 

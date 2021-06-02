@@ -97,10 +97,20 @@ expectFisher = function(params, .crit) {
 
 
 
-# get a particular third derivative of log-lkl, evaluated at .x
+# get a particular third derivative of log-lkl
 # .entry: a number like "121" to say which derivative we want
 #  where parameter 1 is mu and parameter 2 is sigma
-myThirdDerivs = function(params, .x, .crit, .entry) {
+# this function will either evaluate the derivative at .x
+#  OR will give the negative expectation
+myThirdDerivs = function(params,
+                         .x = NA,
+                         .giveNegExpect = FALSE,  # should we give expectation rather than evaluated at .x?
+                         .crit,
+                         .entry) {
+  
+  
+  if (.giveNegExpect == FALSE & is.na(.x)) stop("Need to provide .x")
+  if (.giveNegExpect == TRUE & !is.na(.x)) warning("Not using .x because you said you wanted expectation")
   
   mu = params[1]
   sigma = params[2]
@@ -112,17 +122,33 @@ myThirdDerivs = function(params, .x, .crit, .entry) {
   termB = 2*mills + uStar
   termC = termA * termB - mills
   
-  ### third erivatives wrt mu
+  # for expectation, we'll use moments of truncated normal
+  if (.giveNegExpect == TRUE) {
+    truncNormalVar = sigma^2*(1 - uStar*mills - mills^2) 
+    truncNormalMean = mills*sigma
+  }
+  
+  ### third derivatives
   # entry 111: dl/dmu^3
   if ( .entry == 111 ) {
+    
+    # not stochastic, so doesn't matter if doing expectation or not
     return( (1/sigma^3) * termC )
   }
   
   # entry 221=212=122: dl/(dsigma^2 dmu)
   if ( .entry %in% c(221, 212, 122) ) {
-    return( (1/sigma^4) * ( 6*(.x - mu) - 2*(.crit - mu)*termA +
-                              (.crit - mu)^2/sigma * termC +
-                              2*mills*sigma ) )
+    
+    if ( .giveNegExpect == FALSE ) {
+      return( (1/sigma^4) * ( 6*(.x - mu) - 2*(.crit - mu)*termA +
+                                (.crit - mu)^2/sigma * termC +
+                                2*mills*sigma ) )
+    } else {
+      return( (-1/sigma^4) * ( 6*truncNormalMean - 2*(.crit - mu)*termA +
+                                (.crit - mu)^2/sigma * termC +
+                                2*mills*sigma ) )
+    }
+
   }
   
   # entry 121=211=112: dl/(dmu dsigma dmu)
@@ -132,23 +158,21 @@ myThirdDerivs = function(params, .x, .crit, .entry) {
   
   # entry 222: dl/(dsigma^3)
   if ( .entry == 222 ) {
-    return( (1/sigma^4) * ( (-2*sigma) + (12/sigma)*(.x-mu)^2 -
-                              ( 4*(.crit - mu)^2/sigma )*termA +
-                              ( (.crit - mu)^3/sigma^2 )*termC +
-                              6*(.crit - mu)*mills + 2*( (.crit - mu)^2/sigma )*termA ) )
+    
+    
+    if ( .giveNegExpect == FALSE ) {
+      return( (1/sigma^4) * ( (-2*sigma) + (12/sigma)*(.x-mu)^2 -
+                                ( 4*(.crit - mu)^2/sigma )*termA +
+                                ( (.crit - mu)^3/sigma^2 )*termC +
+                                6*(.crit - mu)*mills + 2*( (.crit - mu)^2/sigma )*termA ) )
+    } else {
+      return( (-1/sigma^4) * ( (-2*sigma) + (12/sigma)*truncNormalVar -
+                                ( 4*(.crit - mu)^2/sigma )*termA +
+                                ( (.crit - mu)^3/sigma^2 )*termC +
+                                6*(.crit - mu)*mills + 2*( (.crit - mu)^2/sigma )*termA ) )
+    }
+
   }
-  
-  # H11 = (-1/sigma^2) + (1/sigma^2) * ( mills^2 + uStar * mills )
-  # 
-  # # entry 2,2: dl/dsigma^2
-  # H22 = (1/sigma^2) - ( 3 * (.x - mu)^2 / sigma^4 ) +
-  #   ( mills^2 + uStar * mills ) * ( ( .crit - mu ) / sigma^2 )^2 -
-  #   mills * ( 2 * (.crit - mu) / sigma^3 )
-  # 
-  # # entry 1,2 and 2,1: dl / dmu dsigma
-  # H12 = ( -2 * (.x - mu) / sigma^3 ) +
-  #   ( mills^2 + uStar * mills ) * ( ( .crit - mu ) / sigma^3 ) -
-  #   mills / sigma^2
   
 }
 
