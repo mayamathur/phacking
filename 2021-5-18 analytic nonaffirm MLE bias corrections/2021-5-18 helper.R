@@ -1,5 +1,61 @@
 
-# 2021-5-31: FNS FOR RIGHT-TRUNCATED NORMAL THEORY -----------------------------
+
+
+
+# 2021-5-31: TRUNCATED NORMAL BIAS CORRECTION FNS -----------------------------
+
+
+# my own Jeffreys prior
+Jeffreys = function( params, .crit ) {
+  fisher = expectFisher( params = params,
+                         .crit = .crit )
+
+# this is the Jeffreys prior evaluated at these parameter values
+abs( det(fisher) )^{-1/2}
+}
+
+
+
+
+# this one isn't done because I didn't get the 3rd order terms yet
+godwin = function(params, .crit) {
+  
+  # TEST ONLY
+  .crit = 1.96
+  
+  # inverse of expected Fisher info
+  # (gives k_{ij} entries in Godwin's notation)
+  fisher = expectFisher(params = params,
+                        .crit = .crit)
+  
+  invFisher = solve(fisher)
+  
+  # bias of mean estimate: Godwin Eq. (6)
+  p = nrow(fisher)  # number of parameters
+  for ( i in 1:p ) {
+    
+    # k^{si}
+    invFisher[1,i]
+    
+    for (j in 1:p) {
+      for (l in 1:p) {
+        
+      
+        H11 = Deriv(J1, "mu")
+        
+        
+        Deriv() 
+      }
+    }
+  }
+  
+  #bm: realized I needed higher-order derivatives (work in progress on iPad)
+  
+}
+
+godwin(params, .crit)
+
+# 2021-5-31: GENERAL FNS FOR RIGHT-TRUNCATED NORMAL THEORY -----------------------------
 
 # params: (mu, sigma)
 # NOTE parameterization in terms of sigma rather than sigma^2

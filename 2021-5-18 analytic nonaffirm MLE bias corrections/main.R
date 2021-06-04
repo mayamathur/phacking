@@ -54,6 +54,56 @@ options(scipen=99)
 # see expected.varcov 
 
 
+# 2021-6-4: TRY JEFFREYS BIAS CORRECTION -----------------------------
+
+# set up some values to plug in
+params = c(-0.1, .2) # mu, sigma
+crit = qnorm(.975)
+mu = params[1]
+sigma = params[2]
+
+
+( myF = expectFisher( params = params,
+                      .crit = crit) )
+
+expect_equal( det(myF), 
+              myF[1,1]*myF[2,2] - myF[1,2]*myF[2,1] )
+
+# this is the Jeffreys prior
+Jeffreys(params = params, .crit = crit)
+
+
+# ~ Get intuition for the prior --------------------------------
+
+# hold constant sigma and vary mu, and plot prior as fn of mu
+# plot just the prior at different values
+dp = data.frame( mu = seq(-2, 2, .05),
+                 sigma = 10 )
+
+dp = dp %>% rowwise() %>%
+  mutate( prior = Jeffreys(params = c(mu, sigma), .crit = crit) )
+
+
+ggplot( data = dp, 
+        aes(x = mu, y = prior) ) +
+  geom_line()
+
+# now vary both mu and sigma
+dp = expand.grid( mu = seq(-2, 2, .1),
+                  sigma = c(0.001, 0.1, 0.5, 1, 2, 3, 5) )
+
+dp$sigma.pretty = paste( "sigma = ", dp$sigma, sep = "" )
+
+dp = dp %>% rowwise() %>%
+  mutate( prior = Jeffreys(params = c(mu, sigma), .crit = crit) )
+
+ggplot( data = dp, 
+        aes(x = mu, y = prior) ) +
+  geom_line() +
+  facet_wrap( sigma.pretty ~.,
+              scales = "free_y" )
+
+
 # 2021-5-31: TRY CORDEIRA CORRECTION AS IN GODWIN -----------------------------
 
 # ~ Check my theory -----------------------------
@@ -354,9 +404,7 @@ hist(tstats)
 
 
 
-# 2021-5-18: TRY JEFFREYS BIAS CORRECTION -----------------------------
-
-# ~ Is Zhou's variance wrong? -----------------------------
+# 2021-5-18: DEMONSTRATION THAT ZHOU'S VARIANCE IS WRONG -----------------------------
 
 # In Appendix A, Zhou calculated the Fisher info using a variance that seems to be wrong. 
 #  Simulate to confirm that I'm correct about the variance mistake
