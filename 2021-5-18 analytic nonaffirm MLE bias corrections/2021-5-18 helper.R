@@ -4,53 +4,78 @@
 
 # 2021-5-31: TRUNCATED NORMAL BIAS CORRECTION FNS -----------------------------
 
-
+# ~ For Jeffreys prior thing -----------------------------
 # my own Jeffreys prior
 Jeffreys = function( params, .crit ) {
   fisher = expectFisher( params = params,
                          .crit = .crit )
+  
+  # this is the Jeffreys prior evaluated at these parameter values
+  abs( det(fisher) )^{-1/2}
+}
 
-# this is the Jeffreys prior evaluated at these parameter values
-abs( det(fisher) )^{-1/2}
+# joint posterior 
+joint_post = function( params,
+                       .xVec,
+                       .crit ) {
+  
+
+  .mu = params[1]
+  .sigma = params[2]
+  
+  # likelihood (not logged)
+  joint.lkl = exp( sum(myLPDF2(mu = .mu,
+                               sigma = .sigma,
+                               .x = .xVec,
+                               .crit = .crit) ) )
+  
+  # prior
+  prior = Jeffreys( params = c(.mu, .sigma),
+                    .crit = .crit )
+  
+  return( joint.lkl * prior )
+  
 }
 
 
 
 
+# ~ For Godwin/Cordeira thing -----------------------------
+
 # this one isn't done because I didn't get the 3rd order terms yet
 godwin = function(params, .crit) {
-  
+
   # TEST ONLY
   .crit = 1.96
-  
+
   # inverse of expected Fisher info
   # (gives k_{ij} entries in Godwin's notation)
   fisher = expectFisher(params = params,
                         .crit = .crit)
-  
+
   invFisher = solve(fisher)
-  
+
   # bias of mean estimate: Godwin Eq. (6)
   p = nrow(fisher)  # number of parameters
   for ( i in 1:p ) {
-    
+
     # k^{si}
     invFisher[1,i]
-    
+
     for (j in 1:p) {
       for (l in 1:p) {
-        
-      
+
+
         H11 = Deriv(J1, "mu")
-        
-        
-        Deriv() 
+
+
+        Deriv()
       }
     }
   }
-  
+
   #bm: realized I needed higher-order derivatives (work in progress on iPad)
-  
+
 }
 
 godwin(params, .crit)
@@ -71,7 +96,6 @@ myLPDF( c(0, .5), 0, 1.96)
 myLPDF2 = function(mu, sigma, .x, .crit) {
   -log( sqrt(2*pi) * sigma) - (.x - mu)^2 / (2 * sigma^2 ) -
     pnorm( q = .crit, mean = mu, sd = sigma, log=TRUE)
-  
 }
 
 
@@ -130,7 +154,7 @@ expectFisher = function(params, .crit) {
   
   mu = params[1]
   sigma = params[2]
-
+  
   # terms that will show up a lot
   mills = mills(params = params, .crit = .crit)
   uStar = (.crit - mu)/sigma
@@ -201,10 +225,10 @@ myThirdDerivs = function(params,
                                 2*mills*sigma ) )
     } else {
       return( (-1/sigma^4) * ( 6*truncNormalMean - 2*(.crit - mu)*termA +
-                                (.crit - mu)^2/sigma * termC +
-                                2*mills*sigma ) )
+                                 (.crit - mu)^2/sigma * termC +
+                                 2*mills*sigma ) )
     }
-
+    
   }
   
   # entry 121=211=112: dl/(dmu dsigma dmu)
@@ -223,11 +247,11 @@ myThirdDerivs = function(params,
                                 6*(.crit - mu)*mills + 2*( (.crit - mu)^2/sigma )*termA ) )
     } else {
       return( (-1/sigma^4) * ( (-2*sigma) + (12/sigma)*truncNormalVar -
-                                ( 4*(.crit - mu)^2/sigma )*termA +
-                                ( (.crit - mu)^3/sigma^2 )*termC +
-                                6*(.crit - mu)*mills + 2*( (.crit - mu)^2/sigma )*termA ) )
+                                 ( 4*(.crit - mu)^2/sigma )*termA +
+                                 ( (.crit - mu)^3/sigma^2 )*termC +
+                                 6*(.crit - mu)*mills + 2*( (.crit - mu)^2/sigma )*termA ) )
     }
-
+    
   }
   
 }

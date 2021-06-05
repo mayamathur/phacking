@@ -69,7 +69,7 @@ sigma = params[2]
 expect_equal( det(myF), 
               myF[1,1]*myF[2,2] - myF[1,2]*myF[2,1] )
 
-# this is the Jeffreys prior
+# this is the Jeffreys prior for these particular parameter values
 Jeffreys(params = params, .crit = crit)
 
 
@@ -97,11 +97,95 @@ dp$sigma.pretty = paste( "sigma = ", dp$sigma, sep = "" )
 dp = dp %>% rowwise() %>%
   mutate( prior = Jeffreys(params = c(mu, sigma), .crit = crit) )
 
+# **in project log
 ggplot( data = dp, 
         aes(x = mu, y = prior) ) +
   geom_line() +
   facet_wrap( sigma.pretty ~.,
               scales = "free_y" )
+
+
+# ~ Code up MCMC from scratch --------------------------------
+ 
+# try one example using parameters that yielded very biased estimates in 
+#   2021-5-3 folder, Expt 3.3 (k=20)
+p = data.frame( Mu = 0.1,
+                T2 = 0.25,
+                m = 500,
+                t2w = 0.25,
+                se = .5,
+                
+                Nmax = 1,
+                hack = "affirm",
+                
+                k = 20, 
+                k.hacked = 0 )
+
+crit = qnorm(.975)
+
+
+
+
+# test drive
+set.seed(451)
+x = rtrunc(n = 20,
+           spec = "norm",
+           mean = p$Mu / p$se,
+           sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
+           b = crit)
+
+# MLEs for comparison
+mle.fit = mle.tmvnorm( as.matrix(x, ncol = 1), lower=-Inf, upper=crit)
+( mles = coef(mle.fit) )
+# targets:
+p$Mu / p$se
+sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) )
+
+# true parameters
+joint_post( params = c(p$Mu / p$se, sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ) ),
+            .xVec = x,
+            .crit = crit )
+
+
+# optim( par = c(mles[1], mles[2]),
+#        # negative because optim gets the minimum
+#        fn = function(.par) -joint_post(params = .par,
+#                                         .xVec = x,
+#                                         .crit = crit) )
+
+
+
+
+# # from earlier
+# for ( i in 1:sim.reps ) {
+#   
+#   if ( i %% 25 == 0 ) cat( paste("\n\nStarting rep", i ) )
+#   
+#   x = rtrunc(n = 20,
+#               spec = "norm",
+#               mean = p$Mu / p$se,
+#               sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
+#               b = crit)
+#   
+#   # get MLEs
+#   mle.fit = mle.tmvnorm( as.matrix(x2, ncol = 1), lower=-Inf, upper=crit)
+#   mles = coef(mle.fit)
+#   
+#   # Bayesian
+#   
+#   
+#   
+#   meanHat = c(meanHat, mles[1])
+#   varHat = c(varHat, mles[2])
+#   tstats = c(tstats, x2)
+# }
+
+
+mean(meanHat); p$Mu/p$se
+mean(varHat); (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
+
+#bm
+
 
 
 # 2021-5-31: TRY CORDEIRA CORRECTION AS IN GODWIN -----------------------------
