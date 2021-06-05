@@ -19,7 +19,7 @@ joint_post = function( params,
                        .xVec,
                        .crit ) {
   
-
+  
   .mu = params[1]
   .sigma = params[2]
   
@@ -40,45 +40,45 @@ joint_post = function( params,
 
 
 
-# ~ For Godwin/Cordeira thing -----------------------------
+# ~ For Godwin/Cordeiro thing -----------------------------
 
-# this one isn't done because I didn't get the 3rd order terms yet
-godwin = function(params, .crit) {
+# # this one isn't done because I didn't get the 3rd order terms yet
+# godwin = function(params, .crit) {
+#   
+#   # TEST ONLY
+#   .crit = 1.96
+#   
+#   # inverse of expected Fisher info
+#   # (gives k_{ij} entries in Godwin's notation)
+#   fisher = expectFisher(params = params,
+#                         .crit = .crit)
+#   
+#   invFisher = solve(fisher)
+#   
+#   # bias of mean estimate: Godwin Eq. (6)
+#   p = nrow(fisher)  # number of parameters
+#   for ( i in 1:p ) {
+#     
+#     # k^{si}
+#     invFisher[1,i]
+#     
+#     for (j in 1:p) {
+#       for (l in 1:p) {
+#         
+#         
+#         H11 = Deriv(J1, "mu")
+#         
+#         
+#         Deriv()
+#       }
+#     }
+#   }
+#   
+#   #bm: realized I needed higher-order derivatives (work in progress on iPad)
+#   
+# }
 
-  # TEST ONLY
-  .crit = 1.96
-
-  # inverse of expected Fisher info
-  # (gives k_{ij} entries in Godwin's notation)
-  fisher = expectFisher(params = params,
-                        .crit = .crit)
-
-  invFisher = solve(fisher)
-
-  # bias of mean estimate: Godwin Eq. (6)
-  p = nrow(fisher)  # number of parameters
-  for ( i in 1:p ) {
-
-    # k^{si}
-    invFisher[1,i]
-
-    for (j in 1:p) {
-      for (l in 1:p) {
-
-
-        H11 = Deriv(J1, "mu")
-
-
-        Deriv()
-      }
-    }
-  }
-
-  #bm: realized I needed higher-order derivatives (work in progress on iPad)
-
-}
-
-godwin(params, .crit)
+#godwin(params, .crit)
 
 # 2021-5-31: GENERAL FNS FOR RIGHT-TRUNCATED NORMAL THEORY -----------------------------
 
@@ -172,6 +172,75 @@ expectFisher = function(params, .crit) {
   F12 = (mills/sigma^2) * (3 - mills*uStar - uStar^2)
   
   return( matrix( c(F11, F12, F12, F22), nrow = 2 ) )
+}
+
+
+
+# get a particular derivative of Fisher info
+# .entry: a number like "121" to say which derivative we want
+# i.e., "121" is d/dmu { -E[ d^2 l/ dmu dsigma ] }
+#  where parameter 1 is mu and parameter 2 is sigma
+expectFisherDerivs = function(params,
+                              .x = NA,
+                              
+                              .crit,
+                              .entry) {
+  
+  mu = params[1]
+  sigma = params[2]
+  
+  # terms that will show up a lot
+  mills = mills(params = params, .crit = .crit)
+  uStar = (.crit - mu)/sigma
+  termA = mills^2 + uStar * mills  
+  termB = 2*mills + uStar
+  #termC = termA * termB - mills
+  
+
+  ### the derivatives
+  if ( .entry == 111 ) {
+    return( (-1/sigma^3) * ( (2*mills + uStar)*termA - mills ) )
+  }
+  
+  # entry 121=211
+  if ( .entry %in% c(121, 211) ) {
+    
+    # try checking an intermediate term
+    # this one matches Deriv() and is equal to 0
+    # return( mills/sigma^2*( -termA*uStar - mills*(-1/sigma) - 2*uStar*(-1/sigma) ) +
+    #           termA*(1/sigma^2)*(3 - mills*uStar - uStar^2) )
+    
+    # # a later term
+    # # matches final one and is wrong!
+    # return( (1/sigma^2)*( (3 - 2*mills*uStar - uStar^2)*termA*(1/sigma) -
+    #                         (mills + 2*uStar)*(-1/sigma) ) )
+    
+    return( (1/sigma^3) * ( (3 - 2*mills*uStar - uStar^2)*termA + mills^2 + 2*uStar*mills ) )
+    
+  }
+  
+  # entry 221
+  if ( .entry == 221 ) {
+    
+    # first line - RIGHT
+    d1 = termA * (1/sigma)  # derivative of termA wrt mu
+    d2 = (-1/sigma) # derivative of uStar wrt mu
+    # return( (1/sigma^2) * ( -uStar*d1 - d2*mills - 6*mills*d1 -
+    #                           mills^2*2*uStar*d2 - 2*mills*d1*uStar^2 -
+    #                           mills*3*uStar^2*d2 - d1*uStar^3 ) )
+    
+    # # group terms 
+    # # still correct
+    # return( (1/sigma^2) * ( (-uStar - 6*mills - 2*mills*uStar^2 - uStar^3)*d1 -
+    #                           (mills + mills^2*2*uStar + mills*3*uStar^2)*d2 ) )
+    
+    # wrong:
+    return( (1/sigma^3) * ( (-uStar - 6*mills - 2*mills*uStar^2 - uStar^3)*termA +
+                              mills + (mills^2)*2*uStar + mills*3*uStar^2) )
+  }
+  
+  if ( !.entry %in% c(111, 121, 211, 221) ) stop("You haven't taken the derivatives wrt sigma yet.")
+
 }
 
 

@@ -146,6 +146,10 @@ joint_post( params = c(p$Mu / p$se, sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) )
             .xVec = x,
             .crit = crit )
 
+#bm: wanted to look into off-the-shelf options to do the Bayesian estimation
+# like brms
+# or alternatively think about getting mean of posterior analytically
+
 
 # optim( par = c(mles[1], mles[2]),
 #        # negative because optim gets the minimum
@@ -296,7 +300,6 @@ round(myF, 3)
 
 # ~~ Check my third derivatives -----------------------------
 
-
 # check entry 111
 ( mine = myThirdDerivs( params = params,
                         .x = x, 
@@ -359,20 +362,105 @@ expect_equal( func( mu = params[1],
               mine )
 
 # all derivatives match; woohoo! 
-#@SHOULD PROBABLY SAVE THIS AS SEPARATE FILE AND CLEAN UP THE 
-# THREE FUNCTIONS INTO A SINGLE FUNCTION THAT GIVES JUST THE DERIVATIVE
-#(OF WHATEVER ORDER) THAT YOU ASKED FOR
+
+# ~~ Check my derivatives OF expected Fisher -----------------------------
+
+# these are for Cordeiro correction
+
+# change parameters so the entries don't evaluate to 0
+# set up some values to plug in
+params = c(5, 3)
+x = 1
+crit = 3
+mu = params[1]
+sigma = params[2]
+
+# ~~~ Check entry 111 ----------------
+( mine = expectFisherDerivs( params = params,
+                             .x = x, 
+                             .crit = crit,
+                             .entry = 111 ) )
 
 
+F11_func = function(.mu, .sigma, .crit) {
+  mills = mills(params = c(.mu, .sigma), .crit = .crit)
+  uStar = (.crit - .mu)/.sigma
+  termA = mills^2 + uStar * mills
+  (1/sigma^2) * ( 1 - termA )
+}
+
+func = Deriv(F11_func, ".mu")
+
+expect_equal( func( .mu = params[1],
+                    .sigma = params[2],
+                    .crit = crit),
+              mine )
 
 
+# ~~ Check entry 121 ----------------
+( mine = expectFisherDerivs( params = params,
+                             .x = x, 
+                             .crit = crit,
+                             .entry = 121 ) )
+
+F12_func = function(.mu, .sigma, .crit) {
+  mills = mills(params = c(.mu, .sigma), .crit = .crit)
+  uStar = (.crit - .mu)/.sigma
+  termA = .mills^2 + .uStar * .mills
+  (mills/.sigma^2) * (3 - mills*uStar - uStar^2)
+}
+
+func = Deriv(F12_func, ".mu")
+
+# correct :)
+expect_equal( func( .mu = params[1],
+                    .sigma = params[2],
+                    .crit = crit ),
+              mine )
+
+# ~~ Check entry 221 ----------------
+
+( mine = expectFisherDerivs( params = params,
+                             .x = x, 
+                             .crit = crit,
+                             .entry = 221 ) )
+
+F22_func = function(.mu, .sigma, .crit) {
+  mills = mills(params = c(.mu, .sigma), .crit = .crit)
+  uStar = (.crit - .mu)/.sigma
+  termA = mills^2 + uStar * mills
+  (1/.sigma^2) * (2 - uStar*mills - 3*mills^2 - mills^2*uStar^2 - mills*uStar^3)
+}
+
+func = Deriv(F22_func, ".mu")
+
+expect_equal( func( .mu = params[1],
+                    .sigma = params[2],
+                    .crit = crit ),
+              mine )
 
 
-
-
-
-
-
+# innards of expected Fisher info function for reference:
+# mu = params[1]
+# sigma = params[2]
+# 
+# # terms that will show up a lot
+# mills = mills(params = params, .crit = .crit)
+# uStar = (.crit - mu)/sigma
+# termA = mills^2 + uStar * mills
+# # termB = 2*mills + uStar
+# # termC = termA * termB - mills
+# 
+# # entry 11
+# F11 = (1/sigma^2) * ( 1 - termA )
+# 
+# # entry 22
+# F22 = (1/sigma^2) * (2 - uStar*mills - 3*mills^2 - mills^2*uStar^2 - mills*uStar^3)
+# 
+# # entry 12=21
+# F12 = (mills/sigma^2) * (3 - mills*uStar - uStar^2)
+# 
+# return( matrix( c(F11, F12, F12, F22), nrow = 2 ) )
 
 
 
