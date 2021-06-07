@@ -30,6 +30,7 @@ library(ggplot2)
 library(data.table)
 library(tidyverse)
 library(fastDummies)
+library(Hmisc)
 # meta-analysis packages
 library(metafor)
 library(robumeta)
@@ -187,8 +188,6 @@ joint_post( params = c(p$Mu / p$se, sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) )
 
 mean(meanHat); p$Mu/p$se
 mean(varHat); (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
-
-#bm
 
 
 
@@ -374,6 +373,44 @@ x = 1
 crit = 3
 mu = params[1]
 sigma = params[2]
+uStar = (crit-mu)/sigma
+uStar2 = (crit-mu)/sigma^2
+Mills = mills(params = params, .crit = crit)
+  
+# ~~~ Check intermediate pieces --------------------
+
+# check derivative of termA wrt sigma
+
+termA_func = function(.mu, .sigma, .crit) {
+  mills = mills(params = c(.mu, .sigma), .crit = .crit)
+  uStar = (.crit - .mu)/.sigma
+  mills^2 + uStar * mills
+}
+
+func = Deriv(termA_func, ".sigma")
+
+
+termA = termA_func(.mu = mu,
+                   .sigma = sigma, 
+                   .crit = crit)
+
+# intermediate
+# handy derivatives
+d1 = uStar2*termA  # derivative of termA wrt sigma
+d2 = -uStar2 # derivative of uStar wrt sigma
+
+# intermediates that all match
+(2*Mills)*d1 + uStar*d1 + d2*Mills 
+(2*Mills + uStar)*d1 + Mills*d2
+
+mine = ( 2*uStar2*Mills + (uStar^2/sigma) )*termA - uStar2*Mills
+
+
+expect_equal( func( .mu = params[1],
+                    .sigma = params[2],
+                    .crit = crit ),
+              mine )
+
 
 # ~~~ Check entry 111 ----------------
 ( mine = expectFisherDerivs( params = params,
@@ -440,6 +477,22 @@ expect_equal( func( .mu = params[1],
               mine )
 
 
+# ~~ Check entry 112 ----------------
+
+( mine = expectFisherDerivs( params = params,
+                             .x = x, 
+                             .crit = crit,
+                             .entry = 112 ) )
+
+func = Deriv(F11_func, ".sigma")
+
+expect_equal( func( .mu = params[1],
+                    .sigma = params[2],
+                    .crit = crit ),
+              mine )
+
+
+
 # innards of expected Fisher info function for reference:
 # mu = params[1]
 # sigma = params[2]
@@ -461,6 +514,96 @@ expect_equal( func( .mu = params[1],
 # F12 = (mills/sigma^2) * (3 - mills*uStar - uStar^2)
 # 
 # return( matrix( c(F11, F12, F12, F22), nrow = 2 ) )
+
+
+# ~ Try Godwin/Cordeiro for a single choice of parameters ----------------------
+
+
+# # try to compare to matrix version
+# godwinBias(biasedParamIndex = 1,
+#            params = params,
+#              #x = x,
+#              .crit = crit)
+# 
+# # compare to matrix version
+# # following Godwin's notation on page 1890
+
+
+# ~~ Matrix version: -----------------------------------------
+
+# # scenario 1: truncate at the mean
+# # empirical bias (1000 sim reps): 0.980, 0.09
+# # theory bias: 0.009, -0.19
+# params = c(0, 1)
+# crit = 0  # shouldn't be biased if truncation point is super high
+# n = 20
+
+# scenario 2: extremely high trunc point
+#  sanity check because this should be unbiased
+# empirical bias (1000 sim reps): -0.004, -0.04
+# theory bias: 0.000, 0.0125
+params = c(0, 1)
+mu = params[1]
+sigma = params[2]
+crit = 99  # shouldn't be biased if truncation point is super high
+n = 20
+
+# std normal mu bias:
+# for crit = -5: 0.02
+# crit = 0: 0.17
+# crit = 5: 0.002
+
+# empirical bias:
+reps = 1000
+muHat = c()
+sigmaHat = c()
+
+# as sanity check, I confirmed that letting n -> infinity eliminates the bias
+for ( i in 1:reps ) {
+  
+  if ( i %% 25 == 0 ) cat( paste("\n\nStarting rep", i ) )
+  
+  x = rtrunc(n = n,
+              spec = "norm",
+              mean = params[1],
+              sd = params[2],
+              b = crit)
+  
+  # get MLEs
+  mle.fit = mle.tmvnorm( as.matrix(x, ncol = 1),
+                         lower = -Inf,
+                         upper = crit)
+  mles = coef(mle.fit)
+  
+  muHat = c(muHat, mles[1])
+  sigmaHat = c(sigmaHat, sqrt(mles[2]) )
+}
+
+# emprical bias: 
+( empBias = c( mean(muHat) - params[1], mean(sigmaHat) - params[2] ) )
+
+
+# Godwin bias correction
+# but note that in real life, we'd have to plug in the MLEs rather than the true parameters
+res = godwinBiasMatrix(params = params,
+                       n = n,
+                       crit = crit)
+( theoryBias = res$bias )
+
+# sanity check
+# in the untruncated case (very high trunc point),
+#  Fisher info should be as for the regular MLE
+
+
+expect_equal( as.numeric(res$Kinv[1,1]), sigma^2/n )
+expect_equal( as.numeric(res$Kinv[1,2]), 0 )
+expect_equal( as.numeric(res$Kinv[2,1]), 0 )
+# for this term, (2*sigma^4/n) is the variance of sigma^2; 
+#  we parameterized in terms of sigma, so (0.5*sigma^(-0.5))^2
+#  is from the delta method
+expect_equal( as.numeric(res$Kinv[2,2]),
+              (2*sigma^4/n) * (0.5*sigma^(-0.5))^2 )
+
 
 
 

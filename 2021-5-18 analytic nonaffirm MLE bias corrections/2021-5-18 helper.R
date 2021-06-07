@@ -6,6 +6,7 @@
 
 # ~ For Jeffreys prior thing -----------------------------
 # my own Jeffreys prior
+# uses Fisher info for ONE observation
 Jeffreys = function( params, .crit ) {
   fisher = expectFisher( params = params,
                          .crit = .crit )
@@ -42,48 +43,193 @@ joint_post = function( params,
 
 # ~ For Godwin/Cordeiro thing -----------------------------
 
-# # this one isn't done because I didn't get the 3rd order terms yet
-# godwin = function(params, .crit) {
-#   
-#   # TEST ONLY
-#   .crit = 1.96
-#   
-#   # inverse of expected Fisher info
-#   # (gives k_{ij} entries in Godwin's notation)
-#   fisher = expectFisher(params = params,
-#                         .crit = .crit)
-#   
-#   invFisher = solve(fisher)
-#   
-#   # bias of mean estimate: Godwin Eq. (6)
-#   p = nrow(fisher)  # number of parameters
-#   for ( i in 1:p ) {
-#     
-#     # k^{si}
-#     invFisher[1,i]
-#     
-#     for (j in 1:p) {
-#       for (l in 1:p) {
-#         
-#         
-#         H11 = Deriv(J1, "mu")
-#         
-#         
-#         Deriv()
-#       }
-#     }
-#   }
-#   
-#   #bm: realized I needed higher-order derivatives (work in progress on iPad)
-#   
-# }
+# this one isn't done because I didn't get the 3rd order terms yet
+# biasedParamIndex: 1 for mu and 2 for sigma
+godwinBias = function(biasedParamIndex,
+                      params,
+                      .crit) {
+  
+  # TEST ONLY
+  #.crit = 1.96
+  
+  mu = params[1]
+  sigma = params[2]
+  
+  # inverse of expected Fisher info
+  # (gives k_{ij} entries in Godwin's notation)
+  fisher = expectFisher(params = params,
+                        .crit = .crit)
+  
+  invFisher = solve(fisher)
+  
+  # bias of mean estimate: Godwin Eq. (6)
+  p = nrow(fisher)  # number of parameters
+  
+  outerSum = 0
+  
+  for ( i in 1:p ) {
+    
+    # k^{si}
+    term1 = invFisher[biasedParamIndex,i]
+    
+    innerSum = 0
+    
+    for (j in 1:p) {
+      for (l in 1:p) {
+        
+        # k_{ij}^(l) in Godwin's notation
+        # note sign reversals throughout because Godwin's "k" terms are expectations
+        #  rather than negative expectations
+        term2 = -1 * expectFisherDerivs( params = params,
+                                         .crit = .crit,
+                                         .entry = as.numeric( paste(i, j, l, sep = "") ) )
+        
+        # k_{ijl} in Godwin's notation
+        term3 = -0.5 * myThirdDerivs(params = params,
+                                     .giveNegExpect = TRUE, 
+                                     .crit = .crit,
+                                     .entry = as.numeric( paste(i, j, l, sep = "") ) )
+        
+        # k^{jl} in Godwin's notation
+        term4 = invFisher[j,l]
+        
+        innerSum = innerSum + (term2 - term3)*term4
+        
+      }
+    }
+    
+    outerSum = outerSum + (termA*innerSum)
+  }
+  
+  return(outerSum)
+}
+
+
+
 
 #godwin(params, .crit)
+
+
+
+# ~~ Matrix version: -----------------------------------------
+
+# gives one value of a_{ij}^{(l)} in Godwin notation (pg 1890)
+# n: sample size
+get_A_entry = function( params, n, .crit, .entry) {
+  # k_{ij}^(l) in Godwin's notation
+  # note sign reversals throughout because Godwin's "k" terms are expectations
+  #  rather than negative expectations
+  # IMPORTANT: because expectFisherDerivs and myThirdDerivs
+  #  are for a SINGLE observations, need to multiply them by n
+  term1 = -1 * n * expectFisherDerivs( params = params,
+                                   .crit = .crit,
+                                   .entry = .entry )
+  
+  # k_{ijl} in Godwin's notation
+  # again, sign reversal
+  term2 = -0.5 * n * myThirdDerivs(params = params,
+                               .giveNegExpect = TRUE, 
+                               .crit = .crit,
+                               .entry = .entry )
+  
+  return( term1 - term2 )
+}
+
+
+godwinBiasMatrix = function(params, n, crit) {
+  A1 = matrix( c( get_A_entry( params = params, 
+                               n = n,
+                               .crit = crit,
+                               .entry = 111),
+                  get_A_entry( params = params, 
+                               n = n,
+                               .crit = crit,
+                               .entry = 121),
+                  get_A_entry( params = params, 
+                               n = n,
+                               .crit = crit,
+                               .entry = 211),
+                  get_A_entry( params = params, 
+                               n = n,
+                               .crit = crit,
+                               .entry = 221)
+  ), byrow = TRUE, nrow = 2 )
+  A1
+  
+  A2 = matrix( c( get_A_entry( params = params,
+                               n = n,
+                               .crit = crit,
+                               .entry = 112),
+                  get_A_entry( params = params,
+                               n = n,
+                               .crit = crit,
+                               .entry = 122),
+                  get_A_entry( params = params, 
+                               n = n,
+                               .crit = crit,
+                               .entry = 212),
+                  get_A_entry( params = params, 
+                               n = n,
+                               .crit = crit,
+                               .entry = 222)
+  ), byrow = TRUE, nrow = 2 )
+  A2
+  
+  
+  A = cbind( A1, A2 )
+  A
+  
+  # inverse of expected Fisher info
+  # (gives k_{ij} entries in Godwin's notation)
+  # IMPORTANT: multiply 1-observation Fisher info by n
+  K = n * expectFisher(params = params,
+                   .crit = crit)
+  
+  Kinv = solve(K)
+  
+  Kinv.vec = matrix( c(Kinv[1,1], Kinv[2,1], Kinv[1,2], Kinv[2,2]),
+                     byrow = TRUE, nrow = 4 )
+  
+  bias = Kinv %*% A %*% Kinv.vec
+  
+  # return everything
+  return( llist( bias = as.matrix(bias), 
+                 A = as.matrix(A),
+                 K = as.matrix(K),
+                 Kinv = as.matrix(Kinv) ) )
+}
+
+# ### Sanity check:
+# # in the untruncated case (very high trunc point),
+# #  Fisher info should be as for the regular MLE
+# params = c(0, 1)
+# mu = params[1]
+# sigma = params[2]
+# crit = 99  # shouldn't be biased if truncation point is super high
+# n = 20
+# 
+# res = godwinBiasMatrix(params = params,
+#                        n = n,
+#                        crit = crit)
+# ( theoryBias = res$bias )
+# 
+# expect_equal( as.numeric(res$Kinv[1,1]), sigma^2/n )
+# expect_equal( as.numeric(res$Kinv[1,2]), 0 )
+# expect_equal( as.numeric(res$Kinv[2,1]), 0 )
+# # for this term, (2*sigma^4/n) is the variance of sigma^2; 
+# #  we parameterized in terms of sigma, so (0.5*sigma^(-0.5))^2
+# #  is from the delta method
+# expect_equal( as.numeric(res$Kinv[2,2]),
+#               (2*sigma^4/n) * (0.5*sigma^(-0.5))^2 )
+# # everything matches :)
+
+
 
 # 2021-5-31: GENERAL FNS FOR RIGHT-TRUNCATED NORMAL THEORY -----------------------------
 
 # params: (mu, sigma)
 # NOTE parameterization in terms of sigma rather than sigma^2
+# for ONE observation
 myLPDF = function(params, .x, .crit) {
   mu = params[1]
   sigma = params[2]
@@ -108,6 +254,7 @@ mills = function(params, .crit) {
 }
 
 # matrix (actually vector) of first derivatives of log-lkl, evaluated at .x
+# for ONE observation
 myJacobian = function(params, .x, .crit) {
   
   mu = params[1]
@@ -125,6 +272,7 @@ myJacobian = function(params, .x, .crit) {
 }
 
 # 2 x 2 matrix of second derivatives of log-lkl, evaluated at .x
+# for ONE observation
 myHessian = function(params, .x, .crit) {
   
   mu = params[1]
@@ -150,6 +298,7 @@ myHessian = function(params, .x, .crit) {
 
 
 # 2 x 2 matrix of -E[second derivatives of log-lkl]
+# for ONE observation
 expectFisher = function(params, .crit) {
   
   mu = params[1]
@@ -180,9 +329,8 @@ expectFisher = function(params, .crit) {
 # .entry: a number like "121" to say which derivative we want
 # i.e., "121" is d/dmu { -E[ d^2 l/ dmu dsigma ] }
 #  where parameter 1 is mu and parameter 2 is sigma
+# for ONE observation 
 expectFisherDerivs = function(params,
-                              .x = NA,
-                              
                               .crit,
                               .entry) {
   
@@ -192,11 +340,12 @@ expectFisherDerivs = function(params,
   # terms that will show up a lot
   mills = mills(params = params, .crit = .crit)
   uStar = (.crit - mu)/sigma
+  uStar2 = (.crit - mu)/sigma^2
   termA = mills^2 + uStar * mills  
   termB = 2*mills + uStar
   #termC = termA * termB - mills
   
-
+  
   ### the derivatives
   if ( .entry == 111 ) {
     return( (-1/sigma^3) * ( (2*mills + uStar)*termA - mills ) )
@@ -222,25 +371,78 @@ expectFisherDerivs = function(params,
   # entry 221
   if ( .entry == 221 ) {
     
-    # first line - RIGHT
+    # handy derivatives
     d1 = termA * (1/sigma)  # derivative of termA wrt mu
     d2 = (-1/sigma) # derivative of uStar wrt mu
+    
+    # intermediate #1
     # return( (1/sigma^2) * ( -uStar*d1 - d2*mills - 6*mills*d1 -
     #                           mills^2*2*uStar*d2 - 2*mills*d1*uStar^2 -
     #                           mills*3*uStar^2*d2 - d1*uStar^3 ) )
     
-    # # group terms 
-    # # still correct
+    # intermediate #2
     # return( (1/sigma^2) * ( (-uStar - 6*mills - 2*mills*uStar^2 - uStar^3)*d1 -
     #                           (mills + mills^2*2*uStar + mills*3*uStar^2)*d2 ) )
     
-    # wrong:
     return( (1/sigma^3) * ( (-uStar - 6*mills - 2*mills*uStar^2 - uStar^3)*termA +
                               mills + (mills^2)*2*uStar + mills*3*uStar^2) )
   }
   
-  if ( !.entry %in% c(111, 121, 211, 221) ) stop("You haven't taken the derivatives wrt sigma yet.")
-
+  
+  # entry 112
+  if ( .entry == 112 ) {
+    
+    #@TEMPORARY: just use the Deriv fn because my math is wrong
+    func = Deriv(F11_func, ".sigma")
+    return( func( .mu = mu,
+                  .sigma = sigma,
+                  .crit = .crit ) )
+    
+    # # #bm: I have no idea why these are wrong...
+    # # intermediate
+    # # matches final line below, but is wrong
+    # # this term looks just like the one that checked out earlier as deriv of alpha wrt sigma:
+    # #  (2*mills*uStar2 + (uStar^2/sigma) )*termA - uStar2*mills
+    # return( (-2/sigma^3) - (1/sigma^2)*( (2*mills*uStar2 + (uStar^2/sigma) )*termA - uStar2*mills ) -
+    #           (2/sigma^3)*termA )
+    
+    #wrong
+    # return( (-1/sigma^2)*( (2/sigma) + ( 2*mills*uStar2 + (1/sigma)*uStar^2 + (2/sigma) )*termA -
+    #                          uStar2*mills ) ) 
+  }
+  
+  
+  # entry 122=212
+  if ( .entry %in% c(122, 212) ) {
+    
+    
+    #@TEMPORARY: just use the Deriv fn because my math is wrong
+    func = Deriv(F12_func, ".sigma")
+    return( func( .mu = mu,
+                  .sigma = sigma,
+                  .crit = .crit ) )
+    
+    # # handy derivatives
+    # d1 = 2*mills *uStar2*termA  # derivative of termA wrt sigma
+    # d2 = -uStar2 # derivative of uStar wrt sigma
+    # 
+    # return( (mills/sigma^2)*(-d1*uStar - mills*d2 - 2*uStar*d2) +
+    #           ( mills*(-2/sigma^3) + d1*(1/sigma^2) ) * (3 - mills*uStar - uStar^2) )
+  }
+  
+  
+  if ( .entry == 222 ) {
+    
+    #@TEMPORARY: just use the Deriv fn
+    func = Deriv(F22_func, ".sigma")
+    return( func( .mu = mu,
+                  .sigma = sigma,
+                  .crit = .crit ) )
+  }
+  
+  
+  #if ( !.entry %in% c(111, 121, 211, 221) ) stop("You haven't taken the derivatives wrt sigma yet.")
+  
 }
 
 
