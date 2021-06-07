@@ -216,7 +216,7 @@ godwinBiasMatrix = function(params, n, crit) {
 # expect_equal( as.numeric(res$Kinv[1,1]), sigma^2/n )
 # expect_equal( as.numeric(res$Kinv[1,2]), 0 )
 # expect_equal( as.numeric(res$Kinv[2,1]), 0 )
-# # for this term, (2*sigma^4/n) is the variance of sigma^2; 
+# # for this term, (2*sigma^4/n) is the variance of sigma^2;
 # #  we parameterized in terms of sigma, so (0.5*sigma^(-0.5))^2
 # #  is from the delta method
 # expect_equal( as.numeric(res$Kinv[2,2]),

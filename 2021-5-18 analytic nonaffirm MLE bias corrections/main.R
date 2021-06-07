@@ -1,4 +1,8 @@
 
+
+#BM: SEARCH "@". CONFUSED ABOUT WHY I'M GETTING NEGATIVES IN THE INVERSE FISHER INFO EVEN FOR N=1. AND YET THE FISHER INFO ENTRIES CHECK OUT AGAINST DERIV().
+
+
 # This script goes with the theory in iPad PDF "SAPH - trunc Normal Jeffreys prior"
 
 # Goal:
@@ -211,13 +215,20 @@ hessian(myLPDF, c(2,3), .x = 0, .crit = 1.96 )
 
 # ~~ Check my first derivatives -----------------------------
 
-# set up some values to plug in
-params = c(-0.1, .2)
-x = 0
-crit = 3
+# # set up some values to plug in
+# params = c(-0.1, .2)
+# x = 0
+# crit = 3
+
+# another set of values
+# these ones caused negative entries in inverse Fisher info, 
+#  which was illogical
+params = c(0, 1)
+x = 0.5
+crit = 0  
 mu = params[1]
 sigma = params[2]
-myLPDF(params, .x = x, .crit = crit)
+
 
 # dl/dmu matches :)
 ( myJ = myJacobian( params = params,
@@ -273,29 +284,28 @@ expect_equal( -myH[1,1], myF[1,1 ])
 # check entry 22
 # do this by directly plugging in the trunc normal moment into 
 # unsimplified entry from Hessian function
-mills = mills(params = params, .crit = crit)
+Mills = mills(params = params, .crit = crit)
 uStar = (crit - mu)/sigma
-truncNormalVar = sigma^2*(1 - uStar*mills - mills^2) 
+truncNormalVar = sigma^2*(1 - uStar*Mills - Mills^2) 
 
 F22 = -( (1/sigma^2) - ( 3 * truncNormalVar / sigma^4 ) +
-  ( mills^2 + uStar * mills ) * ( ( crit - mu ) / sigma^2 )^2 -
-  mills * ( 2 * (crit - mu) / sigma^3 ) )
+  ( Mills^2 + uStar * Mills ) * ( ( crit - mu ) / sigma^2 )^2 -
+    Mills * ( 2 * (crit - mu) / sigma^3 ) )
 
 expect_equal(F22, myF[2,2])
 
 # entry 12
-truncNormalMean = mills*sigma
+truncNormalMean = Mills*sigma
 F12 = -( ( -2 * truncNormalMean / sigma^3 ) +
-  ( mills^2 + uStar * mills ) * ( ( crit - mu ) / sigma^3 ) -
-  mills / sigma^2 )
+  ( Mills^2 + uStar * Mills ) * ( ( crit - mu ) / sigma^3 ) -
+    Mills / sigma^2 )
 
 expect_equal(F12, myF[1,2], tol = 0.0000000001)
 expect_equal(F12, myF[2,1], tol = 0.0000000001)
 
-
-# interesting that off-diagonal entries are so close to 0
-round(myF, 3)
-
+#@bm: BUT WITH THE STANDARD-NORMAL PARAMETERS, INVERSE OF MYF
+#  ALREADY HAS NEGATIVE VARIANCES!!
+solve(myF)
 
 # ~~ Check my third derivatives -----------------------------
 
@@ -380,7 +390,6 @@ Mills = mills(params = params, .crit = crit)
 # ~~~ Check intermediate pieces --------------------
 
 # check derivative of termA wrt sigma
-
 termA_func = function(.mu, .sigma, .crit) {
   mills = mills(params = c(.mu, .sigma), .crit = .crit)
   uStar = (.crit - .mu)/.sigma
@@ -531,22 +540,22 @@ expect_equal( func( .mu = params[1],
 
 # ~~ Matrix version: -----------------------------------------
 
-# # scenario 1: truncate at the mean
-# # empirical bias (1000 sim reps): 0.980, 0.09
-# # theory bias: 0.009, -0.19
-# params = c(0, 1)
-# crit = 0  # shouldn't be biased if truncation point is super high
-# n = 20
-
-# scenario 2: extremely high trunc point
-#  sanity check because this should be unbiased
-# empirical bias (1000 sim reps): -0.004, -0.04
-# theory bias: 0.000, 0.0125
+# scenario 1: truncate at the mean
+# empirical bias (1000 sim reps): 0.980, 0.09
+# theory bias: 0.009, -0.19
 params = c(0, 1)
-mu = params[1]
-sigma = params[2]
-crit = 99  # shouldn't be biased if truncation point is super high
+crit = 0  # shouldn't be biased if truncation point is super high
 n = 20
+
+# # scenario 2: extremely high trunc point
+# #  sanity check because this should be unbiased
+# # empirical bias (1000 sim reps): -0.004, -0.04
+# # theory bias: 0.000, 0.0125
+# params = c(0, 1)
+# mu = params[1]
+# sigma = params[2]
+# crit = 99  # shouldn't be biased if truncation point is super high
+# n = 20
 
 # std normal mu bias:
 # for crit = -5: 0.02
@@ -580,33 +589,27 @@ for ( i in 1:reps ) {
 }
 
 # emprical bias: 
-( empBias = c( mean(muHat) - params[1], mean(sigmaHat) - params[2] ) )
+( empBias = c( mean(muHat) - params[1],
+               mean(sigmaHat) - params[2] ) )
 
 
 # Godwin bias correction
-# but note that in real life, we'd have to plug in the MLEs rather than the true parameters
+# **but note that in real life, we'd have to plug in the MLEs rather than the true parameters
 res = godwinBiasMatrix(params = params,
                        n = n,
                        crit = crit)
 ( theoryBias = res$bias )
 
+
 # sanity check
-# in the untruncated case (very high trunc point),
-#  Fisher info should be as for the regular MLE
-
-
-expect_equal( as.numeric(res$Kinv[1,1]), sigma^2/n )
-expect_equal( as.numeric(res$Kinv[1,2]), 0 )
-expect_equal( as.numeric(res$Kinv[2,1]), 0 )
-# for this term, (2*sigma^4/n) is the variance of sigma^2; 
-#  we parameterized in terms of sigma, so (0.5*sigma^(-0.5))^2
-#  is from the delta method
-expect_equal( as.numeric(res$Kinv[2,2]),
-              (2*sigma^4/n) * (0.5*sigma^(-0.5))^2 )
-
-
-
-
+# compare empirical variances of MLEs to Fisher info
+res$Kinv[1,1]; var(muHat)
+res$Kinv[1,2]; cov(muHat, sigmaHat)
+res$Kinv[2,2]; var(sigmaHat)
+#@CLUE: THE KINV IS NEGATIVE IN THIS CASE, WHICH DOESN'T MAKE SENSE!
+# but remember that it was right for the no-trunc case (see sanity check within helper.R),
+#  so it's not just off by a negative sign or something
+#bm
 
 
 # 2021-5-18: TRY COX-SNELL BIAS CORRECTION -----------------------------
