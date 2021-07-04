@@ -6,6 +6,7 @@
 
 # Overall purpose is to see when selection models will work under p-hacking. 
 
+# See project log for conclusions
 
 # PRELIMINARIES ------------------------------
 
