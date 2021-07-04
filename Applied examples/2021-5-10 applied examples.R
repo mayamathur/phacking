@@ -4,6 +4,7 @@
 # Naive Hagger MA estimate: 0.68
 # Replication estimate: 0.05
 
+
 # PRELIMINARIES -----------------------------
 
 library(here)
