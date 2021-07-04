@@ -57,13 +57,15 @@ options(scipen=99)
 # in case we 
 #   want to try the Jeffreys correction
 # see expected.varcov 
+# but it doesn't work with complicated functions
 
 
 # 2021-6-4: TRY JEFFREYS BIAS CORRECTION -----------------------------
 
 # set up some values to plug in
-params = c(-0.1, .2) # mu, sigma
-crit = qnorm(.975)
+params = c(0, 1) # mu, sigma
+#crit = qnorm(.975)
+crit = 999  # no truncation
 mu = params[1]
 sigma = params[2]
 
@@ -75,15 +77,18 @@ expect_equal( det(myF),
               myF[1,1]*myF[2,2] - myF[1,2]*myF[2,1] )
 
 # this is the Jeffreys prior for these particular parameter values
-Jeffreys(params = params, .crit = crit)
+Jeffreys(params = params, .crit = crit)  # for standard untruncated normal, equal to 1/sqrt(2)
 
+# compare to Jeffreys prior for untruncated normal with unknown mean and variance: 1/sigma^2
+# https://stats.stackexchange.com/questions/156199/jeffreys-prior-for-normal-distribution-with-unknown-mean-and-variance
+1/(sigma^2)
 
 # ~ Get intuition for the prior --------------------------------
 
-# hold constant sigma and vary mu, and plot prior as fn of mu
+### Hold constant sigma at its true value and vary mu, and plot prior as fn of mu
 # plot just the prior at different values
 dp = data.frame( mu = seq(-2, 2, .05),
-                 sigma = 10 )
+                 sigma = sigma )
 
 dp = dp %>% rowwise() %>%
   mutate( prior = Jeffreys(params = c(mu, sigma), .crit = crit) )
@@ -93,7 +98,7 @@ ggplot( data = dp,
         aes(x = mu, y = prior) ) +
   geom_line()
 
-# now vary both mu and sigma
+### Now vary both mu and sigma
 dp = expand.grid( mu = seq(-2, 2, .1),
                   sigma = c(0.001, 0.1, 0.5, 1, 2, 3, 5) )
 
@@ -109,9 +114,18 @@ ggplot( data = dp,
   facet_wrap( sigma.pretty ~.,
               scales = "free_y" )
 
+### Now also plot the unnormalized posterior for a given observation from distribution
+
+x = 1.9
+
+dp %>% rowwise() %>%
+  mutate(joint.post = joint_post( params = c(mu, sigma),
+                                  .xVec = x,
+                                  .crit = crit ) )
+
 
 # ~ Code up MCMC from scratch --------------------------------
- 
+
 # try one example using parameters that yielded very biased estimates in 
 #   2021-5-3 folder, Expt 3.3 (k=20)
 p = data.frame( Mu = 0.1,
@@ -221,11 +235,9 @@ hessian(myLPDF, c(2,3), .x = 0, .crit = 1.96 )
 # crit = 3
 
 # another set of values
-# these ones caused negative entries in inverse Fisher info, 
-#  which was illogical
 params = c(0, 1)
 x = 0.5
-crit = 0  
+crit = 0.5
 mu = params[1]
 sigma = params[2]
 
@@ -276,6 +288,7 @@ expect_equal( H12( mu = params[1], sigma = params[2], .x = x, .crit = crit ),
 # because I simplified these expressions manually
 ( myF = expectFisher( params = params,
                       .crit = crit) )
+solve(myF)
 
 # check entry 11
 # nothing stochastic, so:
@@ -286,26 +299,207 @@ expect_equal( -myH[1,1], myF[1,1 ])
 # unsimplified entry from Hessian function
 Mills = mills(params = params, .crit = crit)
 uStar = (crit - mu)/sigma
-truncNormalVar = sigma^2*(1 - uStar*Mills - Mills^2) 
+truncNormalMoment = sigma^2*(1 - uStar*Mills) 
 
-F22 = -( (1/sigma^2) - ( 3 * truncNormalVar / sigma^4 ) +
-  ( Mills^2 + uStar * Mills ) * ( ( crit - mu ) / sigma^2 )^2 -
-    Mills * ( 2 * (crit - mu) / sigma^3 ) )
-
+F22 = -( (1/sigma^2) - ( 3 * truncNormalMoment / sigma^4 ) +
+           ( Mills^2 + uStar * Mills ) * ( ( crit - mu ) / sigma^2 )^2 -
+           Mills * ( 2 * (crit - mu) / sigma^3 ) )
 expect_equal(F22, myF[2,2])
 
+# another way to check: take the innards of H22 function from Deriv and replace the single (.x - mu)^2 term with its expectation
+H22_expect = function (mu, sigma, .crit) 
+{
+  
+  Mills = mills(params = params, .crit = crit)
+  uStar = (crit - mu)/sigma
+  
+  # Zhou's second moment
+  secondMoment = sigma^2*(1 - uStar*Mills) 
+  .e1 <- sigma^2
+  .e2 <- (2 * .e1)^2
+  .e3 <- dnorm(.crit, mu, sigma)
+  .e4 <- mu - .crit
+  .e5 <- pnorm(.crit, mu, sigma, TRUE)
+  
+  # straight from H22():
+  # 4 * ((.x - mu)^2 * (1 - 16 * (sigma^4/.e2))/.e2) -
+  #   ((((.crit - mu)/sigma)^2 - (2 + .e3 * .e4/.e5)) * .e3 * .e4/.e5 - 
+  #                                                       1)/.e1
+  
+  4 * ( secondMoment * (1 - 16 * (sigma^4/.e2))/.e2) -
+    ((((.crit - mu)/sigma)^2 - (2 + .e3 * .e4/.e5)) * .e3 * .e4/.e5 - 
+       1)/.e1
+}
+
+expect_equal( -H22_expect(mu, sigma, crit), myF[2,2] )
+
+
+
+
 # entry 12
-truncNormalMean = Mills*sigma
-F12 = -( ( -2 * truncNormalMean / sigma^3 ) +
-  ( Mills^2 + uStar * Mills ) * ( ( crit - mu ) / sigma^3 ) -
-    Mills / sigma^2 )
+F12 = -( ( -2 * 0 / sigma^3 ) +
+           ( Mills^2 + uStar * Mills ) * ( ( crit - mu ) / sigma^3 ) -
+           Mills / sigma^2 )
 
 expect_equal(F12, myF[1,2], tol = 0.0000000001)
 expect_equal(F12, myF[2,1], tol = 0.0000000001)
 
-#@bm: BUT WITH THE STANDARD-NORMAL PARAMETERS, INVERSE OF MYF
-#  ALREADY HAS NEGATIVE VARIANCES!!
-solve(myF)
+
+# another way to check: take the innards of H22 function from Deriv and replace the single (.x - mu)^2 term with its expectation
+H12_expect = function (mu, sigma, .crit) 
+{
+  .e1 <- dnorm(.crit, mu, sigma)
+  .e2 <- pnorm(.crit, mu, sigma, TRUE)
+  
+  # straight from H22
+  # ((((.crit - mu)/sigma)^2 - (1 + .e1 * (mu - .crit)/.e2)) * 
+  #     .e1/.e2 - 2 * ((.x - mu)/sigma^2))/sigma
+  
+  ((((.crit - mu)/sigma)^2 - (1 + .e1 * (mu - .crit)/.e2)) * 
+      .e1/.e2 - 2 * ((0)/sigma^2))/sigma
+}
+
+
+expect_equal( -H12_expect(mu, sigma, crit), myF[1,2] )
+
+
+
+# ~~ Compare my expected Fisher info to Zhou's -----------------------------
+
+# IMPORTANT: Theirs is for a LEFT-truncated normal, so will only
+# coincide with mine when crit = mu (by symmetry)
+# and I know they have mistake with variance
+
+
+( ZhouF = expectFisherZhou(params, crit) )
+# matches when crit = mu :)
+
+
+# ~~ Simulation checks -----------------------------
+
+
+### Get MLEs and see if their variances match the Fisher info
+sim.reps = 1000
+n = 20
+
+muHat = c()
+varHat = c()
+
+for ( i in 1:sim.reps ) {
+  
+  if ( i %% 25 == 0 ) cat( paste("\n\nStarting rep", i ) )
+  
+  # right-truncation case
+  x = rtrunc(n = n,
+             spec = "norm",
+             mean = mu,
+             sd = sigma,
+             b = crit)
+  # get MLEs
+  mle.fit = mle.tmvnorm( as.matrix(x, ncol = 1), lower=-Inf, upper=crit)
+  
+  
+  # # left-truncation case
+  # x = rtrunc(n = n,
+  #            spec = "norm",
+  #            mean = mu,
+  #            sd = sigma,
+  #            a = crit)
+  # # get MLEs
+  # mle.fit = mle.tmvnorm( as.matrix(x, ncol = 1), lower=crit, upper=Inf)
+  
+  
+  mles = coef(mle.fit)
+  
+  muHat = c(muHat, mles[1])
+  varHat = c(varHat, mles[2])
+}
+
+sigmaHat = sqrt(varHat)
+var(muHat)
+var(sigmaHat)
+
+# expected variances of MLEs
+solve(ZhouF)/n  # doesn't seem to match at all?
+solve(myF)/n
+
+
+
+### Simulate and get observed Fisher each time, then take mean to approximate
+#  the expected Fisher
+
+# right truncation case
+x = rtrunc(n = 1000,
+           spec = "norm",
+           mean = mu,
+           sd = sigma,
+           b = crit)
+
+
+d = data.frame(x=x)
+
+d = d %>% rowwise() %>%
+  # this expression flattens the Hessian's entries into columns
+  mutate( as.data.frame( matrix( as.numeric( myHessian(params = params,
+                                                       .x = x,
+                                                       .crit = crit) ), nrow = 1 ) )
+  )
+
+
+-colMeans(d[2:5])  # empirical expected Fisher info
+myF  # should match IF you did right truncation
+
+# should match myF entries
+-H22_expect(mu, sigma, crit)
+-H12_expect(mu, sigma, crit)
+#*MYHESSIAN SEEMS ALMOST RIGHT, BUT H12_EXPECT = MYFISHER SEEM WRONG
+myF
+#bm
+
+# target: 2 for H22
+
+
+# symmetrical left truncation case: Zhou
+# reverse mu and sigma
+x = rtrunc(n = 8000,
+           spec = "norm",
+           mean = mu,
+           sd = sigma,
+           a = crit)
+
+d = data.frame(x=x)
+d = d %>% rowwise() %>%
+  # this expression flattens the Hessian's entries into columns
+  mutate( J11 = zhou_J11(mu = mu, 
+                         sigma = sigma,
+                         .x = x,
+                         .crit = crit),
+          J12 = zhou_J12(mu = mu, 
+                         sigma = sigma,
+                         .x = x,
+                         .crit = crit),
+          J22 = zhou_J22(mu = mu, 
+                         sigma = sigma,
+                         .x = x,
+                         .crit = crit) )
+
+-colMeans(d[2:4])  # empirical expected Fisher info
+( ZhouF = expectFisherZhou(params, crit) )
+# these match! :)
+
+
+
+# it really seems like Fisher info should be the same for left-trunc vs. right-trunc
+#bm
+
+# check symmetry in general
+extrunc(spec = "norm", mean = 1, sd = 0.5, a = 1.5, b = Inf)
+extrunc(spec = "norm", mean = -1, sd = 0.5, a = -Inf, b = -1.5)
+
+vartrunc(spec = "norm", mean = 1, sd = 0.5, a = 1.5, b = Inf)
+vartrunc(spec = "norm", mean = -1, sd = 0.5, a = -Inf, b = -1.5)
+
+
 
 # ~~ Check my third derivatives -----------------------------
 
@@ -386,7 +580,7 @@ sigma = params[2]
 uStar = (crit-mu)/sigma
 uStar2 = (crit-mu)/sigma^2
 Mills = mills(params = params, .crit = crit)
-  
+
 # ~~~ Check intermediate pieces --------------------
 
 # check derivative of termA wrt sigma
@@ -525,17 +719,7 @@ expect_equal( func( .mu = params[1],
 # return( matrix( c(F11, F12, F12, F22), nrow = 2 ) )
 
 
-# ~ Try Godwin/Cordeiro for a single choice of parameters ----------------------
-
-
-# # try to compare to matrix version
-# godwinBias(biasedParamIndex = 1,
-#            params = params,
-#              #x = x,
-#              .crit = crit)
-# 
-# # compare to matrix version
-# # following Godwin's notation on page 1890
+# ~ 2021-6-14: Try Godwin/Cordeiro for a single choice of parameters ----------------------
 
 
 # ~~ Matrix version: -----------------------------------------
@@ -544,7 +728,10 @@ expect_equal( func( .mu = params[1],
 # empirical bias (1000 sim reps): 0.980, 0.09
 # theory bias: 0.009, -0.19
 params = c(0, 1)
-crit = 0  # shouldn't be biased if truncation point is super high
+mu = params[1]
+sigma = params[2]
+# BE CAREFUL TO CHOOSE CORRECT SIGN OF CRIT BASED ON TRUNCATION DIRECTION
+crit = -0.5  # shouldn't be biased if truncation point is extreme in the appropriate direction
 n = 20
 
 # # scenario 2: extremely high trunc point
@@ -563,32 +750,47 @@ n = 20
 # crit = 5: 0.002
 
 # empirical bias:
-reps = 1000
+reps = 5000
 muHat = c()
 sigmaHat = c()
-
 # as sanity check, I confirmed that letting n -> infinity eliminates the bias
 for ( i in 1:reps ) {
   
   if ( i %% 25 == 0 ) cat( paste("\n\nStarting rep", i ) )
   
+  
+  # RIGHT-TRUNC
+  # x = rtrunc(n = n,
+  #             spec = "norm",
+  #             mean = params[1],
+  #             sd = params[2],
+  #             b = crit)
+  # 
+  # # get MLEs
+  # mle.fit = mle.tmvnorm( as.matrix(x, ncol = 1),
+  #                        lower = -Inf,
+  #                        upper = crit)
+  
+  # LEFT-TRUNC
   x = rtrunc(n = n,
-              spec = "norm",
-              mean = params[1],
-              sd = params[2],
-              b = crit)
+             spec = "norm",
+             mean = params[1],
+             sd = params[2],
+             a = crit)
   
   # get MLEs
   mle.fit = mle.tmvnorm( as.matrix(x, ncol = 1),
-                         lower = -Inf,
-                         upper = crit)
+                         lower = crit,
+                         upper = Inf)
+  
   mles = coef(mle.fit)
   
   muHat = c(muHat, mles[1])
   sigmaHat = c(sigmaHat, sqrt(mles[2]) )
 }
 
-# emprical bias: 
+# emprical bias:
+mean(muHat)
 ( empBias = c( mean(muHat) - params[1],
                mean(sigmaHat) - params[2] ) )
 
@@ -600,179 +802,373 @@ res = godwinBiasMatrix(params = params,
                        crit = crit)
 ( theoryBias = res$bias )
 
-
 # sanity check
 # compare empirical variances of MLEs to Fisher info
-res$Kinv[1,1]; var(muHat)
-res$Kinv[1,2]; cov(muHat, sigmaHat)
-res$Kinv[2,2]; var(sigmaHat)
-#@CLUE: THE KINV IS NEGATIVE IN THIS CASE, WHICH DOESN'T MAKE SENSE!
-# but remember that it was right for the no-trunc case (see sanity check within helper.R),
-#  so it's not just off by a negative sign or something
+# should probably match if untruncated, but not sure whether bias
+#  will mess this up in truncated case
+res$Kninv[1,1]; var(muHat)
+res$Kninv[1,2]; cov(muHat, sigmaHat)
+res$Kninv[2,2]; var(sigmaHat)
+# comparisons to empirical variances:
+#  - truncated at mean, n = 1000 - MATCHES
+#  - truncated at mean, n = 20 - DOESN'T MATCH AT ALL
+#  - untruncated, n = 20 - MATCHES
+
+#bm: 
+# look into:
+#  - truncated at mean, n = 1000: Fisher info behaves well but bias correction is wrong
+
+
+
+# ~~ Check the bias matrix by implementing each entry manually ------------
+
+# Godwin Eq. (6)
+
+### Bias of mean estimate
+p = nrow(res$Kn)  # number of parameters
+
+
+biasedParamIndex = 1
+
+Kn = n * expectFisherZhou2(mu = mu,
+                      sigma = sigma,
+                      .crit = crit)
+
+Kninv = solve(Kn)
+
+expect_equal( as.vector(res$Kninv), as.vector(Kninv) )
+
+
+outerSum = 0
+for ( i in 1:p ) {
+  
+  # k^{si}
+  term1 = Kninv[biasedParamIndex,i]
+  
+  innerSum = 0
+  
+  for (j in 1:p) {
+    for (l in 1:p) {
+      
+      # k_{ij}^{l}
+      term2 = -1 * n * zhou_expect_fisher_derivs( mu = params[1],
+                                                  sigma = params[2],
+                                                  .crit = crit,
+                                                  .entry = as.numeric( paste( c(i,j,l), collapse = "" ) ) ) 
+      
+      
+      
+      # k_{ijl} 
+      term3 = 0.5 * n * zhou_third_derivs( mu = params[1],
+                                           sigma = params[2],
+                                           .crit = crit,
+                                           .entry = as.numeric( paste( c(i,j,l), collapse = "" ) ) )
+      
+      # k^{jl}
+      term4 = Kninv[j,l]
+      
+      innerSum = innerSum + (term2 - term3)*term4
+      
+    }
+  }
+  
+  outerSum = outerSum + (term1*innerSum)
+}
+
+outerSum
+
+
+expect_equal( as.numeric(res$bias[1]), outerSum)
+
+### Bias of sigma estimate
+
+
+biasedParamIndex = 2
+
+outerSum = 0
+for ( i in 1:p ) {
+  
+  # k^{si}
+  term1 = Kninv[biasedParamIndex,i]
+  
+  innerSum = 0
+  
+  for (j in 1:p) {
+    for (l in 1:p) {
+      
+      # k_{ij}^{l}
+      term2 = -1 * n * zhou_expect_fisher_derivs( mu = params[1],
+                                                  sigma = params[2],
+                                                  .crit = crit,
+                                                  .entry = as.numeric( paste( c(i,j,l), collapse = "" ) ) ) 
+      
+      
+      
+      # k_{ijl} 
+      term3 = 0.5 * n * zhou_third_derivs( mu = params[1],
+                                           sigma = params[2],
+                                           .crit = crit,
+                                           .entry = as.numeric( paste( c(i,j,l), collapse = "" ) ) )
+      
+      # k^{jl}
+      term4 = Kninv[j,l]
+      
+      innerSum = innerSum + (term2 - term3)*term4
+      
+    }
+  }
+  
+  outerSum = outerSum + (term1*innerSum)
+}
+
+outerSum
+
+
+expect_equal( as.numeric(res$bias[2]), outerSum)
+
+
+# ~~ Estimate only mu: -----------------------------------------
+
+# try comparing to bias correction calculated for only mu
+#  when sigma is treated as known
+
 #bm
+( a_111 = get_A_entry(params = params,
+                      n = n,
+                      .crit = crit,
+                      .entry = 111) )
 
 
-# 2021-5-18: TRY COX-SNELL BIAS CORRECTION -----------------------------
 
-# ~ Toy example from package -----------------------------
+( F11 = zhou_F11(mu = mu,
+                 sigma = sigma,
+                 .crit = crit) )
 
-# simple example from mle.tools::coxsnell.bc
-# not the Jeffreys correction, but rather a different correction that also uses 
-#  something related to the Fisher info
-set.seed(1)
-## Normal distribution
-pdf <- quote(1 / (sqrt(2 * pi) * sigma) * exp(-0.5 / sigma ^ 2 * (x - mu) ^ 2))
-lpdf <- quote(- log(sigma) - 0.5 / sigma ^ 2 * (x - mu) ^ 2)
-x <- rnorm(n = 100, mean = 0.0, sd = 1.0)
-
-( mu.hat <- mean(x) )
-( sigma.hat = sqrt((length(x) - 1) * var(x) / length(x)) )
-
-coxsnell.bc(density = pdf, logdensity = lpdf, n = length(x), parms = c("mu", "sigma"),
-            mle = c(mu.hat, sigma.hat), lower = '-Inf', upper = 'Inf')
-
-# ~ Random generates straight from trunc dist -----------------
-
-# try one example using parameters that yielded very biased estimates in 
-#   2021-5-3 folder, Expt 3.3
-
-p = data.frame( Mu = 0.1,
-                T2 = 0.25,
-                m = 500,
-                t2w = 0.25,
-                se = .5,
-                
-                Nmax = 1,
-                hack = "affirm",
-                
-                k = 20, 
-                k.hacked = 0 )
-
-crit = qnorm(.975)
+# bias
+( theoryBias = a_111 / (n*F11)^2 )
 
 
-# withot bias correction:
-# meanHat = 0.4442739
-# varHat = 3.349863
-
-sim.reps = 1
-
-meanHat = c()
-varHat = c()
-tstats = c()
-
-# set up PDF and score for Cox-Snell thing
-# example for plain-vanilla Normal:
-# pdf <- quote(1 / (sqrt(2 * pi) * sigma) * exp(-0.5 / sigma ^ 2 * (x - mu) ^ 2))
-# lpdf <- quote(- log(sigma) - 0.5 / sigma ^ 2 * (x - mu) ^ 2)
-
-
-mean = .Mu / .se,
-#@doesn't yet use the delta-method thing
-sd = sqrt( (1/.se^2) * (.T2 + .t2w + .se^2) )
-
-
-myPDF = "1 / (sqrt(2 * pi) * sigma) * exp(-0.5 / sigma ^ 2 * (x - mu) ^ 2) * pnorm( q = crit, mean = mu, sd = sigma)"
-
-myLPDF = "-log(sigma) - 0.5/sigma^2 * (x - mu)^2 + pnorm( q = crit, mean = mu, sd = sigma, log=TRUE)"
-
-# ?D:
-# The internal code knows about the arithmetic operators +, -, *, / and ^, and the single-variable functions exp, log, sin, cos, tan, sinh, cosh, sqrt, pnorm, dnorm, asin, acos, atan, gamma, lgamma, digamma and trigamma, as well as psigamma for one or two arguments (***but derivative only with respect to the first***). (Note that only the standard normal distribution is considered.)
-
-for ( i in 1:sim.reps ) {
+# empirical bias when treating sigma as fixed:
+reps = 3000
+muHat = c()
+for ( i in 1:reps ) {
   
   if ( i %% 25 == 0 ) cat( paste("\n\nStarting rep", i ) )
   
-  x2 = rtrunc(n = 20,
-              spec = "norm",
-              mean = p$Mu / p$se,
-              sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
-              b = crit)
+  
+  # RIGHT-TRUNC
+  # x = rtrunc(n = n,
+  #             spec = "norm",
+  #             mean = params[1],
+  #             sd = params[2],
+  #             b = crit)
+  # 
+  # # get MLEs
+  # mle.fit = mle.tmvnorm( as.matrix(x, ncol = 1),
+  #                        lower = -Inf,
+  #                        upper = crit)
+  
+  # LEFT-TRUNC
+  x = rtrunc(n = n,
+             spec = "norm",
+             mean = params[1],
+             sd = params[2],
+             a = crit)
   
   # get MLEs
-  mle.fit = mle.tmvnorm( as.matrix(x2, ncol = 1), lower=-Inf, upper=crit)
+  mle.fit = mle.tmvnorm( as.matrix(x, ncol = 1),
+                         lower = crit,
+                         fixed = list(sigma_1.1 = sigma),
+                         upper = Inf)
+  
   mles = coef(mle.fit)
   
-  # Cox-Snell bias correction
-  #@BE CAREFUL ABOUT SD VS. VAR THING!
-  coxsnell.bc(density = myPDF,
-              logdensity = myLPDF,
-              n = length(x2),
-              parms = c("mu", "sigma"),
-              mle = c(mles[1], mles[2]),
-              lower = '-Inf',
-              upper = 'Inf')
-  
-  
-  
-  meanHat = c(meanHat, mles[1])
-  varHat = c(varHat, mles[2])
-  tstats = c(tstats, x2)
+  muHat = c(muHat, mles[1])
 }
 
+# empirical bias:
+#mean(muHat)
+( empBias = c( mean(muHat) - params[1] ) )
+theoryBias
 
-mean(meanHat); p$Mu/p$se
-mean(varHat); (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
-
-# should be normal
-hist(meanHat)
-
-# trunc normal
-hist(tstats)
+# n=20: matches very closely!
 
 
 
-# 2021-5-18: DEMONSTRATION THAT ZHOU'S VARIANCE IS WRONG -----------------------------
 
-# In Appendix A, Zhou calculated the Fisher info using a variance that seems to be wrong. 
-#  Simulate to confirm that I'm correct about the variance mistake
+# ~~ Estimate only sigma: -----------------------------------------
 
-mu = 1.1
-sig = 0.7
-u = .8  # cut point for LEFT-truncated normal
+# try comparing to bias correction calculated for only sigma
+#  when sigma is treated as known
 
-( uStar = (u - mu)/sig )
 
-# Mills ratio for LEFT truncation (i.e., alpha-function in Zhou)
-mills = function(.uStar) {
-  dnorm(.uStar) / ( 1 - pnorm(.uStar ) )
+( a_222 = get_A_entry(params = params,
+                      n = n,
+                      .crit = crit,
+                      .entry = 222) )
+
+
+
+( F22 = zhou_F22(mu = mu,
+                 sigma = sigma,
+                 .crit = crit) )
+
+# bias
+( theoryBias = a_222 / (n*F22)^2 )
+
+
+# empirical bias when treating sigma as fixed:
+reps = 3000
+sigmaHat = c()
+for ( i in 1:reps ) {
+  
+  if ( i %% 25 == 0 ) cat( paste("\n\nStarting rep", i ) )
+  
+  
+  # RIGHT-TRUNC
+  # x = rtrunc(n = n,
+  #             spec = "norm",
+  #             mean = params[1],
+  #             sd = params[2],
+  #             b = crit)
+  # 
+  # # get MLEs
+  # mle.fit = mle.tmvnorm( as.matrix(x, ncol = 1),
+  #                        lower = -Inf,
+  #                        upper = crit)
+  
+  # LEFT-TRUNC
+  x = rtrunc(n = n,
+             spec = "norm",
+             mean = params[1],
+             sd = params[2],
+             a = crit)
+  
+  # get MLEs
+  mle.fit = mle.tmvnorm( as.matrix(x, ncol = 1),
+                         lower = crit,
+                         fixed = list(mu_1 = mu),
+                         upper = Inf)
+  
+  mles = coef(mle.fit)
+  
+  sigmaHat = c(sigmaHat, mles[2])
 }
 
-
-mills(uStar)
-
-# Zhou's is clearly WRONG
-( VarZhou = sig^2 * ( 1 + uStar*mills(uStar) ) )
-
-# mine is from Wikipedia:
-# https://en.wikipedia.org/wiki/Truncated_normal_distribution#One_sided_truncation_(of_lower_tail)[4]
-( VarMine =  sig^2 * ( 1 + uStar*mills(uStar) - mills(uStar)^2 ) )
-# THIS IS RIGHT
-
-
-vartrunc( spec = "norm",
-          mean = mu,
-          sd = sig,
-          a = u,
-          b = Inf )
-
-
-
-# simulate
-x2 = rtrunc(n = 5000,
-            spec = "norm",
-            mean = mu,
-            sd = sig,
-            a = u)
-
-var(x2)
-# exactly matches vartrunc
+# empirical bias:
+#mean(muHat)
+( empBias = c( mean(sigmaHat) - params[2] ) )
+theoryBias
 
 
 
 
-
-
-
-
-
+# # 2021-5-18: TRY COX-SNELL BIAS CORRECTION -----------------------------
+# 
+# # ~ Toy example from package -----------------------------
+# 
+# # simple example from mle.tools::coxsnell.bc
+# # not the Jeffreys correction, but rather a different correction that also uses 
+# #  something related to the Fisher info
+# set.seed(1)
+# ## Normal distribution
+# pdf <- quote(1 / (sqrt(2 * pi) * sigma) * exp(-0.5 / sigma ^ 2 * (x - mu) ^ 2))
+# lpdf <- quote(- log(sigma) - 0.5 / sigma ^ 2 * (x - mu) ^ 2)
+# x <- rnorm(n = 100, mean = 0.0, sd = 1.0)
+# 
+# ( mu.hat <- mean(x) )
+# ( sigma.hat = sqrt((length(x) - 1) * var(x) / length(x)) )
+# 
+# coxsnell.bc(density = pdf, logdensity = lpdf, n = length(x), parms = c("mu", "sigma"),
+#             mle = c(mu.hat, sigma.hat), lower = '-Inf', upper = 'Inf')
+# 
+# # ~ Random generates straight from trunc dist -----------------
+# 
+# # try one example using parameters that yielded very biased estimates in 
+# #   2021-5-3 folder, Expt 3.3
+# 
+# p = data.frame( Mu = 0.1,
+#                 T2 = 0.25,
+#                 m = 500,
+#                 t2w = 0.25,
+#                 se = .5,
+#                 
+#                 Nmax = 1,
+#                 hack = "affirm",
+#                 
+#                 k = 20, 
+#                 k.hacked = 0 )
+# 
+# crit = qnorm(.975)
+# 
+# 
+# # withot bias correction:
+# # meanHat = 0.4442739
+# # varHat = 3.349863
+# 
+# sim.reps = 1
+# 
+# meanHat = c()
+# varHat = c()
+# tstats = c()
+# 
+# # set up PDF and score for Cox-Snell thing
+# # example for plain-vanilla Normal:
+# # pdf <- quote(1 / (sqrt(2 * pi) * sigma) * exp(-0.5 / sigma ^ 2 * (x - mu) ^ 2))
+# # lpdf <- quote(- log(sigma) - 0.5 / sigma ^ 2 * (x - mu) ^ 2)
+# 
+# 
+# mean = .Mu / .se,
+# #@doesn't yet use the delta-method thing
+# sd = sqrt( (1/.se^2) * (.T2 + .t2w + .se^2) )
+# 
+# 
+# myPDF = "1 / (sqrt(2 * pi) * sigma) * exp(-0.5 / sigma ^ 2 * (x - mu) ^ 2) * pnorm( q = crit, mean = mu, sd = sigma)"
+# 
+# myLPDF = "-log(sigma) - 0.5/sigma^2 * (x - mu)^2 + pnorm( q = crit, mean = mu, sd = sigma, log=TRUE)"
+# 
+# # ?D:
+# # The internal code knows about the arithmetic operators +, -, *, / and ^, and the single-variable functions exp, log, sin, cos, tan, sinh, cosh, sqrt, pnorm, dnorm, asin, acos, atan, gamma, lgamma, digamma and trigamma, as well as psigamma for one or two arguments (***but derivative only with respect to the first***). (Note that only the standard normal distribution is considered.)
+# 
+# for ( i in 1:sim.reps ) {
+#   
+#   if ( i %% 25 == 0 ) cat( paste("\n\nStarting rep", i ) )
+#   
+#   x2 = rtrunc(n = 20,
+#               spec = "norm",
+#               mean = p$Mu / p$se,
+#               sd = sqrt( (1/p$se^2) * (p$T2 + p$t2w + p$se^2) ),
+#               b = crit)
+#   
+#   # get MLEs
+#   mle.fit = mle.tmvnorm( as.matrix(x2, ncol = 1), lower=-Inf, upper=crit)
+#   mles = coef(mle.fit)
+#   
+#   # Cox-Snell bias correction
+#   #@BE CAREFUL ABOUT SD VS. VAR THING!
+#   coxsnell.bc(density = myPDF,
+#               logdensity = myLPDF,
+#               n = length(x2),
+#               parms = c("mu", "sigma"),
+#               mle = c(mles[1], mles[2]),
+#               lower = '-Inf',
+#               upper = 'Inf')
+#   
+#   
+#   
+#   meanHat = c(meanHat, mles[1])
+#   varHat = c(varHat, mles[2])
+#   tstats = c(tstats, x2)
+# }
+# 
+# 
+# mean(meanHat); p$Mu/p$se
+# mean(varHat); (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
+# 
+# # should be normal
+# hist(meanHat)
+# 
+# # trunc normal
+# hist(tstats)
+# 
+# 

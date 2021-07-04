@@ -8,14 +8,41 @@
 # my own Jeffreys prior
 # uses Fisher info for ONE observation
 Jeffreys = function( params, .crit ) {
+  
+  # the one-observation expected Fisher infoo
   fisher = expectFisher( params = params,
                          .crit = .crit )
   
   # this is the Jeffreys prior evaluated at these parameter values
-  abs( det(fisher) )^{-1/2}
+  sqrt( det(fisher) )
 }
 
-# joint posterior 
+
+# ### Sanity check:
+# # in the untruncated case (very high trunc point),
+# #  prior should be as for the regular normal
+# # https://stats.stackexchange.com/questions/156199/jeffreys-prior-for-normal-distribution-with-unknown-mean-and-variance
+# # http://www.stat.cmu.edu/~kass/papers/rules.pdf
+# # should be PROPORTIONAL TO 1/sigma^2 when parameterized via sigma
+# params = c(1, 2)
+# mu = params[1]
+# sigma = params[2]
+# crit = 999  # effectively untruncated
+# 
+# ( prior = Jeffreys(params = params,
+#                      .crit = crit) )
+# expect_equal( prior, 1/(sigma^2) )
+# 
+# # determinant - matches
+# # latter is from (2/sigma^2)*(1/sigma^2)
+# myF[1,1]*myF[2,2]; 2/sigma^4
+# 
+# # prior vs. sqrt(determinant) - matches
+# prior; sqrt(2)/sigma^2
+# # MATCHES because the *2 is just a proportionality thing
+
+
+# joint posterior (unnormalized; it's just prior * lkl)
 joint_post = function( params,
                        .xVec,
                        .crit ) {
@@ -41,68 +68,70 @@ joint_post = function( params,
 
 
 
+
+
 # ~ For Godwin/Cordeiro thing -----------------------------
 
-# this one isn't done because I didn't get the 3rd order terms yet
-# biasedParamIndex: 1 for mu and 2 for sigma
-godwinBias = function(biasedParamIndex,
-                      params,
-                      .crit) {
-  
-  # TEST ONLY
-  #.crit = 1.96
-  
-  mu = params[1]
-  sigma = params[2]
-  
-  # inverse of expected Fisher info
-  # (gives k_{ij} entries in Godwin's notation)
-  fisher = expectFisher(params = params,
-                        .crit = .crit)
-  
-  invFisher = solve(fisher)
-  
-  # bias of mean estimate: Godwin Eq. (6)
-  p = nrow(fisher)  # number of parameters
-  
-  outerSum = 0
-  
-  for ( i in 1:p ) {
-    
-    # k^{si}
-    term1 = invFisher[biasedParamIndex,i]
-    
-    innerSum = 0
-    
-    for (j in 1:p) {
-      for (l in 1:p) {
-        
-        # k_{ij}^(l) in Godwin's notation
-        # note sign reversals throughout because Godwin's "k" terms are expectations
-        #  rather than negative expectations
-        term2 = -1 * expectFisherDerivs( params = params,
-                                         .crit = .crit,
-                                         .entry = as.numeric( paste(i, j, l, sep = "") ) )
-        
-        # k_{ijl} in Godwin's notation
-        term3 = -0.5 * myThirdDerivs(params = params,
-                                     .giveNegExpect = TRUE, 
-                                     .crit = .crit,
-                                     .entry = as.numeric( paste(i, j, l, sep = "") ) )
-        
-        # k^{jl} in Godwin's notation
-        term4 = invFisher[j,l]
-        
-        innerSum = innerSum + (term2 - term3)*term4
-        
-      }
-    }
-    
-    outerSum = outerSum + (termA*innerSum)
-  }
-  
-  return(outerSum)
-}
+# # this one isn't done because I didn't get the 3rd order terms yet
+# # biasedParamIndex: 1 for mu and 2 for sigma
+# godwinBias = function(biasedParamIndex,
+#                       params,
+#                       .crit) {
+#   
+#   # TEST ONLY
+#   #.crit = 1.96
+#   
+#   mu = params[1]
+#   sigma = params[2]
+#   
+#   # inverse of expected Fisher info
+#   # (gives k_{ij} entries in Godwin's notation)
+#   fisher = expectFisher(params = params,
+#                         .crit = .crit)
+#   
+#   invFisher = solve(fisher)
+#   
+#   # bias of mean estimate: Godwin Eq. (6)
+#   p = nrow(fisher)  # number of parameters
+#   
+#   outerSum = 0
+#   
+#   for ( i in 1:p ) {
+#     
+#     # k^{si}
+#     term1 = invFisher[biasedParamIndex,i]
+#     
+#     innerSum = 0
+#     
+#     for (j in 1:p) {
+#       for (l in 1:p) {
+#         
+#         # k_{ij}^(l) in Godwin's notation
+#         # note sign reversals throughout because Godwin's "k" terms are expectations
+#         #  rather than negative expectations
+#         term2 = -1 * expectFisherDerivs( params = params,
+#                                          .crit = .crit,
+#                                          .entry = as.numeric( paste(i, j, l, sep = "") ) )
+#         
+#         # k_{ijl} in Godwin's notation
+#         term3 = -0.5 * myThirdDerivs(params = params,
+#                                      .giveNegExpect = TRUE, 
+#                                      .crit = .crit,
+#                                      .entry = as.numeric( paste(i, j, l, sep = "") ) )
+#         
+#         # k^{jl} in Godwin's notation
+#         term4 = invFisher[j,l]
+#         
+#         innerSum = innerSum + (term2 - term3)*term4
+#         
+#       }
+#     }
+#     
+#     outerSum = outerSum + (termA*innerSum)
+#   }
+#   
+#   return(outerSum)
+# }
 
 
 
@@ -114,29 +143,70 @@ godwinBias = function(biasedParamIndex,
 # ~~ Matrix version: -----------------------------------------
 
 # gives one value of a_{ij}^{(l)} in Godwin notation (pg 1890)
+# .entry: ijl
 # n: sample size
-get_A_entry = function( params, n, .crit, .entry) {
-  # k_{ij}^(l) in Godwin's notation
-  # note sign reversals throughout because Godwin's "k" terms are expectations
-  #  rather than negative expectations
-  # IMPORTANT: because expectFisherDerivs and myThirdDerivs
-  #  are for a SINGLE observations, need to multiply them by n
-  term1 = -1 * n * expectFisherDerivs( params = params,
-                                   .crit = .crit,
-                                   .entry = .entry )
+get_A_entry = function( params,
+                        n,
+                        .crit,
+                        .entry,
+                        useZhou = TRUE) {
   
-  # k_{ijl} in Godwin's notation
-  # again, sign reversal
-  term2 = -0.5 * n * myThirdDerivs(params = params,
-                               .giveNegExpect = TRUE, 
-                               .crit = .crit,
-                               .entry = .entry )
+  # # use mine 
+  # if ( useZhou == FALSE ) {
+  #   
+  #   
+  #   # k_{ij}^(l) in Godwin's notation
+  #   # note sign reversals throughout because Godwin's "k" terms are expectations
+  #   #  rather than negative expectations
+  #   # IMPORTANT: because expectFisherDerivs and myThirdDerivs
+  #   #  are for a SINGLE observations, need to multiply them by n
+  #   term1 = -1 * n * expectFisherDerivs( params = params,
+  #                                        .crit = .crit,
+  #                                        .entry = .entry )
+  #   
+  #   # k_{ijl} in Godwin's notation
+  #   # again, sign reversal
+  #   term2 = -0.5 * n * myThirdDerivs(params = params,
+  #                                    .giveNegExpect = TRUE, 
+  #                                    .crit = .crit,
+  #                                    .entry = .entry )
+  # }
+  
+  if ( useZhou == TRUE ) {
+    
+    # k_{ij}^(l) in Godwin's notation
+    # note sign reversals because Godwin's "k" terms are expectations
+    #  rather than negative expectations
+    # IMPORTANT: because expectFisherDerivs and myThirdDerivs
+    #  are for a SINGLE observation, need to multiply them by n
+    
+    mu = params[1]
+    sigma = params[2]
+    
+    
+    term1 = -1 * n * zhou_expect_fisher_derivs( mu = params[1],
+                                                sigma = params[2],
+                                                .crit = crit,
+                                                .entry = .entry )
+    
+    
+    
+    # k_{ijl} in Godwin's notation
+    # NO sign reversal this time because zhou_third_derivs
+    #  didn't take the negative
+    term2 = 0.5 * n * zhou_third_derivs( mu = params[1],
+                                          sigma = params[2],
+                                          .crit = crit,
+                                          .entry = .entry )
+  }
   
   return( term1 - term2 )
 }
 
 
 godwinBiasMatrix = function(params, n, crit) {
+  
+  # 2 x 2 matrices for each parameter
   A1 = matrix( c( get_A_entry( params = params, 
                                n = n,
                                .crit = crit,
@@ -175,19 +245,23 @@ godwinBiasMatrix = function(params, n, crit) {
   ), byrow = TRUE, nrow = 2 )
   A2
   
-  
+  # 2 x 4 matrix of third derivs for both parameters
   A = cbind( A1, A2 )
   A
   
   # inverse of expected Fisher info
   # (gives k_{ij} entries in Godwin's notation)
   # IMPORTANT: multiply 1-observation Fisher info by n
-  K = n * expectFisher(params = params,
-                   .crit = crit)
+  # USING ZHOU
+  K = n * expectFisherZhou(params = params,
+                       .crit = crit)
   
   Kinv = solve(K)
   
-  Kinv.vec = matrix( c(Kinv[1,1], Kinv[2,1], Kinv[1,2], Kinv[2,2]),
+  Kinv.vec = matrix( c(Kinv[1,1],
+                       Kinv[2,1],
+                       Kinv[1,2],
+                       Kinv[2,2]),
                      byrow = TRUE, nrow = 4 )
   
   bias = Kinv %*% A %*% Kinv.vec
@@ -195,8 +269,8 @@ godwinBiasMatrix = function(params, n, crit) {
   # return everything
   return( llist( bias = as.matrix(bias), 
                  A = as.matrix(A),
-                 K = as.matrix(K),
-                 Kinv = as.matrix(Kinv) ) )
+                 Kn = as.matrix(K),  # call it "Kn" to clarify that it's for n observations
+                 Kninv = as.matrix(Kinv) ) )
 }
 
 # ### Sanity check:
@@ -205,7 +279,10 @@ godwinBiasMatrix = function(params, n, crit) {
 # params = c(0, 1)
 # mu = params[1]
 # sigma = params[2]
-# crit = 99  # shouldn't be biased if truncation point is super high
+# # NOTE: FNS BELOW WILL BREAK IF YOU CHOOSE WRONG SIGN FOR THIS
+# #  BECAUSE THE NORMALIZATION TERM IN PDF AND DERIVS WILL BE O
+# # CRIT NEEDS TO BE LIKE -99 FOR LEFT-TRUNC AND LIKE 99 FOR RIGHT-TRUNC
+# crit = -99  # shouldn't be biased if truncation point is extreme
 # n = 20
 # 
 # res = godwinBiasMatrix(params = params,
@@ -228,7 +305,7 @@ godwinBiasMatrix = function(params, n, crit) {
 # 2021-5-31: GENERAL FNS FOR RIGHT-TRUNCATED NORMAL THEORY -----------------------------
 
 # params: (mu, sigma)
-# NOTE parameterization in terms of sigma rather than sigma^2
+# NOTE params argument given in terms of sigma rather than sigma^2
 # for ONE observation
 myLPDF = function(params, .x, .crit) {
   mu = params[1]
@@ -312,20 +389,43 @@ expectFisher = function(params, .crit) {
   # termC = termA * termB - mills
   
   # entry 11
+  # untruncated case (huge crit): mills is 0 and so
+  #  F11 = (1/sigma^2), which matches theory for regular normal distribution :)
   F11 = (1/sigma^2) * ( 1 - termA )
   
   # entry 22
-  F22 = (1/sigma^2) * (2 - uStar*mills - 3*mills^2 - mills^2*uStar^2 - mills*uStar^3)
+  # untruncated case (huge crit): mills is 0 and so F22 = (2/sigma^2)
+  # that seems correct because we parameterized using sigma:
+  # http://confluence.marcuschiu.com/display/NOT/Fisher+Information+-+Normal+Distribution
+  F22 = (1/sigma^2) * (2 - uStar*mills - mills^2*uStar^2 - mills*uStar^3)
   
   # entry 12=21
-  F12 = (mills/sigma^2) * (3 - mills*uStar - uStar^2)
+  # untruncated case (huge crit): mills is 0 and so
+  #  F12 = 0, which matches theory for regular normal distribution :)
+  F12 = (mills/sigma^2) * (1 - mills*uStar - uStar^2)
   
   return( matrix( c(F11, F12, F12, F22), nrow = 2 ) )
 }
 
 
+# ### Sanity check:
+# # in the untruncated case (very high trunc point),
+# #  Fisher info should be as for the regular MLE
+# params = c(1, 2)
+# mu = params[1]
+# sigma = params[2]
+# crit = 999  # effectively untruncated
+# 
+# ( myF = expectFisher(params = params,
+#                      .crit = crit) )
+# 
+# expect_equal( myF[1,1], 1/(sigma^2) )
+# expect_equal( myF[1,2], 0 )
+# expect_equal( myF[2,1], 0 )
+# expect_equal( myF[2,2], 2/(sigma^2) )
 
-# get a particular derivative of Fisher info
+
+# get a particular derivative of (my) Fisher info
 # .entry: a number like "121" to say which derivative we want
 # i.e., "121" is d/dmu { -E[ d^2 l/ dmu dsigma ] }
 #  where parameter 1 is mu and parameter 2 is sigma
@@ -529,9 +629,305 @@ myThirdDerivs = function(params,
 
 
 
+# ~~ Zhou functions ---------------------------------
+
+# Zhou's expected Fisher info
+# IMPORTANT: Theirs is for a LEFT-truncated normal, so will only
+# coincide with mine when crit = mu (by symmetry)
+# and I know they have mistake with variance
+expectFisherZhou = function(params, .crit) {
+  
+  mu = params[1]
+  sigma = params[2]
+  uStar = (.crit - mu)/sigma
+  
+  # terms as in their Appendix
+  LMills = dnorm(uStar) / (1 - pnorm(uStar))  # for left-truncation, but = Mills for crit = mu case
+  ( A = (1/sigma^2) * (1 + uStar*LMills - LMills^2) )
+  ( B = (1/sigma^2) * LMills * ( 1 - LMills*uStar + uStar^2) )
+  ( C = (1/sigma^2) * ( 2 + LMills*uStar - LMills^2*uStar^2 + uStar^3*LMills ) )
+  
+  return( matrix( c(A, B, B, C), byrow = TRUE, nrow = 2) )
+}
+
+
+# same but with params separated
+expectFisherZhou2 = function(mu,
+                             sigma,
+                             .crit) {
+  
+  uStar = (.crit - mu)/sigma
+  
+  # terms as in their Appendix
+  LMills = dnorm(uStar) / (1 - pnorm(uStar))  # for left-truncation, but = Mills for crit = mu case
+  A = (1/sigma^2) * (1 + uStar*LMills - LMills^2) 
+  B = (1/sigma^2) * LMills * ( 1 - LMills*uStar + uStar^2) 
+  C = (1/sigma^2) * ( 2 + LMills*uStar - LMills^2*uStar^2 + uStar^3*LMills )
+  
+  return( matrix( c(A, B, B, C), byrow = TRUE, nrow = 2) )
+}
+
+
+# ~~~ Zhou expected Fisher entries ------------------
+
+# these are NEGATIVE of the the k_{ij} terms in Godwin
+zhou_F11 = function(mu,
+                    sigma,
+                    .crit) {
+  
+  uStar = (.crit - mu)/sigma
+  
+  # terms as in their Appendix
+  LMills = dnorm(uStar) / (1 - pnorm(uStar))  # for left-truncation, but = Mills for crit = mu case
+  (1/sigma^2) * (1 + uStar*LMills - LMills^2) 
+}
+
+zhou_F12 = function(mu,
+                    sigma,
+                    .crit) {
+  
+  uStar = (.crit - mu)/sigma
+  
+  # terms as in their Appendix
+  LMills = dnorm(uStar) / (1 - pnorm(uStar))  # for left-truncation, but = Mills for crit = mu case
+  (1/sigma^2) * LMills * ( 1 - LMills*uStar + uStar^2) 
+}
+
+
+zhou_F22 = function(mu,
+                    sigma,
+                    .crit) {
+  
+  uStar = (.crit - mu)/sigma
+  
+  # terms as in their Appendix
+  LMills = dnorm(uStar) / (1 - pnorm(uStar))  # for left-truncation, but = Mills for crit = mu case
+  (1/sigma^2) * ( 2 + LMills*uStar - LMills^2*uStar^2 + uStar^3*LMills )
+}
 
 
 
+# # second derviatives without any negative sign
+# # I checked this fn against expectFisherZhou in expectation
+# zhou_second_derivs = function(mu,
+#                              sigma, 
+#                              .x,
+#                              .crit, 
+#                              .entry) {
+#   
+#   uStar = (.crit - mu)/sigma
+#   uStar2 = (.crit - mu)/sigma^2
+#   
+#   # terms as in their Appendix
+#   LMills = dnorm(uStar) / (1 - pnorm(uStar))  # for left-truncation, but = Mills for crit = mu case
+#   termA = LMills^2 - uStar*LMills
+#   
+#   # correct in expectation
+#   if ( .entry == 11 ) {
+#     return( (-1/sigma^2) + (1/sigma^2)*termA )
+#   }
+#   
+#   if ( .entry %in% c(12,21) ) {
+#     return( -2*(.x - mu)/sigma^3 + termA*(.crit - mu)/sigma^3 + LMills/sigma^2 )
+#   }
+#   
+#   if ( .entry == 22 ) {
+#     return( (1/sigma^2) - (3*(.x - mu)^2 / sigma^4) + termA*uStar2^2 + LMills*2*(.crit - mu)/sigma^3 )
+#   }
+# } 
 
+
+# ~~~ Zhou second derivatives -----------------
+# these are only used as intermediates before getting the third derivatives numerically
+# these have the OPPOSITE sign from the Fisher info because they they don't
+#  yet take the negative
+# typed in from his expressions in first column of Appendix A
+zhou_J11 = function(mu,
+                    sigma,
+                    .x,
+                    .crit) {
+  
+  uStar = (.crit - mu)/sigma
+  uStar2 = (.crit - mu)/sigma^2
+  
+  # terms as in their Appendix
+  LMills = dnorm(uStar) / (1 - pnorm(uStar))  # for left-truncation, but = Mills for crit = mu case
+  termA = LMills^2 - uStar*LMills
+  
+  (-1/sigma^2) + (1/sigma^2)*termA
+}
+
+
+zhou_J12 = function(mu,
+                    sigma,
+                    .x,
+                    .crit) {
+  
+  uStar = (.crit - mu)/sigma
+  uStar2 = (.crit - mu)/sigma^2
+  
+  # terms as in their Appendix
+  LMills = dnorm(uStar) / (1 - pnorm(uStar))  # for left-truncation, but = Mills for crit = mu case
+  termA = LMills^2 - uStar*LMills
+  
+  -2*(.x - mu)/sigma^3 + termA*(.crit - mu)/sigma^3 + LMills/sigma^2
+}
+
+zhou_J22 = function(mu,
+                    sigma,
+                    .x,
+                    .crit) {
+  
+  uStar = (.crit - mu)/sigma
+  uStar2 = (.crit - mu)/sigma^2
+  
+  # terms as in their Appendix
+  LMills = dnorm(uStar) / (1 - pnorm(uStar))  # for left-truncation, but = Mills for crit = mu case
+  termA = LMills^2 - uStar*LMills
+  
+  (1/sigma^2) - (3*(.x - mu)^2 / sigma^4) + termA*uStar2^2 + LMills*2*(.crit - mu)/sigma^3
+}
+
+
+
+# ~~~ Zhou third derivatives -----------------
+# expected third derivatives
+# gotten numerically by taking derivs of JXX functions
+#  and then replacing any stochastic things with their expectations
+
+# these are Godwin's k_{ijl} terms and have the SAME sign as his 
+#  because the zhou_JXX functions don't take the negative
+zhou_third_derivs = function(mu,
+                             sigma, 
+                             .crit, 
+                             .entry) {
+  
+  
+  uStar = (.crit - mu)/sigma
+  uStar2 = (.crit - mu)/sigma^2
+  
+  # terms as in their Appendix
+  LMills = dnorm(uStar) / (1 - pnorm(uStar))  # for left-truncation, but = Mills for crit = mu case
+  termA = LMills^2 - uStar*LMills
+  
+  # Zhou's second moment
+  secondMoment = sigma^2*(1 - uStar*LMills) 
+  
+  
+  if ( .entry == 111 ) {
+
+    # this is already the expectation because there's nothing stochastic
+    # (by looking at body of thirdDeriv and seeing there's no .x term)
+    thirdDeriv = Deriv( zhou_J11, "mu" )
+  }
+  
+  if ( .entry %in% c(112, 121, 211) ) {
+
+    # this is already the expectation because there's nothing stochastic
+    # (by looking at body of thirdDeriv and seeing there's no .x term)
+    thirdDeriv = Deriv( zhou_J12, "mu" )
+    
+  }
+  
+  if ( .entry %in% c(122, 221, 212) ) {
+    # from this: Deriv( zhou_J22, "mu" )
+    # but making replacements to get expectations
+    thirdDeriv = function(mu, sigma, .x, .crit) 
+    {
+      .e1 <- .crit - mu
+      .e2 <- .e1/sigma
+      .e3 <- dnorm(.e2)
+      .e4 <- 1 - pnorm(.e2)
+      .e5 <- .e3/.e4
+      .e6 <- .e5 - .e2
+      .e7 <- dnorm(.e2, 0, 1)
+      # prior to using expectations
+      # ((.e1 * (.e1 * (.e3 - (2 * .e5 - .e2) * .e7 * .e6)/sigma - 
+      #            2 * (.e3 * .e6))/sigma - 2 * .e3)/.e4 + (6 * (.x - mu) - 
+      #                                                       2 * (.e1 * .e7 * .e6/.e4))/sigma)/sigma^3
+      # after using expectations
+      ((.e1 * (.e1 * (.e3 - (2 * .e5 - .e2) * .e7 * .e6)/sigma - 
+                 2 * (.e3 * .e6))/sigma - 2 * .e3)/.e4 + (6 * (0) - 
+                                                            2 * (.e1 * .e7 * .e6/.e4))/sigma)/sigma^3
+    }
+  }
+  
+  if ( .entry == 222 ) {
+    
+
+    # from this: Deriv( zhou_J22, "mu" )
+    # but making replacements to get expectations
+    thirdDeriv = function(mu, sigma, .x, .crit) 
+    {
+      .e1 <- .crit - mu
+      .e2 <- .e1/sigma
+      .e3 <- dnorm(.e2)
+      .e4 <- 1 - pnorm(.e2)
+      .e5 <- .e3/.e4
+      .e6 <- dnorm(.e2, 0, 1)
+      .e7 <- .e5 - .e2
+      # prior to using expectations
+      # ((.e1 * (.e1 * (.e1 * (.e3 - (2 * .e5 - .e2) * .e6 * .e7)/sigma - 
+      #                   (2 * .e6 + 4 * .e3) * .e7)/sigma - 6 * .e3)/.e4 + 12 * 
+      #     ((.x - mu)^2/sigma))/sigma - 2)/sigma^3
+      
+      # after using expectations
+      ((.e1 * (.e1 * (.e1 * (.e3 - (2 * .e5 - .e2) * .e6 * .e7)/sigma - 
+                        (2 * .e6 + 4 * .e3) * .e7)/sigma - 6 * .e3)/.e4 + 12 * 
+          (secondMoment/sigma))/sigma - 2)/sigma^3
+    }
+  }
+  
+  return( thirdDeriv(mu = mu,
+                     sigma = sigma, 
+                     .x = x, 
+                     .crit = crit) )
+  
+}
+
+
+# these are NEGATIVE of the the k_{ij}^l terms in Godwin
+# because my zhou_FXX functions already return the NEGATIVE expected Fisher
+zhou_expect_fisher_derivs = function(mu,
+                                     sigma, 
+                                     .crit, 
+                                     .entry) {
+  
+  
+  uStar = (.crit - mu)/sigma
+  uStar2 = (.crit - mu)/sigma^2
+  
+
+  # terms as in their Appendix
+  LMills = dnorm(uStar) / (1 - pnorm(uStar))  # for left-truncation, but = Mills for crit = mu case
+  termA = LMills^2 - uStar*LMills
+  
+  if ( .entry == 111 ) {
+    thirdDeriv = Deriv( zhou_F11, "mu" ) 
+  }
+  
+  if ( .entry %in% c(112, 121, 211) ) {
+    thirdDeriv = Deriv( zhou_F12, "mu" ) 
+  }
+  
+  if ( .entry %in% c(122, 221, 212) ) {
+    thirdDeriv = Deriv( zhou_F22, "mu" ) 
+  }
+  
+  if ( .entry == 222 ) {
+    thirdDeriv = Deriv( zhou_F22, "sigma" ) 
+  }
+  
+  return( thirdDeriv(mu = mu,
+                     sigma = sigma, 
+                     .crit = crit) )
+  
+  
+}
+
+# zhou_expect_fisher_derivs( mu = params[1],
+#                            sigma = params[2],
+#                            .crit = crit,
+#                            .entry = 111 )
 
 
