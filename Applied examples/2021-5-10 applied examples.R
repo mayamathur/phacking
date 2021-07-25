@@ -105,6 +105,29 @@ plot_trunc_densities(.obj, showAffirms = FALSE) +
 plot_trunc_densities(.obj, showAffirms = FALSE)
 
 
+# try the full RTMA via weightr (c.f. "2021-7-4 connection to selection models")
+( m1 = weightfunct( effect = dm$yi[ dm$affirm == FALSE ],
+                    v = dm$vi[ dm$affirm == FALSE ],  
+                    steps = c(0.025, 1),
+                    weights = c(0,1), # weight such that ONLY nonaffirmatives are published
+                    table = TRUE ) )
+
+# adjusted point estimate
+m1[[2]]$par[2]
+
+
+
+
+# just for comparison:
+# allow weightr to find the weights and use all studies
+( m1 = weightfunct( effect = dm$yi,
+                    v = dm$vi,  
+                    steps = c(0.025, 1),
+                    #weights = c(1,0), # weight such that ONLY nonaffirmatives are published
+                    table = TRUE ) )
+
+# eta
+1/m1[[2]]$par[3]
 
 
 # P-HACKING ADJUSTMENT IN HAGGER REPLICATIONS -----------------------------
@@ -127,6 +150,8 @@ mean( dr$yi/sqrt(dr$vi) )  # 0.26
 
 .obj$metaCorr  # corrected: 0.05
 .obj$metaNaive  # naive: also 0.05
+
+
 
 
 # P-HACKING ADJUSTMENT IN AWR META-ANALYSIS -----------------------------
@@ -152,6 +177,17 @@ plot_trunc_densities(.obj, showAffirms = TRUE)
 # **Conclusion: The more left-skewed the nonaffirmative t-stats are, the
 #  larger the corrected estimate will be 
 
+
+# try the full RTMA via weightr (c.f. "2021-7-4 connection to selection models")
+d3$affirm = ( d3$yi / sqrt(d3$vi) ) > qnorm(.975)
+( m1 = weightfunct( effect = d3$yi[ d3$affirm == FALSE ],
+                    v = d3$vi[ d3$affirm == FALSE ],  
+                    steps = c(0.025, 1),
+                    weights = c(0,1), # weight such that ONLY nonaffirmatives are published
+                    table = TRUE ) )
+
+# adjusted point estimate
+m1[[2]]$par[2]
 
 
 # ~ Try doing it with only preregistered studies ----------------------
@@ -189,8 +225,23 @@ plot_trunc_densities(.obj, showAffirms = TRUE)
 
 
 
+
+
+# just for comparison:
+# allow weightr to find the weights and use all studies
+( m1 = weightfunct( effect = d3$yi,
+                    v = d3$vi,  
+                    steps = c(0.025, 1),
+                    #weights = c(1,0), # weight such that ONLY nonaffirmatives are published
+                    table = TRUE ) )
+
+# eta
+1/m1[[2]]$par[3]
+
+
 # P-HACKING ADJUSTMENT IN SIMULATED META-ANALYSIS -----------------------------
 
+# no hacking
 d = sim_meta(Nmax = 1,  
              Mu = 0,  
              T2 = 2,  
@@ -226,6 +277,28 @@ plot_trunc_densities(.obj, showAffirms = TRUE)
 
 #hmm...seems pretty noisy?
 
+
+# weightr RTMA
+( m1 = weightfunct( effect = dp$yi[ dp$affirm == FALSE ],
+                    v = dp$vi[ dp$affirm == FALSE ],
+                    steps = c(0.025, 1),
+                    weights = c(0,1), # weight such that ONLY nonaffirmatives are published
+                    table = TRUE ) )
+
+# adjusted point estimate: -0.20
+m1[[2]]$par[2]
+
+
+# just for comparison:
+# allow weightr to find the weights and use all studies
+( m1 = weightfunct( effect = dp$yi,
+                    v = dp$vi,  
+                    steps = c(0.025, 1),
+                    #weights = c(1,0), # weight such that ONLY nonaffirmatives are published
+                    table = TRUE ) )
+
+# eta
+1/m1[[2]]$par[3]
 
 # SEPARATE MLES FOR EACH NONAFFIRMATIVE -----------------------------
 
@@ -360,6 +433,9 @@ rma.uni( yi = dpn$muiHat,
 
 # ~ Ioannidis corpus ----------------------------
 
+# IMPORTANT: with this corpus, not clear if people want POSITIVE signs because they're just 
+#  scraped, so probably best to consider significance for this 
+
 setwd("~/Dropbox/Personal computer/Independent studies/BOD (believability of disciplines)/bod_git")
 s = read.csv("Data from Ioannidis/full_data.csv")
 dim(s)  # expected: 23509
@@ -369,8 +445,12 @@ table(s$t > 0)
 table(s$D > 0)
 
 # Dr, tr are the signed versions
-# how many nonaffirms?
 
+s$affirm = ( s$Dr / s$SE ) > qnorm(.975)
+table(s$affirm)
+
+s$signif = abs( s$Dr / s$SE ) > qnorm(.975)
+table(s$signif)
 
 # ~~ ECDF of p-values ----------------------------
 plot1 = ggplot( data = s,
@@ -396,6 +476,7 @@ plot1
 
 # corpus is too large for memory limits, so let's try downsampling 
 # 10^3 is okay locally
+set.seed(451)
 s2 = s[ sample( nrow(s),
                  size = 10^3,
                  replace = FALSE ), ] 
@@ -406,16 +487,60 @@ s2 = s[ sample( nrow(s),
 
 
 .obj$sanityChecks$tstatMeanMLE  # 1.09
-# quite close to the mean in all the replications
-mean( d3$yi/sqrt(d3$vi) )  # 1.44
+
 
 plot_trunc_densities(.obj)
 plot_trunc_densities(.obj, showAffirms = TRUE)
 
 .obj$metaCorr  
-.obj$metaNaive  
+.obj$metaNaive # 0.02
 
-#bm
+# number of nonaffirmatives
+.obj$sanityChecks$kNonaffirmPub
+
+# try the full RTMA via weightr (c.f. "2021-7-4 connection to selection models")
+
+( m1 = weightfunct( effect = s2$Dr[ s2$affirm == FALSE ],
+                    v = s2$SE[ s2$affirm == FALSE ]^2,  
+                    steps = c(0.025, 1),
+                    weights = c(0,1), # weight such that ONLY nonaffirmatives are published
+                    table = TRUE ) )
+
+# adjusted point estimate: -0.20
+m1[[2]]$par[2]
+
+
+# ~~ Hacking for significance rather than affirmative status -----------------------
+
+( m1 = weightfunct( effect = s2$Dr[ s2$signif == FALSE ],
+                    v = s2$SE[ s2$signif == FALSE ]^2,  
+                    steps = c(0.025, 0.975, 1),
+                    weights = c(0,1,0), # weight such that ONLY nonaffirmatives are published
+                    table = TRUE ) )
+
+# adjusted point estimate: -0.31
+m1[[2]]$par[2]
+
+
+
+# ~~ C.f. weightr when it can estimate the weights itself -----------------
+
+# just for comparison:
+# allow weightr to find the weights and use all studies
+( m1 = weightfunct( effect = s2$Dr,
+                    v = s2$SE^2,  
+                    steps = c(0.025, 0.975, 1),
+                    #weights = c(1,0), # weight such that ONLY nonaffirmatives are published
+                    table = TRUE ) )
+
+# eta
+1/m1[[2]]$par[3]
+
+
+
+
+
+
 
 
 
