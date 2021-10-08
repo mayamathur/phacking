@@ -101,38 +101,8 @@ res = expand_grid( Mu = c(-1, 0.5, 1),
 res = res %>% rowwise() %>%
   mutate( num = get_D11_num( .yi = yi, .sei = sei, .Mu = Mu, .T2t = T2t ),
           theory = get_D11( .yi = yi, .sei = sei, .Mu = Mu, .T2t = T2t ) )
-res
 
+expect_equal( res$num, res$theory )
 
-# debug
-.yi = yi; .sei = sei; .Mu = 1; .T2t = 1
-gamma.i = get_gamma_i( .yi, .sei, .Mu, .T2t, .crit )
-
-.e2 <- .sei^2 + .T2t
-.e3 <- sqrt(.e2)
-.e4 <- .yi - .Mu
-.e7 <- sum(-(dnorm(.e4/.e3, 0, 1)/(pnorm(.e4/.e3) * .e3)))
--(0.5 * sum(-(2 * (.e4/.e2))) + .e7 + .e7)
-
-# compare term 1
-sum(.e4/.e2) == sum( (.yi - .Mu) / (.T2t + .sei^2) ) 
-
-# compare term 2
-.e7 == -sum(gamma.i/sqrt(.T2t + .sei^2))
-
-# final thing
-get_D11_num(.yi = yi, .sei = sei, .Mu = 1, .T2t = 1 )
-get_D11(.yi = yi, .sei = sei, .Mu = 1, .T2t = 1 )
-# try to edit  mine to match:
-sum( (.yi - .Mu)/(.T2t + .sei^2) - gamma.i/sqrt(.T2t + .sei^2) ) # CHANGES: 
-# leading .sei^(2) term
-
-# simplify 
--(0.5 * sum(-(2 * (.e4/.e2))) + .e7 + .e7)
-sum(.e4/.e2) - 2*.e7  # matches the above
-
-# mine
-# need "2" in front of gamma term
-sum( (.yi - .Mu)/(.T2t + .sei^2) + 2*gamma.i/sqrt(.T2t + .sei^2) ) 
 
 

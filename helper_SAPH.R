@@ -64,6 +64,7 @@ get_gamma_i = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975) ) {
 
 # second derivative, entry 11 (i.e., d^2/dmu^2)
 # structured for Deriv() usage
+# was checked vs. Deriv() in "Check RTMA Jeffreys theory.R"
 get_D11 = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975) ) {
   
   gamma.i = get_gamma_i( .yi, .sei, .Mu, .T2t, .crit )
