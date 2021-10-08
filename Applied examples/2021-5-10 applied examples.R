@@ -49,7 +49,7 @@ dd = read.csv("prepped_dang_meta_data.csv")
 
 # dd with just the crossing-out tasks
 dd.cl = dd[dd$IV == "CL",]
-
+o
 
 # P-HACKING ADJUSTMENT IN HAGGER META-ANALYSIS -----------------------------
 

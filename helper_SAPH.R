@@ -12,8 +12,69 @@
 # For more about the small-sample bias: # https://www.jstor.org/stable/2332719?seq=1#metadata_info_tab_contents
 
 
+# 2021-10-8 FNS OF RTMA JEFFREYS PRIOR ---------------------------------------------------------------
 
-# 2021-5-3 ANALYSIS FNS ---------------------------------------------------------------
+# IMPORTANT NOTATION FOR THESE FNS:
+# .Mu: mean of effect sizes, not Z-scores
+# .T2t: total heterogeneity of effect sizes (=T2 + T2_within)
+
+
+# RTMA log-likelihood
+# carefully structured for use with Deriv()
+joint_ll_2 = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975)) {
+  
+  # note: don't calculate Zi = .yi/.sei because Deriv is too stupid
+  # expectation and variance of Zi
+  Vi = (1/.sei^2) * (.T2t + .sei^2)
+  Mi = .Mu/.sei
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  # can't use dtrunc or even dnorm and pnorm in here because Deriv is too stupid
+  
+  k = length(.yi)
+
+  # regular meta-analysis part
+  term1 = -0.5*k*log(2*pi) - 0.5*sum( log(Vi) ) -
+    0.5*sum( (.yi/.sei - Mi)^2 / Vi ) 
+
+  # truncation part
+  term2 = -sum( log( pnorm(Zi.tilde) ) )
+
+
+  term1 + term2
+}
+
+
+# Mills ratio for RTMA (gamma_i)
+get_gamma_i = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975) ) {
+  
+  Zi = .yi/.sei
+  
+  # variance of Zi
+  Vi = (1/.sei^2) * (.T2t + .sei^2)
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  dnorm(Zi.tilde) / pnorm(Zi.tilde)
+}
+
+
+# second derivative, entry 11 (i.e., d^2/dmu^2)
+# structured for Deriv() usage
+get_D11 = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975) ) {
+  
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .T2t, .crit )
+  
+  sum( (.yi - .Mu)/(.T2t + .sei^2) + gamma.i/sqrt(.T2t + .sei^2) ) 
+}
+
+
+
+
+# 2021-5-3 FNS ---------------------------------------------------------------
 
 # log-likelihood
 joint_ll = function(.tstats, .Mu, .T2, .t2w, .se, .crit) {
@@ -48,7 +109,6 @@ nonaffirm_mles = function(.tstats, .t2w, .se, .crit) {
          method = "L-BFGS-B" )
   
 }
-
 
 
 # ANALYSIS FNS ---------------------------------------------------------------
