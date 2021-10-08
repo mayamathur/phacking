@@ -67,7 +67,6 @@ source("helper_SAPH.R")
 setwd(prepped.data.dir)
 dm = read.csv("prepped_hagger_meta_data.csv")
 
-
 # .obj = correct_meta_phack2(yi = dm$yi,
 #                            vi = dm$vi)
 # 
@@ -85,24 +84,47 @@ sei = sqrt(dm$vi)
 # ~ CHECK VS. NUMERICAL DIFFERENTIATION ----------------------------------------------------
 
 
-# entry 1,1
-
-#bm: need to rewrite joint_ll to use yi, sei, I think
-get_D11_num = Deriv(joint_ll_2, ".Mu")
-get_D11_num( .yi = yi, .sei = sei, .Mu = 1, .T2t =1 )
-
-get_D11(.yi = yi, .sei = sei, .Mu = 1, .T2t = 1 )
-
+### entry 1 - MATCHES :)
+get_D1_num = Deriv(joint_ll_2, ".Mu")
 
 # compare to theoretical one at various (.Mu, .T2t)
 res = expand_grid( Mu = c(-1, 0.5, 1),
                    T2t = c(0.1, 1, 2) )
 
 res = res %>% rowwise() %>%
-  mutate( num = get_D11_num( .yi = yi, .sei = sei, .Mu = Mu, .T2t = T2t ),
-          theory = get_D11( .yi = yi, .sei = sei, .Mu = Mu, .T2t = T2t ) )
+  mutate( num = get_D1_num( .yi = yi, .sei = sei, .Mu = Mu, .T2t = T2t ),
+          theory = get_D1( .yi = yi, .sei = sei, .Mu = Mu, .T2t = T2t ) )
 
 expect_equal( res$num, res$theory )
+
+
+
+### entry 11 
+
+# first check an intermediate quantity, d Zi.tilde / d tau - MATCHES
+temp1 = Deriv( get_Zi_tilde, ".Tt")( .yi, .sei, .Mu = 1, .Tt = 1 ) 
+.Mu = 1
+.Tt = 1
+temp2 = -0.5*(.Tt^2 + .sei^2)^(-3/2) * (.yi - .Mu) * 2*.Tt
+expect_equal( temp1, temp2)
+
+
+get_D12_num = Deriv( get_D1_num, ".Tt")
+
+
+
+# compare to theoretical one at various (.Mu, .T2t)
+res = expand_grid( Mu = c(-1, 0.5, 1),
+                   Tt = c(0.1, 1, 2) )
+
+res = res %>% rowwise() %>%
+  mutate( num = get_D12_num( .yi = yi, .sei = sei, .Mu = Mu, .Tt = Tt ),
+          theory = get_D12( .yi = yi, .sei = sei, .Mu = Mu, .Tt = Tt ) )
+
+expect_equal( res$num, res$theory )
+
+
+
 
 
 

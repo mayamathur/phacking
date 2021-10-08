@@ -65,7 +65,7 @@ get_gamma_i = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975) ) {
 # second derivative, entry 11 (i.e., d^2/dmu^2)
 # structured for Deriv() usage
 # was checked vs. Deriv() in "Check RTMA Jeffreys theory.R"
-get_D11 = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975) ) {
+get_D1 = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975) ) {
   
   gamma.i = get_gamma_i( .yi, .sei, .Mu, .T2t, .crit )
   
@@ -74,6 +74,39 @@ get_D11 = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975) ) {
 
 
 
+get_D11 = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975) ) {
+  
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .T2t, .crit )
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  sum( (Zi.tilde*gamma.i + gamma.i^2)/(.T2t + .sei^2) - 1/(.T2t + .sei^2) ) 
+}
+
+
+# just for checking intermediate derivative
+# **note change to Tt (tau) instead of T2t
+get_Zi_tilde = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
+  
+  (.yi - .Mu) / sqrt(.Tt^2 + .sei^2)
+}
+
+
+
+get_D12 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
+  .T2t = .Tt^2
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .T2t, .crit )
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  term1 = (.yi - .Mu)/(.T2t + .sei^2)^2 * .Tt * (Zi.tilde*gamma.i + gamma.i^2)
+  term2 = gamma.i*(.T2t + .sei^2)^(-3/2)
+  
+  term1 + term2
+  
+}
 
 # 2021-5-3 FNS ---------------------------------------------------------------
 
@@ -417,7 +450,6 @@ correct_meta_phack2 = function( yi,
   # these are the MLEs of the *t-stats*
   #@ IMPORTANT: for convenience, this is using the normal distribution, 
   #  so won't work well for small m
-  #bm
   mle.fit = mle.tmvnorm( X = as.matrix(dpn$tstat, ncol = 1),
                          lower = -Inf,
                          upper = crit)
