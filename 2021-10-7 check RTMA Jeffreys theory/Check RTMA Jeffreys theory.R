@@ -87,16 +87,15 @@ sei = sqrt(dm$vi)
 ### entry 1 - MATCHES :)
 get_D1_num = Deriv(joint_ll_2, ".Mu")
 
-# compare to theoretical one at various (.Mu, .T2t)
+# compare to theoretical one at various (.Mu, .Tt)
 res = expand_grid( Mu = c(-1, 0.5, 1),
-                   T2t = c(0.1, 1, 2) )
+                   Tt = c(0.1, 1, 2) )
 
 res = res %>% rowwise() %>%
-  mutate( num = get_D1_num( .yi = yi, .sei = sei, .Mu = Mu, .T2t = T2t ),
-          theory = get_D1( .yi = yi, .sei = sei, .Mu = Mu, .T2t = T2t ) )
+  mutate( num = get_D1_num( .yi = yi, .sei = sei, .Mu = Mu, .Tt = Tt ),
+          theory = get_D1( .yi = yi, .sei = sei, .Mu = Mu, .Tt = Tt ) )
 
 expect_equal( res$num, res$theory )
-
 
 
 ### entry 11 

@@ -21,7 +21,9 @@
 
 # RTMA log-likelihood
 # carefully structured for use with Deriv()
-joint_ll_2 = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975)) {
+joint_ll_2 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975)) {
+  
+  .T2t = .Tt^2
   
   # note: don't calculate Zi = .yi/.sei because Deriv is too stupid
   # expectation and variance of Zi
@@ -48,8 +50,10 @@ joint_ll_2 = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975)) {
 
 
 # Mills ratio for RTMA (gamma_i)
-get_gamma_i = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975) ) {
+get_gamma_i = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   
+  
+  .T2t = .Tt^2
   Zi = .yi/.sei
   
   # variance of Zi
@@ -65,18 +69,23 @@ get_gamma_i = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975) ) {
 # second derivative, entry 11 (i.e., d^2/dmu^2)
 # structured for Deriv() usage
 # was checked vs. Deriv() in "Check RTMA Jeffreys theory.R"
-get_D1 = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975) ) {
+get_D1 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   
-  gamma.i = get_gamma_i( .yi, .sei, .Mu, .T2t, .crit )
+  .T2t = .Tt^2
+  
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
   
   sum( (.yi - .Mu)/(.T2t + .sei^2) + gamma.i/sqrt(.T2t + .sei^2) ) 
 }
 
 
 
-get_D11 = function(.yi, .sei, .Mu, .T2t, .crit = qnorm(.975) ) {
+get_D11 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   
-  gamma.i = get_gamma_i( .yi, .sei, .Mu, .T2t, .crit )
+  
+  .T2t = .Tt^2
+  
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
   
   # "true" Z-score (including .T2t)
   Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
@@ -96,7 +105,7 @@ get_Zi_tilde = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
 
 get_D12 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   .T2t = .Tt^2
-  gamma.i = get_gamma_i( .yi, .sei, .Mu, .T2t, .crit )
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
   
   # "true" Z-score (including .T2t)
   Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
