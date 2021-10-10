@@ -56,9 +56,6 @@ get_gamma_i = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   .T2t = .Tt^2
   Zi = .yi/.sei
   
-  # variance of Zi
-  Vi = (1/.sei^2) * (.T2t + .sei^2)
-  
   # "true" Z-score (including .T2t)
   Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
   
@@ -102,6 +99,53 @@ get_Zi_tilde = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
 }
 
 
+# an intermediate quantity for get_D12
+get_D_gammai_wrt_tau = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
+  .T2t = .Tt^2
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  (Zi.tilde*gamma.i + gamma.i^2) * (.T2t + .sei^2)^(-3/2) * (.yi - .Mu) * .Tt
+}
+
+# term2: gamma.i / (.T2t + .sei^2)^(-1/2)
+term2 = function( .yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
+ 
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
+
+  gamma.i * (.Tt^2 + .sei^2)^(-1/2)
+}
+
+# THIS ONE DISAGREES WITH R!
+get_D12_term2_wrt_tau = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
+  .T2t = .Tt^2
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+
+  # first line of my derivative - matches below but is wrong!
+  term2.1 = (Zi.tilde*gamma.i + gamma.i^2) * (.T2t + .sei^2)^(-3/2) * (.yi - .Mu) * .Tt
+  expect_equal( term2.1, get_D_gammai_wrt_tau( .yi, .sei, .Mu, .Tt, .crit ) )
+  #**this is the key line to compare
+  line1 = term2.1*(.T2t + .sei^2)^(-1/2) - 0.5*(.T2t + .sei^2)^(-3/2) * 2*.Tt * gamma.i
+
+  # final (simplified) line
+  line2 = ( .Tt*(.T2t + .sei^2)^(-3/2) ) * ( (Zi.tilde*gamma.i + gamma.i^2)*Zi.tilde - gamma.i )
+
+  expect_equal(line1, line2)
+  
+  line2
+  
+  # what it should be, according to Deriv
+  # sum( ( 2*(.yi - .Mu)*(.sei^2 + .Tt^2)^(-1)*( Zi.tilde*gamma.i + gamma.i^2 )*.Tt ) -
+  #        gamma.i*(.sei^2 + .Tt^2)^(-3/2) * .Tt )
+
+}
+
+
 
 get_D12 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   .T2t = .Tt^2
@@ -110,10 +154,12 @@ get_D12 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   # "true" Z-score (including .T2t)
   Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
   
+  # term 3 will be d/d.Tt [ gamma.i / (.T2t + .sei^2)^(-1/2) ]
   term1 = (.yi - .Mu)/(.T2t + .sei^2)^2 * .Tt * (Zi.tilde*gamma.i + gamma.i^2)
   term2 = gamma.i*(.T2t + .sei^2)^(-3/2)
+  term3 = term1 + term2
   
-  term1 + term2
+  -2*sum( .Tt*(.yi - .Mu)/(.T2t + .sei^2)^(2) ) + sum(term3)
   
 }
 
