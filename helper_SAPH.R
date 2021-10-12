@@ -154,14 +154,81 @@ get_D12 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   # "true" Z-score (including .T2t)
   Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
   
-  # term 3 will be d/d.Tt [ gamma.i / (.T2t + .sei^2)^(-1/2) ]
-  term1 = (.yi - .Mu)/(.T2t + .sei^2)^2 * .Tt * (Zi.tilde*gamma.i + gamma.i^2)
-  term2 = gamma.i*(.T2t + .sei^2)^(-3/2)
-  term3 = term1 + term2
+  # # MINE USING THE APPARENTLY INCORRECT DERIVATIVE OF TERM2 
+  # # term 3 will be d/d.Tt [ gamma.i / (.T2t + .sei^2)^(-1/2) ]
+  # term1 = (.yi - .Mu)/(.T2t + .sei^2)^2 * .Tt * (Zi.tilde*gamma.i + gamma.i^2)
+  # term2 = gamma.i*(.T2t + .sei^2)^(-3/2) *.Tt
+  # term3 = term1 + term2
+  # -2*sum( .Tt*(.yi - .Mu)/(.T2t + .sei^2)^(2) ) + sum(term3)
+  # # END MINE
   
+  #browser()
+  
+  # USING R'S OWN DERIVATIVE OF TERM2
+  termA = (.yi - .Mu)/(.T2t + .sei^2) * 2*.Tt * (Zi.tilde*gamma.i + gamma.i^2)
+  termB = gamma.i*(.T2t + .sei^2)^(-3/2) *.Tt
+  termC = termA - termB  # notice sign change of term2
+  # sanity check on term2
+  get_D12_term2_wrt_tau_num = Deriv( term2, ".Tt") 
+  temp = get_D12_term2_wrt_tau_num(.yi, .sei, .Mu, .Tt, .crit)
+  expect_equal( sum(temp), sum(term3) )
+  
+  # final thing
   -2*sum( .Tt*(.yi - .Mu)/(.T2t + .sei^2)^(2) ) + sum(term3)
   
 }
+
+
+get_D2 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
+  
+  .T2t = .Tt^2
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
+
+  
+  sum( (.Tt/(.T2t + .sei^2)) * (Zi.tilde^2 + gamma.i*Zi.tilde - 1) ) 
+}
+
+
+
+get_D22 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
+  
+  .T2t = .Tt^2
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
+  
+  Tr = .Tt/(.T2t + .sei^2)
+  
+  term1 = sum( (Tr/.Tt - 2*Tr^2) * (Zi.tilde^2 + gamma.i*Zi.tilde - 1) )
+  
+  # # my second line
+  # # CORRECT
+  # term2.1 = get_D_Zi.tilde_wrt_tau( .yi, .sei, .Mu, .Tt, .crit )
+  # term2.2 = get_D_gammai_wrt_tau( .yi, .sei, .Mu, .Tt, .crit )
+  # # as in my second line (not fully simplified)
+  # term2 = sum( Tr * (2*Zi.tilde*term2.1 + term2.2*Zi.tilde + gamma.i*term2.1) )
+  # term1 + term2  # CORRECT
+  
+  # my final line
+  # DOESN'T MATCH
+  term2 = sum( Tr^2 * Zi.tilde * (Zi.tilde^2*gamma.i + Zi.tilde*gamma.i^2 - 2*Zi.tilde - gamma.i ) )
+  term1 + term2
+}
+
+# has been checked vs. Deriv()
+get_D_Zi.tilde_wrt_tau = function( .yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
+  -0.5*(.Tt^2 + .sei^2)^(-3/2) * (.yi - .Mu) * 2*.Tt
+}
+
+
+
+
 
 # 2021-5-3 FNS ---------------------------------------------------------------
 

@@ -100,7 +100,7 @@ res = res %>% rowwise() %>%
 expect_equal( res$num, res$theory )
 
 
-# ~~ Derivative 12 --------------------
+# ~~ Derivative 12 - still has issues --------------------
 
 ### Check all of D12
 # DOESN'T MATCH :(
@@ -150,7 +150,7 @@ Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
 # .Mu = 1
 # .Tt = 2
 temp1 = Deriv( get_Zi_tilde, ".Tt")( .yi, .sei, .Mu = .Mu, .Tt = .Tt ) 
-temp2 = -0.5*(.Tt^2 + .sei^2)^(-3/2) * (.yi - .Mu) * 2*.Tt
+temp2 = get_D_Zi.tilde_wrt_tau( .yi, .sei, .Mu = .Mu, .Tt = .Tt ) 
 expect_equal( temp1, temp2)
 
 ### Intermediate quantity: d gamma_i / d tau
@@ -222,4 +222,39 @@ term2.1 = get_D_gammai_wrt_tau( .yi = yi, .sei = sei, .Mu = Mu, .Tt = Tt )
 line1 = term2.1*(T2t + sei^2)^(-1/2) - 0.5*(T2t + sei^2)^(-3/2) * 2*Tt * gamma.i
 
 sum(line1)
+
+
+
+
+# ~~ Derivative 2 --------------------
+# MATCHES :)
+
+get_D2_num = Deriv(joint_ll_2, ".Tt")
+
+# compare to theoretical one at various (.Mu, .Tt)
+res = expand_grid( Mu = c(-1, 0.5, 1),
+                   Tt = c(0.1, 1, 2) )
+
+res = res %>% rowwise() %>%
+  mutate( num = get_D2_num( .yi = yi, .sei = sei, .Mu = Mu, .Tt = Tt ),
+          theory = get_D2( .yi = yi, .sei = sei, .Mu = Mu, .Tt = Tt ) )
+
+expect_equal( res$num, res$theory )
+
+
+# ~~ Derivative 22 --------------------
+
+get_D22_num = Deriv(get_D2_num, ".Tt")
+
+# compare to theoretical one at various (.Mu, .Tt)
+res = expand_grid( Mu = c(-1, 0.5, 1),
+                   Tt = c(0.1, 1, 2) )
+
+res = res %>% rowwise() %>%
+  mutate( num = get_D22_num( .yi = yi, .sei = sei, .Mu = Mu, .Tt = Tt ),
+          theory = get_D22( .yi = yi, .sei = sei, .Mu = Mu, .Tt = Tt ) )
+
+expect_equal( res$num, res$theory )
+
+
 
