@@ -62,7 +62,7 @@ get_gamma_i = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   dnorm(Zi.tilde) / pnorm(Zi.tilde)
 }
 
-
+# correct :)
 # second derivative, entry 11 (i.e., d^2/dmu^2)
 # structured for Deriv() usage
 # was checked vs. Deriv() in "Check RTMA Jeffreys theory.R"
@@ -76,7 +76,7 @@ get_D1 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
 }
 
 
-
+# correct :)
 get_D11 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   
   
@@ -90,7 +90,7 @@ get_D11 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   sum( (Zi.tilde*gamma.i + gamma.i^2)/(.T2t + .sei^2) - 1/(.T2t + .sei^2) ) 
 }
 
-
+# correct :)
 # just for checking intermediate derivative
 # **note change to Tt (tau) instead of T2t
 get_Zi_tilde = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
@@ -98,7 +98,7 @@ get_Zi_tilde = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
   (.yi - .Mu) / sqrt(.Tt^2 + .sei^2)
 }
 
-
+# correct :)
 # an intermediate quantity for get_D12
 get_D_gammai_wrt_tau = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
   .T2t = .Tt^2
@@ -117,6 +117,7 @@ term2 = function( .yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
 
   gamma.i * (.Tt^2 + .sei^2)^(-1/2)
 }
+
 
 # THIS ONE DISAGREES WITH R!
 get_D12_term2_wrt_tau = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
@@ -146,7 +147,7 @@ get_D12_term2_wrt_tau = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
 }
 
 
-
+# WRONG
 get_D12 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   .T2t = .Tt^2
   gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
@@ -178,7 +179,7 @@ get_D12 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   
 }
 
-
+# correct :)
 get_D2 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   
   .T2t = .Tt^2
@@ -193,7 +194,7 @@ get_D2 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
 }
 
 
-
+# correct :)
 get_D22 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   
   .T2t = .Tt^2
@@ -226,6 +227,21 @@ get_D_Zi.tilde_wrt_tau = function( .yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   -0.5*(.Tt^2 + .sei^2)^(-3/2) * (.yi - .Mu) * 2*.Tt
 }
 
+
+
+
+get_D21 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
+  
+  .T2t = .Tt^2
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
+  
+
+  sum( .Tt * (.T2t + .sei^2)^(-3/2) * ( Zi.tilde*(Zi.tilde*gamma.i + gamma.i^2) - 2*Zi.tilde - gamma.i ) )
+}
 
 
 

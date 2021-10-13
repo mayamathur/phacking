@@ -257,4 +257,19 @@ res = res %>% rowwise() %>%
 expect_equal( res$num, res$theory )
 
 
+# ~~ Derivative 21 --------------------
+
+get_D21_num = Deriv(get_D2_num, ".Mu")
+
+# compare to theoretical one at various (.Mu, .Tt)
+res = expand_grid( Mu = c(-1, 0.5, 1),
+                   Tt = c(0.1, 1, 2) )
+
+res = res %>% rowwise() %>%
+  mutate( num = get_D21_num( .yi = yi, .sei = sei, .Mu = Mu, .Tt = Tt ),
+          theory = get_D21( .yi = yi, .sei = sei, .Mu = Mu, .Tt = Tt ) )
+
+expect_equal( res$num, res$theory )
+
+
 
