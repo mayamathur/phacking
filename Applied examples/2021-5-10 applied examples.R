@@ -300,6 +300,12 @@ m1[[2]]$par[2]
 # eta
 1/m1[[2]]$par[3]
 
+# try Efron nonparametric method
+
+
+
+
+
 # SEPARATE MLES FOR EACH NONAFFIRMATIVE -----------------------------
 
 

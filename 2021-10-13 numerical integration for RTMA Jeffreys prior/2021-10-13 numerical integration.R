@@ -162,18 +162,85 @@ E_fisher_RTMA = function( .sei, .Mu, .Tt, .crit = qnorm(0.975) ) {
   
 }
 
-# for ONE observation
-integrate( function(x) integrand_D11(.yi = x, .sei = .sei, .Mu = .Mu, .Tt = .Tt),
-           lower = 0,
-           upper = Inf )
 
 
+E_fisher_RTMA( .sei = sei, .Mu = 0.5, .Tt = 0.2 )
 
 
+# ~ GET NLPOSTERIOR FOR JEFFREYS ----------------------------------------------------
 
+# STOLEN FROM TNE
+#BM :)
+nlpost_Jeffreys = function(.pars, par2is = "sd", .x, .a, .b) {
+  
+  # variance parameterization
+  if (par2is == "var") {
+    
+    .mu = .pars[1]
+    .var = .pars[2]
+    
+    if ( .var < 0 ) return(.Machine$integer.max)
+    
+    # as in nll()
+    term1 = dmvnorm(x = as.matrix(.x, nrow = 1),
+                    mean = as.matrix(.mu, nrow = 1),
+                    # sigma here is covariance matrix
+                    sigma = as.matrix(.var, nrow=1),
+                    log = TRUE)
+    
+    
+    term2 = length(.x) * log( pmvnorm(lower = .a,
+                                      upper = .b,
+                                      mean = .mu,
+                                      # remember sigma here is covariance matrix, not the SD
+                                      sigma = .var ) ) 
+    
+    term3 = log( sqrt( det( E_fisher(.mu = .mu, .sigma = sqrt(.var), .n = length(.x), .a = .a, .b = .b) ) ) )
+    
+    nlp.value = -( sum(term1) - term2 + term3 )
+    
+    if ( is.infinite(nlp.value) | is.na(nlp.value) ) return(.Machine$integer.max)
+  }
+  
+  # SD parameterization
+  if (par2is == "sd") {
+    
+    .mu = .pars[1]
+    .sigma = .pars[2]
+    
+    if ( .sigma < 0 ) return(.Machine$integer.max)
+    
+    # as in nll()
+    term1 = dmvnorm(x = as.matrix(.x, nrow = 1),
+                    mean = as.matrix(.mu, nrow = 1),
+                    # sigma here is covariance matrix,
+                    sigma = as.matrix(.sigma^2, nrow=1),
+                    log = TRUE)
+    
+    
+    term2 = length(.x) * log( pmvnorm(lower = .a,
+                                      upper = .b,
+                                      mean = .mu,
+                                      # remember sigma here is covariance matrix, not the SD
+                                      sigma = .sigma^2 ) ) 
+    
+    term3 = log( sqrt( det( E_fisher(.mu = .mu, .sigma = .sigma, .n = length(.x), .a = .a, .b = .b) ) ) )
+    
+    nlp.value = -( sum(term1) - term2 + term3 )
+    
+    if ( is.infinite(nlp.value) | is.na(nlp.value) ) return(.Machine$integer.max)
+  }
+  
+  nlp.value
+  
+}
 
-
-
-
+# same as nlpost_Jeffreys, but formatted for use with mle()
+# fn needs to be formatted exactly like this (no additional args)
+#  in order for mle() to understand
+nlpost_simple = function(.mu, .sigma) {
+  nlpost_Jeffreys(.pars = c(.mu, .sigma),
+                  .x = x, .a = p$a, .b = p$b)
+}
 
 
