@@ -669,6 +669,9 @@ correct_meta_phack2 = function( yi,
 
 # .obj: object returned by correct_meta_phack2
 # showAffirms: should it show all studies, even affirms?
+# black line = LOESS density of nonaffirms
+# red line = MLE from RTMA (parametric counterpart to the above)
+# blue line = LOESS density of all tstats (including affirms)
 plot_trunc_densities = function(.obj,
                                 showAffirms = FALSE) {
   

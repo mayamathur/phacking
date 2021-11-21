@@ -300,10 +300,28 @@ m1[[2]]$par[2]
 # eta
 1/m1[[2]]$par[3]
 
-# try Efron nonparametric method
 
 
 
+# ~ Try Efron nonparametric method  ---------------------
+
+#bm
+# lower and upper trunc limits for each yi
+dp$yi.cutoff = dp$tcrit * sqrt(dp$vi)
+
+
+library(double.truncation)
+NPMLE(u.trunc = dp$yi.cutoff,
+      y.trunc = dp$yi,
+      v.trunc = rep(99, nrow(dp) ) )
+
+# package example from Efron paper
+y.trunc=c(0.75, 1.25, 1.50, 1.05, 2.40, 2.50, 2.25)
+u.trunc=c(0.4, 0.8, 0.0, 0.3, 1.1, 2.3, 1.3)
+v.trunc=c(2.0, 1.8, 2.3, 1.4, 3.0, 3.4, 2.6)
+NPMLE(u.trunc,y.trunc,v.trunc)
+
+NPMLE( u.trunc, y.trunc, rep(99, length(y.trunc) ) )
 
 
 # SEPARATE MLES FOR EACH NONAFFIRMATIVE -----------------------------
