@@ -12,16 +12,189 @@
 # For more about the small-sample bias: # https://www.jstor.org/stable/2332719?seq=1#metadata_info_tab_contents
 
 
-# 2021-10-8 FNS OF RTMA JEFFREYS PRIOR ---------------------------------------------------------------
+# FNS OF RTMA JEFFREYS PRIOR ---------------------------------------------------------------
+
 
 # IMPORTANT NOTATION FOR THESE FNS:
 # .Mu: mean of effect sizes, not Z-scores
 # .T2t: total heterogeneity of effect sizes (=T2 + T2_within)
 
+# ~ 2021-11-22 Jeffreys prior fns ---------------
+
+#BM :)
+# .pars: (.Mu, .Tt) or (.Mu, .Tt2)
+nlpost_jeffreys = function( .pars,
+                            .par2is = "Tt",  # "Tt" or "Tt2"
+                            .yi,
+                            .sei,
+                            .crit = qnorm(.975),
+                            
+                            # if .usePrior = FALSE, will just be the MLE
+                            .usePrior = TRUE) {
+  
+  # variance parameterization
+  if (.par2is == "Tt2") stop("Var parameterization not handled yet")
+  
+  if (.par2is == "Tt") {
+    Mu = .pars[1]
+    Tt = .pars[2]
+    
+    if ( Tt < 0 ) return(.Machine$integer.max)
+    
+    # negative log-likelihood
+    nll.value = joint_nll_2( .yi = .yi,
+                             .sei = .sei,
+                             .Mu = Mu,
+                             .Tt = Tt,
+                             .crit = .crit )
+    
+    # log-prior
+    if ( usePrior == TRUE ) {
+      prior.value = lprior(.sei = .sei,
+                           .Mu = Mu,
+                           .Tt = Tt)
+    } else {
+      prior.value = 0
+    }
+    
+    # negative log-posterior
+    nlp.value = sum(nll.value) + prior.value
+    
+    if ( is.infinite(nlp.value) | is.na(nlp.value) ) return(.Machine$integer.max)
+  }
+  
+}
+
+
+
+# same as nlpost_jeffreys, but formatted for use with mle()
+# fn needs to be formatted exactly like this (no additional args)
+#  in order for mle() to understand
+#  expects yi, sei, and crit to be global vars
+nlpost_simple = function(.Mu, .Tt) {
+  
+  nlpost_jeffreys( .pars = c(.Mu, .Tt),
+                   .par2is = "Tt",
+                   .yi = yi,
+                   .sei = sei,
+                   .crit = crit )
+}
+
+
+lprior = function(.sei, .Mu, .Tt) {
+  
+  Efish = E_fisher_RTMA( .sei = .sei, .Mu = .Mu, .Tt = .Tt )
+  
+  log( sqrt( det(Efish) ) )
+  
+  
+}
+
+# expectation of -Dij wrt yi
+# "Vectorize" part is needed for this to work with integrate()
+#  because integrate() tries to pass a vector of .yi's
+integrand_Dij = Vectorize( function( i, j, .yi, .sei, .Mu, .Tt, .crit = qnorm(0.975) ) {
+  
+  # function of yi whose expectation we want
+  if ( i == 1 & j == 1 ) {
+    term1 = -get_D11(.yi = .yi,
+                     .sei = .sei,
+                     .Mu = .Mu,
+                     .Tt = .Tt)
+    
+  } else if ( ( i == 2 & j == 1 ) | ( i == 1 & j == 2 ) ) {
+    term1 = -get_D21(.yi = .yi,
+                     .sei = .sei,
+                     .Mu = .Mu,
+                     .Tt = .Tt)
+    
+  } else if ( i == 2 & j == 2 ) {
+    term1 = -get_D22(.yi = .yi,
+                     .sei = .sei,
+                     .Mu = .Mu,
+                     .Tt = .Tt)
+  }
+  
+  # density of yi
+  #@ IF .SEI=0, THIS TERM IS 0 EXCEPT FOR yi=0
+  # term2 = dtruncnorm( x = .yi,
+  #                     b = .crit * .sei )
+  
+  
+  # avoid dtruncnorm
+  # as in TNE
+  # which is taken closely from tmvnorm package's returned nll function
+  term2.log = dnorm(x = .yi,
+                    mean = .Mu,
+                    sd = .Tt,  
+                    log = TRUE)
+  
+  term3.log = sum( log( pmvnorm(lower = -99,
+                                upper = .crit * .sei,
+                                mean = .Mu,
+                                # note use of .Tt^2 here because of pmvnorm's different parameterization:
+                                sigma = .Tt^2 ) ) )
+  
+  
+  # integrand of expectation 
+  integrand = term1 * exp(term2.log + term3.log)
+  
+  if ( length(integrand) > 1 ) browser()
+  
+  # sometimes integrand can be NA for extreme values of yi, like -99
+  if ( is.na(integrand) ) integrand = 0
+  
+  return(integrand)
+  
+}, vectorize.args = ".yi" )
+
+
+# for a single choice of .Mu and .Tt and a vector of .yi, .sei
+E_fisher_RTMA = function( .sei, .Mu, .Tt, .crit = qnorm(0.975) ) {
+  
+  # dataframe to store the 4 integrals for each observation
+  .d = data.frame( sei = .sei )
+  
+  .d = .d %>% rowwise() %>%
+    mutate( F11 = integrate( function(x) integrand_Dij(i = 1, 
+                                                       j = 1, 
+                                                       .yi = x,
+                                                       .sei = sei,
+                                                       .Mu = .Mu,
+                                                       .Tt = .Tt),
+                             lower = -Inf,
+                             upper = Inf )$value,
+            
+            F21 = integrate( function(x) integrand_Dij(i = 2, 
+                                                       j = 1,
+                                                       .yi = x,
+                                                       .sei = sei,
+                                                       .Mu = .Mu,
+                                                       .Tt = .Tt),
+                             lower = -Inf,
+                             upper = Inf )$value,
+            
+            F22 = integrate( function(x) integrand_Dij(i = 2, 
+                                                       j = 2,
+                                                       .yi = x,
+                                                       .sei = sei,
+                                                       .Mu = .Mu,
+                                                       .Tt = .Tt),
+                             lower = -Inf,
+                             upper = Inf )$value )
+  
+  return( matrix( c( sum(.d$F11), sum(.d$F21), sum(.d$F21), sum(.d$F22) ),
+                  byrow = TRUE,
+                  nrow = 2 ) )
+  
+  
+}
+
+
 
 # RTMA log-likelihood
 # carefully structured for use with Deriv()
-joint_ll_2 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975)) {
+joint_nll_2 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975)) {
   
   .T2t = .Tt^2
   
@@ -36,15 +209,15 @@ joint_ll_2 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975)) {
   # can't use dtrunc or even dnorm and pnorm in here because Deriv is too stupid
   
   k = length(.yi)
-
+  
   # regular meta-analysis part
+  # c.f. "SAPH theory - tier 2"
   term1 = -0.5*k*log(2*pi) - 0.5*sum( log(Vi) ) -
     0.5*sum( (.yi/.sei - Mi)^2 / Vi ) 
-
+  
   # truncation part
   term2 = -sum( log( pnorm(Zi.tilde) ) )
-
-
+  
   term1 + term2
 }
 
@@ -61,6 +234,10 @@ get_gamma_i = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   
   dnorm(Zi.tilde) / pnorm(Zi.tilde)
 }
+
+
+# ~ 2021-10-8 Derivative fns ---------------
+# **Tests for these "DXX" fns are in "Check RTMA Jeffreys theory.R"
 
 # correct :)
 # second derivative, entry 11 (i.e., d^2/dmu^2)
@@ -112,9 +289,9 @@ get_D_gammai_wrt_tau = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
 
 # term2: gamma.i / (.T2t + .sei^2)^(-1/2)
 term2 = function( .yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
- 
+  
   gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
-
+  
   gamma.i * (.Tt^2 + .sei^2)^(-1/2)
 }
 
@@ -126,16 +303,16 @@ get_D12_term2_wrt_tau = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
   
   # "true" Z-score (including .T2t)
   Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
-
+  
   # first line of my derivative - matches below but is wrong!
   term2.1 = (Zi.tilde*gamma.i + gamma.i^2) * (.T2t + .sei^2)^(-3/2) * (.yi - .Mu) * .Tt
   expect_equal( term2.1, get_D_gammai_wrt_tau( .yi, .sei, .Mu, .Tt, .crit ) )
   #**this is the key line to compare
   line1 = term2.1*(.T2t + .sei^2)^(-1/2) - 0.5*(.T2t + .sei^2)^(-3/2) * 2*.Tt * gamma.i
-
+  
   # final (simplified) line
   line2 = ( .Tt*(.T2t + .sei^2)^(-3/2) ) * ( (Zi.tilde*gamma.i + gamma.i^2)*Zi.tilde - gamma.i )
-
+  
   expect_equal(line1, line2)
   
   line2
@@ -143,7 +320,7 @@ get_D12_term2_wrt_tau = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
   # what it should be, according to Deriv
   # sum( ( 2*(.yi - .Mu)*(.sei^2 + .Tt^2)^(-1)*( Zi.tilde*gamma.i + gamma.i^2 )*.Tt ) -
   #        gamma.i*(.sei^2 + .Tt^2)^(-3/2) * .Tt )
-
+  
 }
 
 
@@ -188,7 +365,7 @@ get_D2 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
   
   gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
-
+  
   
   sum( (.Tt/(.T2t + .sei^2)) * (Zi.tilde^2 + gamma.i*Zi.tilde - 1) ) 
 }
@@ -239,7 +416,7 @@ get_D21 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
   
   gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
   
-
+  
   sum( .Tt * (.T2t + .sei^2)^(-3/2) * ( Zi.tilde*(Zi.tilde*gamma.i + gamma.i^2) - 2*Zi.tilde - gamma.i ) )
 }
 
@@ -404,17 +581,17 @@ correct_dataset_phack = function( .dp,  # published studies
 #  and throws away the affirms
 # **note that the returned Vhat is an estimate of T2 + t2w, not T2 itself
 correct_meta_phack1 = function( .dp,  # published studies
-                                  .p  # parameters as dataframe
-                                   ) { 
+                                .p  # parameters as dataframe
+) { 
   
   
   # published affirmatives only
   dpn = .dp[ .dp$affirm == FALSE, ]
   
-
+  
   #@ assumes they all have same se:
   crit = unique(dpn$tcrit)
-
+  
   
   ### MLEs from trunc normal ###
   # these are the MLEs of the *t-stats*
@@ -434,7 +611,7 @@ correct_meta_phack1 = function( .dp,  # published studies
   tstat.mu.SE = attr( summary(mle.fit), "coef" )[ "mu_1", "Std. Error" ]
   tstat.mu.CI = c( mles[1] - tstat.mu.SE * qnorm(0.975),
                    mles[1] + tstat.mu.SE * qnorm(0.975) )
-
+  
   # # pretty good :)
   # mles[1]; p$Mu/p$se
   # mles[2]; (1/p$se^2) * (p$T2 + p$t2w + p$se^2)
@@ -452,16 +629,16 @@ correct_meta_phack1 = function( .dp,  # published studies
   # without delta method:
   
   theoryExpTstat = extrunc(spec = "norm",
-                          mean =.p$Mu /.p$se,
-                          #@doesn't use the delta-method thing
-                          sd = sqrt( (1/.p$se^2) * (.p$T2 +.p$t2w +.p$se^2) ),
-                          b = crit )
-
+                           mean =.p$Mu /.p$se,
+                           #@doesn't use the delta-method thing
+                           sd = sqrt( (1/.p$se^2) * (.p$T2 +.p$t2w +.p$se^2) ),
+                           b = crit )
+  
   theoryVarTstat = vartrunc(spec = "norm",
-           mean =.p$Mu /.p$se,
-           #@doesn't use the delta-method thing
-           sd = sqrt( (1/.p$se^2) * (.p$T2 +.p$t2w +.p$se^2) ),
-           b = crit )
+                            mean =.p$Mu /.p$se,
+                            #@doesn't use the delta-method thing
+                            sd = sqrt( (1/.p$se^2) * (.p$T2 +.p$t2w +.p$se^2) ),
+                            b = crit )
   
   # delta-method version (not checked and seems not to work):
   # library(msm)
@@ -478,61 +655,61 @@ correct_meta_phack1 = function( .dp,  # published studies
   #         sd = correctedSE,
   #         b = crit )
   
-
+  
   ### Return all the things ###
   return( list( metaCorr = data.frame( MhatCorr = Mhat,
                                        MhatLoCorr = MhatCI[1],
                                        MhatHiCorr = MhatCI[2],
                                        MhatCoverCorr = ( MhatCI[1] <=.p$Mu ) & ( MhatCI[2] >=.p$Mu ),
                                        VhatCorr = Vhat),
-
-               
-               # **note that all of these stats pertain to only published nonaffirmatives
-               sanityChecks = data.frame( kNonaffirmPub = nrow(dpn),
-                                          kNonaffirmPubUnhacked = sum( dpn$hack == "no" ),
-                                          kNonaffirmPubHacked = sum( dpn$hack ==.p$hack ),
-                                          
-                                          ### check that moments of published nonaffirms are what we expect
-                                          TheoryExpTstat = theoryExpTstat,
-                                          # below should match TheoryExpTstat IF all nonaffirms are from unhacked
-                                          #  study sets, but otherwise may not match:
-                                          MeanTstat = mean(dpn$tstat), 
-                                          # mean of t-stats from published nonaffirms from
-                                          #  unhacked study sets (should match TheoryExpTstat)
-                                          MeanTstatUnhacked = mean( dpn$tstat[dpn$hack == "no" ] ),
-                                          # mean of t-stats from published nonaffirms from
-                                          #  hacked study sets (may not match TheoryExpTstat)
-                                          MeanTstatHacked = mean( dpn$tstat[dpn$hack ==.p$hack ] ),
-                                          
-                                          TheoryVarTstat = theoryVarTstat,
-                                          EstVarTstat = var(dpn$tstat),
-                                          # should match theory:
-                                          EstVarTstatUnhacked = var( dpn$tstat[dpn$hack == "no" ] ),
-                                          EstVarTstatHacked = var( dpn$tstat[dpn$hack ==.p$hack ] ),
-                                          
-                                          # MLEs of the t-stats themselves (before rescaling using the SE)
-                                          # *marginal* t-stats (underlying distribution rather than truncated one)
-                                          TheoryExpTstatMarg = .p$Mu/.p$se,
-                                          tstatMeanMLE = mles[1],
-                                          tstatMeanMLELo = tstat.mu.CI[1],
-                                          tstatMeanMLEHi = tstat.mu.CI[2],
-                                          tstatMeanMLECover = (tstat.mu.CI[1] <= .p$Mu/.p$se) & (tstat.mu.CI[2] >= .p$Mu/.p$se),
-                                        
-                                          # other stats
-                                          Mean.yi = mean(dpn$yi),
-                                          Mean.yi.Unhacked = mean( dpn$yi[dpn$hack == "no" ] ),
-                                          Mean.yi.Hacked = mean( dpn$yi[dpn$hack ==.p$hack ] ),
-                                          
-                                          Mean.vi = mean(dpn$vi),
-                                          Mean.vi.Unhacked = mean( dpn$vi[dpn$hack == "no" ] ),
-                                          Mean.vi.Hacked = mean( dpn$vi[dpn$hack ==.p$hack ] ),
-                                          
-                                          # stats about all published studies
-                                          dp.k = nrow(.dp),
-                                          dp.kAffirm = sum(.dp$affirm == TRUE),
-                                          dp.kNonaffirm = sum(.dp$affirm == FALSE),
-                                          dp.Nrealized = mean(.dp$N)
-                                          )
+                
+                
+                # **note that all of these stats pertain to only published nonaffirmatives
+                sanityChecks = data.frame( kNonaffirmPub = nrow(dpn),
+                                           kNonaffirmPubUnhacked = sum( dpn$hack == "no" ),
+                                           kNonaffirmPubHacked = sum( dpn$hack ==.p$hack ),
+                                           
+                                           ### check that moments of published nonaffirms are what we expect
+                                           TheoryExpTstat = theoryExpTstat,
+                                           # below should match TheoryExpTstat IF all nonaffirms are from unhacked
+                                           #  study sets, but otherwise may not match:
+                                           MeanTstat = mean(dpn$tstat), 
+                                           # mean of t-stats from published nonaffirms from
+                                           #  unhacked study sets (should match TheoryExpTstat)
+                                           MeanTstatUnhacked = mean( dpn$tstat[dpn$hack == "no" ] ),
+                                           # mean of t-stats from published nonaffirms from
+                                           #  hacked study sets (may not match TheoryExpTstat)
+                                           MeanTstatHacked = mean( dpn$tstat[dpn$hack ==.p$hack ] ),
+                                           
+                                           TheoryVarTstat = theoryVarTstat,
+                                           EstVarTstat = var(dpn$tstat),
+                                           # should match theory:
+                                           EstVarTstatUnhacked = var( dpn$tstat[dpn$hack == "no" ] ),
+                                           EstVarTstatHacked = var( dpn$tstat[dpn$hack ==.p$hack ] ),
+                                           
+                                           # MLEs of the t-stats themselves (before rescaling using the SE)
+                                           # *marginal* t-stats (underlying distribution rather than truncated one)
+                                           TheoryExpTstatMarg = .p$Mu/.p$se,
+                                           tstatMeanMLE = mles[1],
+                                           tstatMeanMLELo = tstat.mu.CI[1],
+                                           tstatMeanMLEHi = tstat.mu.CI[2],
+                                           tstatMeanMLECover = (tstat.mu.CI[1] <= .p$Mu/.p$se) & (tstat.mu.CI[2] >= .p$Mu/.p$se),
+                                           
+                                           # other stats
+                                           Mean.yi = mean(dpn$yi),
+                                           Mean.yi.Unhacked = mean( dpn$yi[dpn$hack == "no" ] ),
+                                           Mean.yi.Hacked = mean( dpn$yi[dpn$hack ==.p$hack ] ),
+                                           
+                                           Mean.vi = mean(dpn$vi),
+                                           Mean.vi.Unhacked = mean( dpn$vi[dpn$hack == "no" ] ),
+                                           Mean.vi.Hacked = mean( dpn$vi[dpn$hack ==.p$hack ] ),
+                                           
+                                           # stats about all published studies
+                                           dp.k = nrow(.dp),
+                                           dp.kAffirm = sum(.dp$affirm == TRUE),
+                                           dp.kNonaffirm = sum(.dp$affirm == FALSE),
+                                           dp.Nrealized = mean(.dp$N)
+                )
   ) )
   
 }
@@ -558,7 +735,7 @@ report_rma = function(.mod,
                        NA )
   }
   
-
+  
   names(.res) = paste( c("Mhat", "MhatLo", "MhatHi", "MhatCover", "MhatPval"), .suffix, sep = "" )
   return(.res)
 }
@@ -614,7 +791,7 @@ correct_meta_phack2 = function( yi,
   #@think about this again in light of SEs differing across studies
   #MhatCI = tstat.mu.CI * .p$se
   MhatCI = c(NA, NA)
-
+  
   ### Naive Meta-Analysis ###
   
   metaNaive = rma.uni( yi = yi,
@@ -634,28 +811,28 @@ correct_meta_phack2 = function( yi,
                 
                 # **note that all of these stats pertain to only published nonaffirmatives
                 sanityChecks = data.frame( kNonaffirmPub = nrow(dpn),
-                                          
+                                           
                                            # MLEs of the t-stats themselves (before rescaling using the SE)
                                            # marginal t-stats (underlying distribution rather than truncated one)
-                                         
+                                           
                                            
                                            tstatMeanMLE = mles[1],
                                            tstatMeanMLELo = tstat.mu.CI[1],
                                            tstatMeanMLEHi = tstat.mu.CI[2],
                                            
                                            tstatVarMLE = mles[2],
-                                          
+                                           
                                            
                                            # other stats
                                            Mean.yi = mean(dpn$yi),
-                                          
+                                           
                                            Mean.vi = mean(dpn$vi),
-                                         
+                                           
                                            # stats about all published studies
                                            dp.k = nrow(d),
                                            dp.kAffirm = sum(d$affirm == TRUE),
                                            dp.kNonaffirm = sum(d$affirm == FALSE)
-                               
+                                           
                 ),
                 
                 data = d,
@@ -686,7 +863,7 @@ plot_trunc_densities = function(.obj,
   xmax = ceiling(max(dn$tstat))
   
   p = ggplot(data = data.frame(x = c(xmin, 3)),
-         aes(x)) +
+             aes(x)) +
     
     geom_vline(xintercept = 0,
                lwd = 1,
@@ -697,14 +874,14 @@ plot_trunc_densities = function(.obj,
     #            lwd = 1,
     #            color = "red") +
     
-  
+    
     # estimated density of estimates
     geom_density( data = dn,
                   aes(x = tstat),
                   adjust = .3 ) + 
-  
-  
-
+    
+    
+    
     # estimated density from meta-analysis
     stat_function( fun = dtrunc,
                    n = 101,
@@ -717,7 +894,7 @@ plot_trunc_densities = function(.obj,
                    color = "red") +
     
     #bm: got histogram to work with density in terms of scaling, but not yet the stat_function
-
+    
     
     ylab("") +
     #scale_x_continuous( breaks = seq(xmin, 3, 0.5)) +
@@ -805,7 +982,7 @@ quick_sim = function(.p,
                hack = .p$hack,
                return.only.published = FALSE,
                rho = .p$rho,
-
+               
                k = .p$k,
                k.hacked = .p$k.hacked )
   
@@ -854,7 +1031,7 @@ quick_sim = function(.p,
   
   res[ "empiricalExp", "affirms" ] = mean( dph$tstat[ dph$affirm == TRUE ] )
   
-
+  
   ## Variance of affirmatives
   res[ "theoryVar", "affirms" ] = vartrunc( spec = "norm",
                                             mean = Mu / se,
@@ -903,7 +1080,7 @@ sim_meta = function(Nmax,  # max draws to try
                     se,  # TRUE SE
                     
                     rho = 0,  # autocorrelation of muin's
-                
+                    
                     hack,  # mechanism of hacking for studies that DO hack (so not "no")
                     
                     # args not passed to sim_one_study_set:
@@ -1100,7 +1277,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
                              
                              # for correlated draws; see make_one_draw
                              rho = 0
-                              ) {  
+) {  
   
   
   # # test only
@@ -1118,23 +1295,23 @@ sim_one_study_set = function(Nmax,  # max draws to try
   mui = Mu + rnorm(mean = 0,
                    sd = sqrt(T2),
                    n = 1)
-
+  
   # TRUE SD (not estimated)
   sd.y = se * sqrt(m)
-
+  
   # collect all args from outer fn, including default ones
   .args = mget(names(formals()), sys.frame(sys.nframe()))
   .args$mui = mui
   .args$sd.y = sd.y
-
-
+  
+  
   stop = FALSE  # indicator for whether to stop drawing results
   N = 0  # counts draws actually made
-
-
+  
+  
   # we use this loop whether there's hacking or not
   while( stop == FALSE & N < Nmax ) {
-
+    
     if ( rho == 0 ) {
       # make uncorrelated draw
       newRow = do.call( make_one_draw, .args )
@@ -1144,15 +1321,15 @@ sim_one_study_set = function(Nmax,  # max draws to try
       if ( N > 0 ) .args$last.muin = d$muin[ nrow(d) ]
       newRow = do.call( make_one_draw, .args )
     }
-
-
+    
+    
     # number of draws made so far
     N = N + 1
-
+    
     # add new draw to dataset
     if ( N == 1 ) d = newRow
     if ( N > 1 ) d = rbind( d, newRow )
-
+    
     # check if it's time to stop drawing results
     if (hack == "signif") {
       stop = (newRow$pval < 0.05)
@@ -1167,28 +1344,28 @@ sim_one_study_set = function(Nmax,  # max draws to try
     }
     
   }  # end while-loop
-
+  
   # record info in dataset
   d$N = N
   d$hack = hack
-
+  
   # empirical correlation of muin's
   #  but note this will be biased for rho in small samples (i.e., Nmax small)
   if ( nrow(d) > 1 ) {
     # get lag-1 autocorrelation
     d$rhoEmp = cor( d$muin[ 2:length(d$muin) ],
                     d$muin[ 1: ( length(d$muin) - 1 ) ] )
-
+    
     # mostly for debugging; could remove later
     d$covEmp = cov( d$muin[ 2:length(d$muin) ],
                     d$muin[ 1: ( length(d$muin) - 1 ) ] )
-
+    
   } else {
     d$rhoEmp = NA
     d$covEmp = NA
   }
-
-
+  
+  
   
   # convenience indicators for significance and affirmative status
   d$signif = d$pval < 0.05
