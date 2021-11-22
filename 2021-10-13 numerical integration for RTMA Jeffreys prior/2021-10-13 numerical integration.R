@@ -92,40 +92,12 @@ sei = sqrt(dm$vi)
 .yi = yi
 .sei = sei
 
-E_fisher_RTMA( .sei = sei, .Mu = 0.5, .Tt = 0.2 )
+E_fisher_RTMA_OLD( .sei = sei, .Mu = 0.5, .Tt = 0.2 )
 
 
 # ~ SANITY CHECK: PRIOR SHD BE SPECIAL CASE OF TNE PRIOR ----------------------------------------------------
 
 # if sei -> 0, priors should agree
-
-# verbatim from TNE
-E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
-  
-  # prevent infinite cutpoints
-  # if either cutpoint is infinite, there are numerical issues because the alpha*Z terms
-  #  below are 0*Inf
-  Za = max( -99, (.a - .mu) / .sigma )
-  Zb = min( 99, (.b - .mu) / .sigma )
-  
-  alpha.a = dnorm(Za) / ( pnorm(Zb) - pnorm(Za) )
-  alpha.b = dnorm(Zb) / ( pnorm(Zb) - pnorm(Za) )
-  
-  k11 = -(.n/.sigma^2) + (.n/.sigma^2)*( (alpha.b - alpha.a)^2 + (alpha.b*Zb - alpha.a*Za) )
-  
-  k12 = -( 2*.n*(alpha.a - alpha.b) / .sigma^2 ) +
-    (.n/.sigma^2)*( alpha.a - alpha.b + alpha.b*Zb^2 - alpha.a*Za^2 +
-                      (alpha.a - alpha.b)*(alpha.a*Za - alpha.b*Zb) )
-  
-  k22 = (.n/.sigma^2) - (3*.n*(1 + alpha.a*Za - alpha.b*Zb) / .sigma^2) +
-    (.n/.sigma^2)*( Zb*alpha.b*(Zb^2 - 2) - Za*alpha.a*(Za^2 - 2) +
-                      (alpha.b*Zb - alpha.a*Za)^2 )
-  
-  return( matrix( c(-k11, -k12, -k12, -k22),
-                  nrow = 2,
-                  byrow = TRUE ) )
-}
-
 
 
 
@@ -158,7 +130,7 @@ kpub = nrow(dp)
                           .b = 0 ) )
 
 # this one isn't even def'd
-( Efish.RTMA = E_fisher_RTMA( .sei = sqrt(dp$vi),
+( Efish.RTMA = E_fisher_RTMA_OLD( .sei = sqrt(dp$vi),
                               .Mu = Mu,
                               .Tt = Tt ) )
 
@@ -206,6 +178,38 @@ kpub = nrow(dp)
 #               .Tt = 2)
 
 
+
+# ~~ Alternative: Use TNE version for each one ----------------------------------------------------
+
+#bm
+# idea of using just one of these!!
+
+# Fisher info for each observation separately, based on its unique SE
+E_fishers = lapply( X = as.list( dp$vi ),
+                    FUN = function(v) {
+                      E_fisher_TNE( .mu = Mu,
+                                    .sigma = sqrt( Tt^2 + v ), 
+                                    .n = 1,
+                                    .a = -99,
+                                    .b = 0 )
+                    })
+
+
+# add all the matrices entrywise
+# https://stackoverflow.com/questions/11641701/sum-a-list-of-matrices
+( Efish.TNE.2 = Reduce('+', E_fishers) )
+
+expect_equal(Efish.TNE.2, Efish.TNE)
+
+# E_fisher_TNE( .mu = Mu,
+#               .sigma = Tt, 
+#               .n = 1,
+#               .a = -99,
+#               .b = 0 )
+
+# now maybe try a case where SEs are different across studies
+
+
 # ~ SANITY CHECK: AGREEMENT WITH MLE ----------------------------------------------------
 
 # check that not using the prior agrees with mle
@@ -217,132 +221,132 @@ kpub = nrow(dp)
 
 
 
-
-if ( redo.contour.plot == TRUE ) {
-  # figure out how low we can go with sigma before getting NAs in lkl
-  # because geom_contour will behave badly if there are too many NAs (a few is okay)
-  lprior(.sei = 1,
-         .Mu = 0,
-         .Tt = 3)
-  
-  # set parameters for all plot facets
-  prop.retained = .5
-  n = 20
-  # underlying mu and sigma, only used for calculating cut points on raw scale
-  mu = 0
-  sigma = 1
-  
-  dp = expand.grid( .n = c(n),
-                    .mu = seq(-2, 8, .1),
-                    .sigma = seq(0.5, 2, .1),
-                    .trunc.type = c("Single", "Symmetric double", "Asymmetric double", "No truncation") )
-  
-  # not facetting on n anymore
-  # dp$n.pretty = paste( "n = ", dp$.n, sep = "" )
-  # dp$n.pretty = factor( dp$n.pretty, levels = c("n = 10",
-  #                                               "n = 50",
-  #                                               "n = 1000") )
-  
-  # calculate cutpoints that all retain same proportion ASSUMING that truth is mu=0, sigma=1
-  # only need to calculate once for each truncation type
-  ( single.cuts = calculate_cutpoints(.trunc.type = "Single",
-                                      .prop.retained = prop.retained) )
-  ( double.symm.cuts = calculate_cutpoints(.trunc.type = "Symmetric double",
-                                           .prop.retained = prop.retained) )
-  ( double.asymm.cuts = calculate_cutpoints(.trunc.type = "Asymmetric double",
-                                            .prop.retained = prop.retained) )
-  
-  
-  # set cutpoints on raw scale equal to the ones on the Z-scale
-  # because, again, we assumed mu=0, sigma=1 above to hold constant prop.retained
-  dp$a = dp$b = NA
-  dp$a[ dp$.trunc.type == "Single" ] = single.cuts$Za
-  dp$a[ dp$.trunc.type == "Symmetric double" ] = double.symm.cuts$Za
-  dp$a[ dp$.trunc.type == "Asymmetric double" ] = double.asymm.cuts$Za
-  #dp$a[ dp$.trunc.type == "Asymmetric double" ] = -4 #@TEST ONLY
-  
-  dp$b[ dp$.trunc.type == "Single" ] = single.cuts$Zb
-  dp$b[ dp$.trunc.type == "Symmetric double" ] = double.symm.cuts$Zb
-  dp$b[ dp$.trunc.type == "Asymmetric double" ] = double.asymm.cuts$Zb
-  #dp$b[ dp$.trunc.type == "Asymmetric double" ] = -0.25 #@TEST ONLY
-  
-  dp$a[ dp$.trunc.type == "No truncation" ] = -Inf
-  dp$b[ dp$.trunc.type == "No truncation" ] = Inf
-  
-  table( dp$.trunc.type, round(dp$a, 2) )
-  table( dp$.trunc.type, round(dp$b, 2) )
-  
-  # prettify trunc type variable
-  dp$trunc.type.pretty = paste( dp$.trunc.type,
-                                " [",
-                                round(dp$a, 2),
-                                ", ",
-                                round(dp$b, 2),
-                                "]",
-                                sep = "" )
-  current.levels = unique(dp$trunc.type.pretty)
-  dp$trunc.type.pretty = factor( dp$trunc.type.pretty,
-                                 levels = c( current.levels[ grepl(pattern = "No truncation", x = current.levels) ],
-                                             current.levels[ grepl(pattern = "Single", x = current.levels) ],
-                                             current.levels[ grepl(pattern = "Symmetric", x = current.levels) ],
-                                             current.levels[ grepl(pattern = "Asymmetric", x = current.levels) ] ) 
-                                 levels( factor(dp$trunc.type.pretty) )
-                                 
-                                 # make plotting dataframe by calculating log-prior for a grid of values (mu, sigma)
-                                 dp = dp %>%
-                                   rowwise() %>%
-                                   mutate( lprior = lprior_Jeffreys( .pars = c(.mu, .sigma),
-                                                                     par2is = "sd",
-                                                                     .n = .n, 
-                                                                     
-                                                                     .a = a,
-                                                                     .b = b)  )
-                                 
-                                 # check again for NA values occurring when EFisher is NA and remove them
-                                 table(is.na(dp$lprior))
-                                 dp = dp %>% filter( !is.na(lprior) )
-                                 
-                                 # set up colors for contours
-                                 get_colors = colorRampPalette( c("lemonchiffon1", "chocolate4") )
-                                 myColors = get_colors(n=11)  # chose 11 based on errors from ggplot if it was fewer
-                                 
-                                 # make plot
-                                 p = ggplot( data = dp, 
-                                             aes(x = .mu,
-                                                 y = .sigma,
-                                                 z = lprior) ) +
-                                   
-                                   geom_contour_filled() +
-                                   
-                                   # close, but not enough colors
-                                   scale_fill_manual(values = myColors) +
-                                   
-                                   geom_contour(color = "white") +
-                                   
-                                   xlab( bquote(mu) ) +
-                                   ylab( bquote(sigma) ) +
-                                   
-                                   geom_vline( xintercept = 0, lty = 2 ) +
-                                   
-                                   facet_wrap( trunc.type.pretty ~.,
-                                               scales = "fixed" ) +
-                                   
-                                   scale_y_continuous(breaks = seq( min(dp$.sigma), max(dp$.sigma), 0.5),
-                                                      limits = c( min(dp$.sigma), max(dp$.sigma) ) ) +
-                                   
-                                   theme_bw(base_size = 16) +
-                                   theme(text = element_text(face = "bold"),
-                                         axis.title = element_text(size=20),
-                                         legend.position = "none")
-                                 
-                                 
-                                 my_ggsave( name = "jeffreys_prior_contours.pdf",
-                                            .width = 8,
-                                            .height = 8,
-                                            .results.dir = results.dir,
-                                            .overleaf.dir.general = overleaf.dir.figs )
-}  # end if(redo.plots == TRUE)
-
+# # STRAIGHT FROM TNE
+# if ( redo.contour.plot == TRUE ) {
+#   # figure out how low we can go with sigma before getting NAs in lkl
+#   # because geom_contour will behave badly if there are too many NAs (a few is okay)
+#   lprior(.sei = 1,
+#          .Mu = 0,
+#          .Tt = 3)
+#   
+#   # set parameters for all plot facets
+#   prop.retained = .5
+#   n = 20
+#   # underlying mu and sigma, only used for calculating cut points on raw scale
+#   mu = 0
+#   sigma = 1
+#   
+#   dp = expand.grid( .n = c(n),
+#                     .mu = seq(-2, 8, .1),
+#                     .sigma = seq(0.5, 2, .1),
+#                     .trunc.type = c("Single", "Symmetric double", "Asymmetric double", "No truncation") )
+#   
+#   # not facetting on n anymore
+#   # dp$n.pretty = paste( "n = ", dp$.n, sep = "" )
+#   # dp$n.pretty = factor( dp$n.pretty, levels = c("n = 10",
+#   #                                               "n = 50",
+#   #                                               "n = 1000") )
+#   
+#   # calculate cutpoints that all retain same proportion ASSUMING that truth is mu=0, sigma=1
+#   # only need to calculate once for each truncation type
+#   ( single.cuts = calculate_cutpoints(.trunc.type = "Single",
+#                                       .prop.retained = prop.retained) )
+#   ( double.symm.cuts = calculate_cutpoints(.trunc.type = "Symmetric double",
+#                                            .prop.retained = prop.retained) )
+#   ( double.asymm.cuts = calculate_cutpoints(.trunc.type = "Asymmetric double",
+#                                             .prop.retained = prop.retained) )
+#   
+#   
+#   # set cutpoints on raw scale equal to the ones on the Z-scale
+#   # because, again, we assumed mu=0, sigma=1 above to hold constant prop.retained
+#   dp$a = dp$b = NA
+#   dp$a[ dp$.trunc.type == "Single" ] = single.cuts$Za
+#   dp$a[ dp$.trunc.type == "Symmetric double" ] = double.symm.cuts$Za
+#   dp$a[ dp$.trunc.type == "Asymmetric double" ] = double.asymm.cuts$Za
+#   #dp$a[ dp$.trunc.type == "Asymmetric double" ] = -4 #@TEST ONLY
+#   
+#   dp$b[ dp$.trunc.type == "Single" ] = single.cuts$Zb
+#   dp$b[ dp$.trunc.type == "Symmetric double" ] = double.symm.cuts$Zb
+#   dp$b[ dp$.trunc.type == "Asymmetric double" ] = double.asymm.cuts$Zb
+#   #dp$b[ dp$.trunc.type == "Asymmetric double" ] = -0.25 #@TEST ONLY
+#   
+#   dp$a[ dp$.trunc.type == "No truncation" ] = -Inf
+#   dp$b[ dp$.trunc.type == "No truncation" ] = Inf
+#   
+#   table( dp$.trunc.type, round(dp$a, 2) )
+#   table( dp$.trunc.type, round(dp$b, 2) )
+#   
+#   # prettify trunc type variable
+#   dp$trunc.type.pretty = paste( dp$.trunc.type,
+#                                 " [",
+#                                 round(dp$a, 2),
+#                                 ", ",
+#                                 round(dp$b, 2),
+#                                 "]",
+#                                 sep = "" )
+#   current.levels = unique(dp$trunc.type.pretty)
+#   dp$trunc.type.pretty = factor( dp$trunc.type.pretty,
+#                                  levels = c( current.levels[ grepl(pattern = "No truncation", x = current.levels) ],
+#                                              current.levels[ grepl(pattern = "Single", x = current.levels) ],
+#                                              current.levels[ grepl(pattern = "Symmetric", x = current.levels) ],
+#                                              current.levels[ grepl(pattern = "Asymmetric", x = current.levels) ] ) 
+#                                  levels( factor(dp$trunc.type.pretty) )
+#                                  
+#                                  # make plotting dataframe by calculating log-prior for a grid of values (mu, sigma)
+#                                  dp = dp %>%
+#                                    rowwise() %>%
+#                                    mutate( lprior = lprior_Jeffreys( .pars = c(.mu, .sigma),
+#                                                                      par2is = "sd",
+#                                                                      .n = .n, 
+#                                                                      
+#                                                                      .a = a,
+#                                                                      .b = b)  )
+#                                  
+#                                  # check again for NA values occurring when EFisher is NA and remove them
+#                                  table(is.na(dp$lprior))
+#                                  dp = dp %>% filter( !is.na(lprior) )
+#                                  
+#                                  # set up colors for contours
+#                                  get_colors = colorRampPalette( c("lemonchiffon1", "chocolate4") )
+#                                  myColors = get_colors(n=11)  # chose 11 based on errors from ggplot if it was fewer
+#                                  
+#                                  # make plot
+#                                  p = ggplot( data = dp, 
+#                                              aes(x = .mu,
+#                                                  y = .sigma,
+#                                                  z = lprior) ) +
+#                                    
+#                                    geom_contour_filled() +
+#                                    
+#                                    # close, but not enough colors
+#                                    scale_fill_manual(values = myColors) +
+#                                    
+#                                    geom_contour(color = "white") +
+#                                    
+#                                    xlab( bquote(mu) ) +
+#                                    ylab( bquote(sigma) ) +
+#                                    
+#                                    geom_vline( xintercept = 0, lty = 2 ) +
+#                                    
+#                                    facet_wrap( trunc.type.pretty ~.,
+#                                                scales = "fixed" ) +
+#                                    
+#                                    scale_y_continuous(breaks = seq( min(dp$.sigma), max(dp$.sigma), 0.5),
+#                                                       limits = c( min(dp$.sigma), max(dp$.sigma) ) ) +
+#                                    
+#                                    theme_bw(base_size = 16) +
+#                                    theme(text = element_text(face = "bold"),
+#                                          axis.title = element_text(size=20),
+#                                          legend.position = "none")
+#                                  
+#                                  
+#                                  my_ggsave( name = "jeffreys_prior_contours.pdf",
+#                                             .width = 8,
+#                                             .height = 8,
+#                                             .results.dir = results.dir,
+#                                             .overleaf.dir.general = overleaf.dir.figs )
+# }  # end if(redo.plots == TRUE)
+# 
 
 
 

@@ -148,9 +148,60 @@ integrand_Dij = Vectorize( function( i, j, .yi, .sei, .Mu, .Tt, .crit = qnorm(0.
   
 }, vectorize.args = ".yi" )
 
+# verbatim from TNE
+E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
+  
+  # prevent infinite cutpoints
+  # if either cutpoint is infinite, there are numerical issues because the alpha*Z terms
+  #  below are 0*Inf
+  Za = max( -99, (.a - .mu) / .sigma )
+  Zb = min( 99, (.b - .mu) / .sigma )
+  
+  alpha.a = dnorm(Za) / ( pnorm(Zb) - pnorm(Za) )
+  alpha.b = dnorm(Zb) / ( pnorm(Zb) - pnorm(Za) )
+  
+  k11 = -(.n/.sigma^2) + (.n/.sigma^2)*( (alpha.b - alpha.a)^2 + (alpha.b*Zb - alpha.a*Za) )
+  
+  k12 = -( 2*.n*(alpha.a - alpha.b) / .sigma^2 ) +
+    (.n/.sigma^2)*( alpha.a - alpha.b + alpha.b*Zb^2 - alpha.a*Za^2 +
+                      (alpha.a - alpha.b)*(alpha.a*Za - alpha.b*Zb) )
+  
+  k22 = (.n/.sigma^2) - (3*.n*(1 + alpha.a*Za - alpha.b*Zb) / .sigma^2) +
+    (.n/.sigma^2)*( Zb*alpha.b*(Zb^2 - 2) - Za*alpha.a*(Za^2 - 2) +
+                      (alpha.b*Zb - alpha.a*Za)^2 )
+  
+  return( matrix( c(-k11, -k12, -k12, -k22),
+                  nrow = 2,
+                  byrow = TRUE ) )
+}
+
+
+
+
+E_fisher_RTMA = function( .sei, .Mu, .Tt, .crit = qnorm(0.975) ) {
+  # get expected Fisher info for each observation separately, based on its unique SE
+  # each observation is RTN, so can just use TNE result!!
+  E_fishers = lapply( X = as.list(.sei^2),
+                      FUN = function(.s) {
+                        E_fisher_TNE( .mu = .Mu,
+                                      .sigma = sqrt(.Tt^2 + .s^2), 
+                                      .n = 1,
+                                      .a = -99,
+                                      .b = .crit*.s )
+                      })
+  
+  
+  # add all the matrices entrywise
+  # https://stackoverflow.com/questions/11641701/sum-a-list-of-matrices
+  Efish.all = Reduce('+', E_fishers) 
+  
+  return(EFish.all)
+}
+
 
 # for a single choice of .Mu and .Tt and a vector of .yi, .sei
-E_fisher_RTMA = function( .sei, .Mu, .Tt, .crit = qnorm(0.975) ) {
+# OLD becuase it uses the numerical integration instead of TNE version
+E_fisher_RTMA_OLD = function( .sei, .Mu, .Tt, .crit = qnorm(0.975) ) {
   
   # dataframe to store the 4 integrals for each observation
   .d = data.frame( sei = .sei )
