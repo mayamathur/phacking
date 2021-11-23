@@ -28,7 +28,7 @@ rm( list = ls() )
 
 
 # are we running locally?
-run.local = FALSE
+run.local = TRUE
 
 
 allPackages = c("here",
@@ -145,21 +145,21 @@ if ( run.local == TRUE ) {
   scen.params = data.frame( scen = 1,
                             Mu = 0.1,
                             T2 = 0.25,
-                            m = 500,
-                            t2w = .25,
+                            t2w = 0.25,
                             se = 0.5,
+                            m = 500,
                             
-                            Nmax = 10,
-                            hack = "affirm2", # **
-                            rho = 0.9,
+                            Nmax = 1,
+                            hack = "affirm", 
+                            rho = 0,
                             
-                            k = 10,
-                            k.hacked = 10 )  # all published nonaffirms are from hacked studies
+                            k = 100,
+                            k.hacked = 0 )  
   
   
   
   
-  sim.reps = 2  # reps to run in this iterate
+  sim.reps = 100  # reps to run in this iterate
   
   # set the number of local cores
   registerDoParallel(cores=8)
@@ -273,12 +273,6 @@ doParallelTime = system.time({
     if ( i == 1 ) print(head(dp))
     
     # ~~ Bias-Corrected Estimator #1: Nonaffirms Only ------------------------------
-    
-    #bm: next try rm(list=ls()) and see if below fn still works :)
-    # also think about any diagnostics to add
-    #  like the tstat expectation and variance among affirms from hacked vs. 
-    #  unhacked studies
-    #  then should be able to try running doParallel locally!
     
     modCorr = correct_meta_phack1( .p = p,
                                    .dp = dp )

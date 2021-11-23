@@ -21,146 +21,6 @@
 
 # ~ 2021-11-22 Jeffreys prior fns ---------------
 
-
-# RTMA log-likelihood - now uses TNE version
-# carefully structured for use with Deriv()
-joint_nll_2 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975)) {
-  
-  .T2t = .Tt^2
-  # as in TNE::nll() instead
-  .dat = data.frame(yi = .yi, sei = .sei)
-  
-  .dat = .dat %>% rowwise() %>%
-    mutate( term1 = dmvnorm(x = as.matrix(yi, nrow = 1),
-                            mean = as.matrix(.Mu, nrow = 1),
-                            sigma = as.matrix(.T2t + sei^2, nrow=1),
-                            log = TRUE),
-            
-            term2 = log( pmvnorm( lower = -99,
-                                  upper = .crit * sei,
-                                  mean = .Mu,
-                                  sigma = .T2t + sei^2 ) ) )
-  
-  
-  -sum(.dat$term1) - sum(.dat$term2)
-  
-  # from TNE's nll:
-  # term1 = dnorm(x = .x,
-  #               mean = .mu,
-  #               sd = .sigma,  
-  #               log = TRUE)
-  # 
-  # term2 = length(.x) * log( pmvnorm(lower = .a,
-  #                                   upper = .b,
-  #                                   mean = .mu,
-  #                                   # note use of sigma^2 here because of pmvnorm's different parameterization:
-  #                                   sigma = .sigma^2 ) ) 
-}
-
-
-
-# verbatim from TNE
-E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
-  
-  # prevent infinite cutpoints
-  # if either cutpoint is infinite, there are numerical issues because the alpha*Z terms
-  #  below are 0*Inf
-  Za = max( -99, (.a - .mu) / .sigma )
-  Zb = min( 99, (.b - .mu) / .sigma )
-  
-  alpha.a = dnorm(Za) / ( pnorm(Zb) - pnorm(Za) )
-  alpha.b = dnorm(Zb) / ( pnorm(Zb) - pnorm(Za) )
-  
-  k11 = -(.n/.sigma^2) + (.n/.sigma^2)*( (alpha.b - alpha.a)^2 + (alpha.b*Zb - alpha.a*Za) )
-  
-  k12 = -( 2*.n*(alpha.a - alpha.b) / .sigma^2 ) +
-    (.n/.sigma^2)*( alpha.a - alpha.b + alpha.b*Zb^2 - alpha.a*Za^2 +
-                      (alpha.a - alpha.b)*(alpha.a*Za - alpha.b*Zb) )
-  
-  k22 = (.n/.sigma^2) - (3*.n*(1 + alpha.a*Za - alpha.b*Zb) / .sigma^2) +
-    (.n/.sigma^2)*( Zb*alpha.b*(Zb^2 - 2) - Za*alpha.a*(Za^2 - 2) +
-                      (alpha.b*Zb - alpha.a*Za)^2 )
-  
-  return( matrix( c(-k11, -k12, -k12, -k22),
-                  nrow = 2,
-                  byrow = TRUE ) )
-}
-
-
-E_fisher_RTMA = function( .sei, .Mu, .Tt, .crit = qnorm(0.975) ) {
-  # get expected Fisher info for each observation separately, based on its unique SE
-  # each observation is RTN, so can just use TNE result!!
-  Efish.list = lapply( X = as.list(.sei),
-                       FUN = function(.s) {
-                         E_fisher_TNE( .mu = .Mu,
-                                       .sigma = sqrt(.Tt^2 + .s^2), 
-                                       .n = 1,
-                                       .a = -99,
-                                       .b = .crit*.s )
-                       })
-  
-  # add all the matrices entrywise
-  # https://stackoverflow.com/questions/11641701/sum-a-list-of-matrices
-  Efish.all = Reduce('+', Efish.list) 
-  
-  return(Efish.all)
-}
-
-
-lprior = function(.sei, .Mu, .Tt, .crit) {
-  Efish = E_fisher_RTMA( .sei = .sei, .Mu = .Mu, .Tt = .Tt, .crit = .crit )
-  log( sqrt( det(Efish) ) )
-}
-
-
-# .pars: (.Mu, .Tt) or (.Mu, .Tt2)
-nlpost_jeffreys_RTMA = function( .pars,
-                                 .par2is = "Tt",  # "Tt" or "Tt2"
-                                 .yi,
-                                 .sei,
-                                 .crit = qnorm(.975),
-                                 
-                                 # if .usePrior = FALSE, will just be the MLE
-                                 .usePrior = TRUE) {
-  
-  # variance parameterization
-  if (.par2is == "Tt2") stop("Var parameterization not handled yet")
-  
-  if (.par2is == "Tt") {
-    Mu = .pars[1]
-    Tt = .pars[2]
-    
-    if ( Tt < 0 ) return(.Machine$integer.max)
-    
-    # negative log-likelihood
-    # joint_nll_2 uses the TNE version
-    nll.value = joint_nll_2( .yi = .yi,
-                             .sei = .sei,
-                             .Mu = Mu,
-                             .Tt = Tt,
-                             .crit = .crit )
-    
-    # log-prior
-    # lprior uses the TNE expected Fisher and then just sums over observations
-    if ( .usePrior == TRUE ) {
-      prior.value = lprior(.sei = .sei,
-                           .Mu = Mu,
-                           .Tt = Tt,
-                           .crit = .crit)
-    } else {
-      prior.value = 0
-    }
-    
-    # negative log-posterior
-    nlp.value = sum(nll.value) + prior.value
-    
-    if ( is.infinite(nlp.value) | is.na(nlp.value) ) return(.Machine$integer.max)
-  }
-  
-  return(nlp.value)
-}
-
-
 # 2021-9-2: MM audited fn by reading
 # mu.start, sigma.start: start values for optimatization
 # as illustrated in a sanity check after nlpost_simple, this fn's MAPs agree with
@@ -200,7 +60,6 @@ estimate_jeffreys_RTMA = function( yi,
   res = mle( minuslogl = nlpost_simple_RTMA,
              start = list( .Mu = Mu.start, .Tt = Tt.start),
              method = "Nelder-Mead" )
-  
   
   # not actually MLEs, of course, but rather MAPs
   mles = as.numeric(coef(res))
@@ -346,6 +205,502 @@ estimate_jeffreys_RTMA = function( yi,
 }
 
 
+# .pars: (.Mu, .Tt) or (.Mu, .Tt2)
+nlpost_jeffreys_RTMA = function( .pars,
+                                 .par2is = "Tt",  # "Tt" or "Tt2"
+                                 .yi,
+                                 .sei,
+                                 .crit = qnorm(.975),
+                                 
+                                 # if .usePrior = FALSE, will just be the MLE
+                                 .usePrior = TRUE) {
+  
+  # variance parameterization
+  if (.par2is == "Tt2") stop("Var parameterization not handled yet")
+  
+  if (.par2is == "Tt") {
+    Mu = .pars[1]
+    Tt = .pars[2]
+    
+    if ( Tt < 0 ) return(.Machine$integer.max)
+    
+    # negative log-likelihood
+    # joint_nll_2 uses the TNE version
+    nll.value = joint_nll_2( .yi = .yi,
+                             .sei = .sei,
+                             .Mu = Mu,
+                             .Tt = Tt,
+                             .crit = .crit )
+    
+    # log-prior
+    # lprior uses the TNE expected Fisher and then just sums over observations
+    if ( .usePrior == TRUE ) {
+      prior.value = lprior(.sei = .sei,
+                           .Mu = Mu,
+                           .Tt = Tt,
+                           .crit = .crit)
+    } else {
+      prior.value = 0
+    }
+    
+    
+    
+    # negative log-posterior
+    nlp.value = sum(nll.value) + prior.value
+    
+    if ( is.infinite(nlp.value) | is.na(nlp.value) ) return(.Machine$integer.max)
+  }
+  
+  return(nlp.value)
+}
+
+
+
+
+
+lprior = function(.sei, .Mu, .Tt, .crit) {
+  
+  Efish = E_fisher_RTMA( .sei = .sei, .Mu = .Mu, .Tt = .Tt, .crit = .crit )
+  
+  log( sqrt( det(Efish) ) )
+  
+  
+}
+
+# expectation of -Dij wrt yi
+# "Vectorize" part is needed for this to work with integrate()
+#  because integrate() tries to pass a vector of .yi's
+integrand_Dij = Vectorize( function( i, j, .yi, .sei, .Mu, .Tt, .crit = qnorm(0.975) ) {
+  
+  # function of yi whose expectation we want
+  if ( i == 1 & j == 1 ) {
+    term1 = -get_D11(.yi = .yi,
+                     .sei = .sei,
+                     .Mu = .Mu,
+                     .Tt = .Tt)
+    
+  } else if ( ( i == 2 & j == 1 ) | ( i == 1 & j == 2 ) ) {
+    term1 = -get_D21(.yi = .yi,
+                     .sei = .sei,
+                     .Mu = .Mu,
+                     .Tt = .Tt)
+    
+  } else if ( i == 2 & j == 2 ) {
+    term1 = -get_D22(.yi = .yi,
+                     .sei = .sei,
+                     .Mu = .Mu,
+                     .Tt = .Tt)
+  }
+  
+  # density of yi
+  #@ IF .SEI=0, THIS TERM IS 0 EXCEPT FOR yi=0
+  # term2 = dtruncnorm( x = .yi,
+  #                     b = .crit * .sei )
+  
+  
+  # avoid dtruncnorm
+  # as in TNE
+  # which is taken closely from tmvnorm package's returned nll function
+  term2.log = dnorm(x = .yi,
+                    mean = .Mu,
+                    sd = .Tt,  
+                    log = TRUE)
+  
+  term3.log = sum( log( pmvnorm(lower = -99,
+                                upper = .crit * .sei,
+                                mean = .Mu,
+                                # note use of .Tt^2 here because of pmvnorm's different parameterization:
+                                sigma = .Tt^2 ) ) )
+  
+  
+  # integrand of expectation 
+  integrand = term1 * exp(term2.log + term3.log)
+  
+  if ( length(integrand) > 1 ) browser()
+  
+  # sometimes integrand can be NA for extreme values of yi, like -99
+  if ( is.na(integrand) ) integrand = 0
+  
+  return(integrand)
+  
+}, vectorize.args = ".yi" )
+
+# verbatim from TNE
+E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
+  
+  # prevent infinite cutpoints
+  # if either cutpoint is infinite, there are numerical issues because the alpha*Z terms
+  #  below are 0*Inf
+  Za = max( -99, (.a - .mu) / .sigma )
+  Zb = min( 99, (.b - .mu) / .sigma )
+  
+  alpha.a = dnorm(Za) / ( pnorm(Zb) - pnorm(Za) )
+  alpha.b = dnorm(Zb) / ( pnorm(Zb) - pnorm(Za) )
+  
+  k11 = -(.n/.sigma^2) + (.n/.sigma^2)*( (alpha.b - alpha.a)^2 + (alpha.b*Zb - alpha.a*Za) )
+  
+  k12 = -( 2*.n*(alpha.a - alpha.b) / .sigma^2 ) +
+    (.n/.sigma^2)*( alpha.a - alpha.b + alpha.b*Zb^2 - alpha.a*Za^2 +
+                      (alpha.a - alpha.b)*(alpha.a*Za - alpha.b*Zb) )
+  
+  k22 = (.n/.sigma^2) - (3*.n*(1 + alpha.a*Za - alpha.b*Zb) / .sigma^2) +
+    (.n/.sigma^2)*( Zb*alpha.b*(Zb^2 - 2) - Za*alpha.a*(Za^2 - 2) +
+                      (alpha.b*Zb - alpha.a*Za)^2 )
+  
+  return( matrix( c(-k11, -k12, -k12, -k22),
+                  nrow = 2,
+                  byrow = TRUE ) )
+}
+
+
+
+
+E_fisher_RTMA = function( .sei, .Mu, .Tt, .crit = qnorm(0.975) ) {
+  # get expected Fisher info for each observation separately, based on its unique SE
+  # each observation is RTN, so can just use TNE result!!
+  Efish.list = lapply( X = as.list(.sei),
+                       FUN = function(.s) {
+                         E_fisher_TNE( .mu = .Mu,
+                                       .sigma = sqrt(.Tt^2 + .s^2), 
+                                       .n = 1,
+                                       .a = -99,
+                                       .b = .crit*.s )
+                       })
+  
+  # add all the matrices entrywise
+  # https://stackoverflow.com/questions/11641701/sum-a-list-of-matrices
+  Efish.all = Reduce('+', Efish.list) 
+  
+  return(Efish.all)
+}
+
+
+# for a single choice of .Mu and .Tt and a vector of .yi, .sei
+# OLD becuase it uses the numerical integration instead of TNE version
+E_fisher_RTMA_OLD = function( .sei, .Mu, .Tt, .crit = qnorm(0.975) ) {
+  
+  # dataframe to store the 4 integrals for each observation
+  .d = data.frame( sei = .sei )
+  
+  .d = .d %>% rowwise() %>%
+    mutate( F11 = integrate( function(x) integrand_Dij(i = 1, 
+                                                       j = 1, 
+                                                       .yi = x,
+                                                       .sei = sei,
+                                                       .Mu = .Mu,
+                                                       .Tt = .Tt),
+                             lower = -Inf,
+                             upper = Inf )$value,
+            
+            F21 = integrate( function(x) integrand_Dij(i = 2, 
+                                                       j = 1,
+                                                       .yi = x,
+                                                       .sei = sei,
+                                                       .Mu = .Mu,
+                                                       .Tt = .Tt),
+                             lower = -Inf,
+                             upper = Inf )$value,
+            
+            F22 = integrate( function(x) integrand_Dij(i = 2, 
+                                                       j = 2,
+                                                       .yi = x,
+                                                       .sei = sei,
+                                                       .Mu = .Mu,
+                                                       .Tt = .Tt),
+                             lower = -Inf,
+                             upper = Inf )$value )
+  
+  return( matrix( c( sum(.d$F11), sum(.d$F21), sum(.d$F21), sum(.d$F22) ),
+                  byrow = TRUE,
+                  nrow = 2 ) )
+  
+  
+}
+
+
+
+# RTMA log-likelihood - now uses TNE version
+# carefully structured for use with Deriv()
+joint_nll_2 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975)) {
+  
+  .T2t = .Tt^2
+  
+  # # note: don't calculate Zi = .yi/.sei because Deriv is too stupid
+  # # expectation and variance of Zi
+  # Vi = (1/.sei^2) * (.T2t + .sei^2)
+  # Mi = .Mu/.sei
+  # 
+  # # "true" Z-score (including .T2t)
+  # Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  # 
+  # # can't use dtrunc or even dnorm and pnorm in here because Deriv is too stupid
+  # 
+  # k = length(.yi)
+  # 
+  # # regular meta-analysis part
+  # # c.f. "SAPH theory - tier 2"
+  # term1 = -0.5*k*log(2*pi) - 0.5*sum( log(Vi) ) -
+  #   0.5*sum( (.yi/.sei - Mi)^2 / Vi ) 
+  # 
+  # # truncation part
+  # # THIS IS WRONG! 
+  # term2 = -sum( log( pnorm(Zi.tilde) ) )
+  
+  # as in TNE::nll() instead
+  .dat = data.frame(yi = .yi, sei = .sei)
+  
+  .dat = .dat %>% rowwise() %>%
+    mutate( term1 = dmvnorm(x = as.matrix(yi, nrow = 1),
+                            mean = as.matrix(.Mu, nrow = 1),
+                            sigma = as.matrix(.T2t + sei^2, nrow=1),
+                            log = TRUE),
+            
+            term2 = log( pmvnorm( lower = -99,
+                                  upper = .crit * sei,
+                                  mean = .Mu,
+                                  sigma = .T2t + sei^2 ) ) )
+
+              
+-sum(.dat$term1) - sum(.dat$term2)
+}
+
+
+# Mills ratio for RTMA (gamma_i)
+get_gamma_i = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
+  
+  
+  .T2t = .Tt^2
+  Zi = .yi/.sei
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  dnorm(Zi.tilde) / pnorm(Zi.tilde)
+}
+
+
+# ~ 2021-10-8 Derivative fns ---------------
+# **Tests for these "DXX" fns are in "Check RTMA Jeffreys theory.R"
+
+# correct :)
+# second derivative, entry 11 (i.e., d^2/dmu^2)
+# structured for Deriv() usage
+# was checked vs. Deriv() in "Check RTMA Jeffreys theory.R"
+get_D1 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
+  
+  .T2t = .Tt^2
+  
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
+  
+  sum( (.yi - .Mu)/(.T2t + .sei^2) + gamma.i/sqrt(.T2t + .sei^2) ) 
+}
+
+
+# correct :)
+get_D11 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
+  
+  
+  .T2t = .Tt^2
+  
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  sum( (Zi.tilde*gamma.i + gamma.i^2)/(.T2t + .sei^2) - 1/(.T2t + .sei^2) ) 
+}
+
+# correct :)
+# just for checking intermediate derivative
+# **note change to Tt (tau) instead of T2t
+get_Zi_tilde = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
+  
+  (.yi - .Mu) / sqrt(.Tt^2 + .sei^2)
+}
+
+# correct :)
+# an intermediate quantity for get_D12
+get_D_gammai_wrt_tau = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
+  .T2t = .Tt^2
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  (Zi.tilde*gamma.i + gamma.i^2) * (.T2t + .sei^2)^(-3/2) * (.yi - .Mu) * .Tt
+}
+
+# term2: gamma.i / (.T2t + .sei^2)^(-1/2)
+term2 = function( .yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
+  
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
+  
+  gamma.i * (.Tt^2 + .sei^2)^(-1/2)
+}
+
+
+# THIS ONE DISAGREES WITH R!
+get_D12_term2_wrt_tau = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ){
+  .T2t = .Tt^2
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  # first line of my derivative - matches below but is wrong!
+  term2.1 = (Zi.tilde*gamma.i + gamma.i^2) * (.T2t + .sei^2)^(-3/2) * (.yi - .Mu) * .Tt
+  expect_equal( term2.1, get_D_gammai_wrt_tau( .yi, .sei, .Mu, .Tt, .crit ) )
+  #**this is the key line to compare
+  line1 = term2.1*(.T2t + .sei^2)^(-1/2) - 0.5*(.T2t + .sei^2)^(-3/2) * 2*.Tt * gamma.i
+  
+  # final (simplified) line
+  line2 = ( .Tt*(.T2t + .sei^2)^(-3/2) ) * ( (Zi.tilde*gamma.i + gamma.i^2)*Zi.tilde - gamma.i )
+  
+  expect_equal(line1, line2)
+  
+  line2
+  
+  # what it should be, according to Deriv
+  # sum( ( 2*(.yi - .Mu)*(.sei^2 + .Tt^2)^(-1)*( Zi.tilde*gamma.i + gamma.i^2 )*.Tt ) -
+  #        gamma.i*(.sei^2 + .Tt^2)^(-3/2) * .Tt )
+  
+}
+
+
+# WRONG
+get_D12 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
+  .T2t = .Tt^2
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  # # MINE USING THE APPARENTLY INCORRECT DERIVATIVE OF TERM2 
+  # # term 3 will be d/d.Tt [ gamma.i / (.T2t + .sei^2)^(-1/2) ]
+  # term1 = (.yi - .Mu)/(.T2t + .sei^2)^2 * .Tt * (Zi.tilde*gamma.i + gamma.i^2)
+  # term2 = gamma.i*(.T2t + .sei^2)^(-3/2) *.Tt
+  # term3 = term1 + term2
+  # -2*sum( .Tt*(.yi - .Mu)/(.T2t + .sei^2)^(2) ) + sum(term3)
+  # # END MINE
+  
+  #browser()
+  
+  # USING R'S OWN DERIVATIVE OF TERM2
+  termA = (.yi - .Mu)/(.T2t + .sei^2) * 2*.Tt * (Zi.tilde*gamma.i + gamma.i^2)
+  termB = gamma.i*(.T2t + .sei^2)^(-3/2) *.Tt
+  termC = termA - termB  # notice sign change of term2
+  # sanity check on term2
+  get_D12_term2_wrt_tau_num = Deriv( term2, ".Tt") 
+  temp = get_D12_term2_wrt_tau_num(.yi, .sei, .Mu, .Tt, .crit)
+  expect_equal( sum(temp), sum(term3) )
+  
+  # final thing
+  -2*sum( .Tt*(.yi - .Mu)/(.T2t + .sei^2)^(2) ) + sum(term3)
+  
+}
+
+# correct :)
+get_D2 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
+  
+  .T2t = .Tt^2
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
+  
+  
+  sum( (.Tt/(.T2t + .sei^2)) * (Zi.tilde^2 + gamma.i*Zi.tilde - 1) ) 
+}
+
+
+# correct :)
+get_D22 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
+  
+  .T2t = .Tt^2
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
+  
+  Tr = .Tt/(.T2t + .sei^2)
+  
+  term1 = sum( (Tr/.Tt - 2*Tr^2) * (Zi.tilde^2 + gamma.i*Zi.tilde - 1) )
+  
+  # # my second line
+  # # CORRECT
+  # term2.1 = get_D_Zi.tilde_wrt_tau( .yi, .sei, .Mu, .Tt, .crit )
+  # term2.2 = get_D_gammai_wrt_tau( .yi, .sei, .Mu, .Tt, .crit )
+  # # as in my second line (not fully simplified)
+  # term2 = sum( Tr * (2*Zi.tilde*term2.1 + term2.2*Zi.tilde + gamma.i*term2.1) )
+  # term1 + term2  # CORRECT
+  
+  # my final line
+  # DOESN'T MATCH
+  term2 = sum( Tr^2 * Zi.tilde * (Zi.tilde^2*gamma.i + Zi.tilde*gamma.i^2 - 2*Zi.tilde - gamma.i ) )
+  term1 + term2
+}
+
+# has been checked vs. Deriv()
+get_D_Zi.tilde_wrt_tau = function( .yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
+  -0.5*(.Tt^2 + .sei^2)^(-3/2) * (.yi - .Mu) * 2*.Tt
+}
+
+
+
+
+get_D21 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975) ) {
+  
+  .T2t = .Tt^2
+  
+  # "true" Z-score (including .T2t)
+  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  
+  gamma.i = get_gamma_i( .yi, .sei, .Mu, .Tt, .crit )
+  
+  
+  sum( .Tt * (.T2t + .sei^2)^(-3/2) * ( Zi.tilde*(Zi.tilde*gamma.i + gamma.i^2) - 2*Zi.tilde - gamma.i ) )
+}
+
+
+
+
+# 2021-5-3 FNS ---------------------------------------------------------------
+
+# log-likelihood
+joint_ll = function(.tstats, .Mu, .T2, .t2w, .se, .crit) {
+  sum( log( dtrunc(x = .tstats,
+                   spec = "norm",
+                   mean = .Mu / .se,
+                   #@doesn't yet use the delta-method thing
+                   sd = sqrt( (1/.se^2) * (.T2 + .t2w + .se^2) ),
+                   b = .crit ) ) )
+}
+
+# joint_ll( .tstats = c(1.3, 1.2, 1, 0.9),
+#     .Mu = 1,
+#     .T2 = 0.25,
+#     .t2w = 0.25,
+#     .se = 0.5)
+
+# get a corrected MLE from nonaffirms only
+# .t2w and .se are taken to be fixed and known
+nonaffirm_mles = function(.tstats, .t2w, .se, .crit) {
+  
+  # par given as (Mu, T2)
+  optim( par = c( mean(.tstats * .se), 0),  # starting point for optimization
+         f = function(.x) # the negative ll
+           -joint_ll( .tstats = .tstats,
+                      .Mu = .x[1],
+                      .T2 = .x[2],
+                      .t2w = .t2w,
+                      .se = .se,
+                      .crit = .crit),
+         lower = c(-Inf, 0),
+         method = "L-BFGS-B" )
+  
+}
 
 
 # ANALYSIS FNS ---------------------------------------------------------------
