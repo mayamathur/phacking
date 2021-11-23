@@ -41,6 +41,8 @@ code.dir = here()
 setwd(code.dir)
 source("helper_SAPH.R")
 
+source("fns_from_TNE.R")
+
 
 
 # ~ SET PARAMETERS AND SIMULATE META-ANALYSIS ----------------------------------------------------
@@ -84,130 +86,52 @@ yi = dm$yi
 sei = sqrt(dm$vi)
 
 
-# ~ GET EXPECTED FISHER NUMERICALLY ----------------------------------------------------
 
+# ~ SANITY CHECK: SUM OF FISHER VS. FISHER OF SUM ----------------------------------------------------
 
-.Mu = 0.5
-.Tt = 0.2
-.yi = yi
-.sei = sei
-
-E_fisher_RTMA_OLD( .sei = sei, .Mu = 0.5, .Tt = 0.2 )
-
-
-# ~ SANITY CHECK: PRIOR SHD BE SPECIAL CASE OF TNE PRIOR ----------------------------------------------------
-
-# if sei -> 0, priors should agree
-
-
+# PASSES :)
+# If all sei are the same, then the yi's are iid, so summing expected Fishers
+#  for each observation should be the same as getting the joint Fisher directly
 
 Mu = 1
 Tt = 2
 k = 1000
+se = 1.5
 
 # by setting se super small, we're effectively just truncating at yi > 0 
 #  since all studies with yi > 0 are significant 
 dp = sim_meta(Nmax = 1,
-             Mu = Mu,
-             T2 = Tt^2,
-             m = 100,
-             t2w = 0,
-             se = 0.0001,
-             hack = "affirm",
-             return.only.published = TRUE,
-             rho = 0,
-
-             k = k,
-             k.hacked = k )
+              Mu = Mu,
+              T2 = Tt^2,
+              m = 100,
+              t2w = 0,
+              se = se,
+              hack = "affirm",
+              return.only.published = TRUE,
+              rho = 0,
+              
+              k = k,
+              k.hacked = k )
 
 hist(dp$yi)
 kpub = nrow(dp)
+tcrit = unique(dp$tcrit)
 
-( EFish.TNE = E_fisher_TNE( .mu = Mu,
-                          .sigma = Tt, 
-                          .n = kpub,
-                          .a = -99,
-                          .b = 0 ) )
+### Version 1: Joint EFish as in TNE
+( EFish1 = E_fisher_TNE( .mu = Mu,
+                         .sigma = sqrt(Tt^2 + se^2), 
+                         .n = kpub,
+                         .a = -99,
+                         #*note that .b here needs to be on yi scale, not Zi scale
+                         .b = tcrit*se ) )
 
-# this one isn't even def'd
-( Efish.RTMA = E_fisher_RTMA_OLD( .sei = sqrt(dp$vi),
-                              .Mu = Mu,
-                              .Tt = Tt ) )
+### Version 2: Sum individual Efish for each observation
+( EFish2 = E_fisher_RTMA( .sei = sei.true,
+                          .Mu = Mu,
+                          .Tt = Tt,
+                          .crit = tcrit ) )
 
-# hmmm...these don't agree :(
-
-# # look at its guts
-# integrand_Dij(i = 1, 
-#               j = 1, 
-#               .yi = dp$yi[1],
-#               .sei = sqrt(dp$vi[1]),
-#               .Mu = Mu,
-#               .Tt = Tt)
-# 
-# 
-# integrand_Dij(i = 1, 
-#               j = 1, 
-#               .yi = -99,  # here's the problem!
-#               .sei = sqrt(dp$vi[1]),
-#               .Mu = Mu,
-#               .Tt = Tt)
-# 
-# integrand_Dij(i = 1, 
-#               j = 1, 
-#               .yi = 0,  # here's the problem!
-#               .sei = sqrt(dp$vi[1]),
-#               .Mu = Mu,
-#               .Tt = Tt)
-# 
-# 
-# integrate( function(x) integrand_Dij(i = 1, 
-#                                      j = 1, 
-#                                      .yi = x,
-#                                      .sei = sqrt(dp$vi[1]),
-#                                      .Mu = Mu,
-#                                      .Tt = Tt),
-#            lower = -99,
-#            upper = 99 )$value
-# 
-# # test case
-# integrand_Dij(i = 1, 
-#               j = 1, 
-#               .yi = 3,
-#               .sei = 0.0001,
-#               .Mu = 1,
-#               .Tt = 2)
-
-
-
-# ~~ Alternative: Use TNE version for each one ----------------------------------------------------
-
-#bm
-# idea of using just one of these!!
-
-# Fisher info for each observation separately, based on its unique SE
-E_fishers = lapply( X = as.list( dp$vi ),
-                    FUN = function(v) {
-                      E_fisher_TNE( .mu = Mu,
-                                    .sigma = sqrt( Tt^2 + v ), 
-                                    .n = 1,
-                                    .a = -99,
-                                    .b = 0 )
-                    })
-
-
-# add all the matrices entrywise
-# https://stackoverflow.com/questions/11641701/sum-a-list-of-matrices
-( Efish.TNE.2 = Reduce('+', E_fishers) )
-
-expect_equal(Efish.TNE.2, Efish.TNE)
-
-# E_fisher_TNE( .mu = Mu,
-#               .sigma = Tt, 
-#               .n = 1,
-#               .a = -99,
-#               .b = 0 )
-
-# now maybe try a case where SEs are different across studies
+expect_equal( Efish1, Efish2 )
 
 
 # ~ SANITY CHECK: AGREEMENT WITH MLE ----------------------------------------------------
@@ -217,141 +141,287 @@ expect_equal(Efish.TNE.2, Efish.TNE)
 # you already have the usePrior argument :)
 
 
+
+
 # ~ SANITY CHECK: PLOT PRIOR ----------------------------------------------------
 
 
+if ( redo.prior.plots == TRUE ) {
+  
+  
+  dp = expand.grid( .kpub = c(50), # changing this doesn't matter much
+                    .Mu = seq(-4, 4, .1),
+                    .Tt = seq(0.5, 4, .1),
+                    .sei = 1.5 )
+  
+  
+  # make plotting dataframe by calculating log-prior for a grid of values (mu, sigma)
+  dp = dp %>%
+    rowwise() %>%
+    mutate( lprior = lprior( .sei = rep(.sei, .kpub),
+                             .Mu = .Mu,
+                             .Tt = .Tt,
+                             # just use z-approx for now
+                             .crit = 1.96 )  )
+  
+  # check again for NA values occurring when EFisher is NA and remove them
+  table(is.na(dp$lprior))
+  dp = dp %>% filter( !is.na(lprior) )
+  
+  # set up colors for contours
+  get_colors = colorRampPalette( c("lemonchiffon1", "chocolate4") )
+  myColors = get_colors(n=15)  # chose number based on errors from ggplot if it was fewer
+  
+  title.string = paste( "Log-prior for 50 studies all with SE=", unique(dp$.sei))
+  
+  # make plot
+  p = ggplot( data = dp,
+              aes(x = .Mu,
+                  y = .Tt,
+                  z = lprior) ) +
+    
+    geom_contour_filled() +
+    
+    # close, but not enough colors
+    scale_fill_manual(values = myColors) +
+    
+    geom_contour(color = "white") +
+    
+    xlab( bquote(mu) ) +
+    ylab( bquote(tau[t]) ) +
+    
+    geom_vline( xintercept = 0, lty = 2 ) +
+    
+    ggtitle(title.string) +
+    
+    facet_wrap( .kpub ~.,
+                scales = "fixed" ) +
+    
+    # scale_y_continuous(breaks = seq( min(dp$.sigma), max(dp$.sigma), 0.5),
+    #                    limits = c( min(dp$.sigma), max(dp$.sigma) ) ) +
+    
+    theme_bw(base_size = 16) +
+    theme(text = element_text(face = "bold"),
+          axis.title = element_text(size=20),
+          legend.position = "none")
+  
+  
+} # end "if redo.prior.plots == TRUE"
 
-# # STRAIGHT FROM TNE
-# if ( redo.contour.plot == TRUE ) {
-#   # figure out how low we can go with sigma before getting NAs in lkl
-#   # because geom_contour will behave badly if there are too many NAs (a few is okay)
-#   lprior(.sei = 1,
-#          .Mu = 0,
-#          .Tt = 3)
-#   
-#   # set parameters for all plot facets
-#   prop.retained = .5
-#   n = 20
-#   # underlying mu and sigma, only used for calculating cut points on raw scale
-#   mu = 0
-#   sigma = 1
-#   
-#   dp = expand.grid( .n = c(n),
-#                     .mu = seq(-2, 8, .1),
-#                     .sigma = seq(0.5, 2, .1),
-#                     .trunc.type = c("Single", "Symmetric double", "Asymmetric double", "No truncation") )
-#   
-#   # not facetting on n anymore
-#   # dp$n.pretty = paste( "n = ", dp$.n, sep = "" )
-#   # dp$n.pretty = factor( dp$n.pretty, levels = c("n = 10",
-#   #                                               "n = 50",
-#   #                                               "n = 1000") )
-#   
-#   # calculate cutpoints that all retain same proportion ASSUMING that truth is mu=0, sigma=1
-#   # only need to calculate once for each truncation type
-#   ( single.cuts = calculate_cutpoints(.trunc.type = "Single",
-#                                       .prop.retained = prop.retained) )
-#   ( double.symm.cuts = calculate_cutpoints(.trunc.type = "Symmetric double",
-#                                            .prop.retained = prop.retained) )
-#   ( double.asymm.cuts = calculate_cutpoints(.trunc.type = "Asymmetric double",
-#                                             .prop.retained = prop.retained) )
-#   
-#   
-#   # set cutpoints on raw scale equal to the ones on the Z-scale
-#   # because, again, we assumed mu=0, sigma=1 above to hold constant prop.retained
-#   dp$a = dp$b = NA
-#   dp$a[ dp$.trunc.type == "Single" ] = single.cuts$Za
-#   dp$a[ dp$.trunc.type == "Symmetric double" ] = double.symm.cuts$Za
-#   dp$a[ dp$.trunc.type == "Asymmetric double" ] = double.asymm.cuts$Za
-#   #dp$a[ dp$.trunc.type == "Asymmetric double" ] = -4 #@TEST ONLY
-#   
-#   dp$b[ dp$.trunc.type == "Single" ] = single.cuts$Zb
-#   dp$b[ dp$.trunc.type == "Symmetric double" ] = double.symm.cuts$Zb
-#   dp$b[ dp$.trunc.type == "Asymmetric double" ] = double.asymm.cuts$Zb
-#   #dp$b[ dp$.trunc.type == "Asymmetric double" ] = -0.25 #@TEST ONLY
-#   
-#   dp$a[ dp$.trunc.type == "No truncation" ] = -Inf
-#   dp$b[ dp$.trunc.type == "No truncation" ] = Inf
-#   
-#   table( dp$.trunc.type, round(dp$a, 2) )
-#   table( dp$.trunc.type, round(dp$b, 2) )
-#   
-#   # prettify trunc type variable
-#   dp$trunc.type.pretty = paste( dp$.trunc.type,
-#                                 " [",
-#                                 round(dp$a, 2),
-#                                 ", ",
-#                                 round(dp$b, 2),
-#                                 "]",
-#                                 sep = "" )
-#   current.levels = unique(dp$trunc.type.pretty)
-#   dp$trunc.type.pretty = factor( dp$trunc.type.pretty,
-#                                  levels = c( current.levels[ grepl(pattern = "No truncation", x = current.levels) ],
-#                                              current.levels[ grepl(pattern = "Single", x = current.levels) ],
-#                                              current.levels[ grepl(pattern = "Symmetric", x = current.levels) ],
-#                                              current.levels[ grepl(pattern = "Asymmetric", x = current.levels) ] ) 
-#                                  levels( factor(dp$trunc.type.pretty) )
-#                                  
-#                                  # make plotting dataframe by calculating log-prior for a grid of values (mu, sigma)
-#                                  dp = dp %>%
-#                                    rowwise() %>%
-#                                    mutate( lprior = lprior_Jeffreys( .pars = c(.mu, .sigma),
-#                                                                      par2is = "sd",
-#                                                                      .n = .n, 
-#                                                                      
-#                                                                      .a = a,
-#                                                                      .b = b)  )
-#                                  
-#                                  # check again for NA values occurring when EFisher is NA and remove them
-#                                  table(is.na(dp$lprior))
-#                                  dp = dp %>% filter( !is.na(lprior) )
-#                                  
-#                                  # set up colors for contours
-#                                  get_colors = colorRampPalette( c("lemonchiffon1", "chocolate4") )
-#                                  myColors = get_colors(n=11)  # chose 11 based on errors from ggplot if it was fewer
-#                                  
-#                                  # make plot
-#                                  p = ggplot( data = dp, 
-#                                              aes(x = .mu,
-#                                                  y = .sigma,
-#                                                  z = lprior) ) +
-#                                    
-#                                    geom_contour_filled() +
-#                                    
-#                                    # close, but not enough colors
-#                                    scale_fill_manual(values = myColors) +
-#                                    
-#                                    geom_contour(color = "white") +
-#                                    
-#                                    xlab( bquote(mu) ) +
-#                                    ylab( bquote(sigma) ) +
-#                                    
-#                                    geom_vline( xintercept = 0, lty = 2 ) +
-#                                    
-#                                    facet_wrap( trunc.type.pretty ~.,
-#                                                scales = "fixed" ) +
-#                                    
-#                                    scale_y_continuous(breaks = seq( min(dp$.sigma), max(dp$.sigma), 0.5),
-#                                                       limits = c( min(dp$.sigma), max(dp$.sigma) ) ) +
-#                                    
-#                                    theme_bw(base_size = 16) +
-#                                    theme(text = element_text(face = "bold"),
-#                                          axis.title = element_text(size=20),
-#                                          legend.position = "none")
-#                                  
-#                                  
-#                                  my_ggsave( name = "jeffreys_prior_contours.pdf",
-#                                             .width = 8,
-#                                             .height = 8,
-#                                             .results.dir = results.dir,
-#                                             .overleaf.dir.general = overleaf.dir.figs )
-# }  # end if(redo.plots == TRUE)
-# 
+
+# ~ PLOT PRIOR FOR HAGGER ----------------------------------------------------
+
+if ( redo.prior.plots == TRUE ) {
+  yi = dm$yi
+  sei = sqrt(dm$vi)
+  # just as an experiment, what happens if all have same sei?
+  sei = rep( mean(sqrt(dm$vi)), length(dm$vi) )
+  
+  
+  dp = expand.grid( .Mu = seq(-2, 2, .1),
+                    .Tt = seq(0.1, 2, .1) )
+  
+  
+  # make plotting dataframe by calculating log-prior for a grid of values (mu, sigma)
+  dp = dp %>%
+    rowwise() %>%
+    mutate( lprior = lprior( .sei = sei,
+                             .Mu = .Mu,
+                             .Tt = .Tt,
+                             # just use z-approx for now
+                             .crit = 1.96 )  )
+  
+  # check again for NA values occurring when EFisher is NA and remove them
+  table(is.na(dp$lprior))
+  dp = dp %>% filter( !is.na(lprior) )
+  
+  # set up colors for contours
+  get_colors = colorRampPalette( c("lemonchiffon1", "chocolate4") )
+  myColors = get_colors(n=15)  # chose number based on errors from ggplot if it was fewer
+  
+  title.string = paste( "Log-prior for Hagger data, setting all studies' sei to their mean")
+  
+  # make plot
+  p = ggplot( data = dp,
+              aes(x = .Mu,
+                  y = .Tt,
+                  z = lprior) ) +
+    
+    geom_contour_filled() +
+    
+    # close, but not enough colors
+    scale_fill_manual(values = myColors) +
+    
+    geom_contour(color = "white") +
+    
+    xlab( bquote(mu) ) +
+    ylab( bquote(tau[t]) ) +
+    
+    geom_vline( xintercept = 0, lty = 2 ) +
+    
+    ggtitle(title.string) +
+    
+    
+    # scale_y_continuous(breaks = seq( min(dp$.sigma), max(dp$.sigma), 0.5),
+    #                    limits = c( min(dp$.sigma), max(dp$.sigma) ) ) +
+    
+    theme_bw(base_size = 16) +
+    theme(text = element_text(face = "bold"),
+          axis.title = element_text(size=20),
+          legend.position = "none")
+  
+} # end "if redo.prior.plots == TRUE"
 
 
 
+# ~ GET NLPOSTERIOR FOR SIM META ----------------------------------------------------
 
-# ~ GET NLPOSTERIOR FOR JEFFREYS ----------------------------------------------------
+Mu = 1
+Tt = 2
+k = 1000
+se = 1.5
+
+# SAVE: this is how data were generated
+# # by setting se super small, we're effectively just truncating at yi > 0
+# #  since all studies with yi > 0 are significant
+# dp = sim_meta(Nmax = 1,
+#               Mu = Mu,
+#               T2 = Tt^2,
+#               m = 100,
+#               t2w = 0,
+#               se = se,
+#               hack = "affirm",
+#               return.only.published = TRUE,
+#               rho = 0,
+#               
+#               k = k,
+#               k.hacked = k )
+
+
+setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/2021-10-13 numerical integration for RTMA Jeffreys prior")
+#fwrite(dp, "sim_meta_1.csv")
+dp = fread("sim_meta_1.csv")
+
+# set vars for all methods
+kpub = nrow(dp)
+tcrit = unique(dp$tcrit)
+Mu.start = 0
+Tt.start = 1
+sei.true = rep(se, kpub)
+
+
+### Version 1: MAP ###
+res.MAP = estimate_jeffreys_RTMA(yi = dp$yi,
+                                 
+                                 sei = sei.true,  # true SEs
+                                 # sei = sqrt(dp$vi),  # estimated SEs
+                                 
+                                 par2is = "Tt",
+                                 Mu.start,
+                                 Tt.start = Tt.start,
+                                 crit = tcrit,
+                                 
+                                 usePrior = TRUE,
+                                 get.CIs = FALSE,
+                                 CI.method = "wald")
+res.MAP$MuHat
+
+### Version 1: MLE ###
+# without using prior
+# doesn't work at all ("Lapack routine dgesv: system is exactly singular: U[1,1] = 0")
+res.MLE = estimate_jeffreys_RTMA(yi = dp$yi,
+                                 
+                                 sei = sei.true,  # true SEs
+                                 # sei = sqrt(dp$vi),  # estimated SEs
+                                 
+                                 par2is = "Tt",
+                                 Mu.start,
+                                 Tt.start = Tt.start,
+                                 crit = tcrit,
+                                 
+                                 usePrior = FALSE,  # MLE
+                                 get.CIs = FALSE,
+                                 CI.method = "wald")
+
+# this does give a value
+( nll.start.RTMA = nlpost_jeffreys_RTMA( .pars = c(0,1),
+                                            .par2is = "Tt",  # "Tt" or "Tt2"
+                                            .yi = dp$yi,
+                                            .sei = sei.true,
+                                            .crit = qnorm(.975),
+                                            
+                                            # if .usePrior = FALSE, will just be the MLE
+                                            .usePrior = FALSE ) )
+
+
+### Version 3: Directly use TNE ###
+# because SEs are the same
+
+# as in doParallel_TNE.R
+p = data.frame(n = kpub,
+               a = -99,
+               b = tcrit * se,
+               stan.iter = 2000,  # default: 2000
+               stan.maxtreedepth = 10, # default: 10
+               stan.adapt_delta = 0.8,
+               get.CIs = FALSE )
+
+res.MLE.TNE = estimate_mle(x = dp$yi,
+                           p = p,
+                           par2is = "var",  # NOTE: it prefers var parameterization
+                           mu.start = Mu.start,
+                           sigma.start = Tt.start,  # resulting estimate will INCLUDE se
+                           get.CIs = p$get.CIs,
+                           CI.method = "wald")
+
+res.MLE.TNE$Mhat
+
+
+
+( nll.start.TNE = nll(.pars = c(Mu.start, Tt.start),
+                    par2is = "sd",
+                    .x = dp$yi,
+                    .a = -99,
+                    .b = tcrit*se) )
+
+
+### Figure out why NLLs disagree ###
+
+### from inside nll()
+( term1 = dnorm(x = dp$yi,
+                mean = Mu.start,
+                sd = Tt.start,  
+                log = TRUE) )
+
+( term2 = length(dp$yi) * log( pmvnorm(lower = -99,
+                                    upper = tcrit*se,
+                                    mean = Mu.start,
+                                    # note use of sigma^2 here because of pmvnorm's different parameterization:
+                                    sigma = Tt.start^2 ) ) )
+
+
+-( sum(term1) - term2 )
+
+# sum(term1) = -2601.394
+# term2 = -5.377309
+
+### from inside nll2() (SAPH)
+
+joint_nll_2(.yi = dp$yi,
+            .sei = sei.true,
+            .Mu = Mu.start,
+            .Tt = Tt.start,
+            .crit = tcrit)
+# inside this fn:
+# term1 = -1482.057
+# term2 = 1.078192
+
+
+#bm: MAP one is giving something huge and negative
+# MLE one 
+# **would be good to look at case with all SEs the same, because that should agree exactly with TNE estimate_jeffreys
+# YOU GOT THIS
+
 
 
 
