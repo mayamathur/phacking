@@ -197,7 +197,7 @@ estimate_jeffreys_RTMA = function( yi,
                 
                 Mu.CI = as.numeric( c(los[1], his[1]) ),
                 Tt.CI = as.numeric( c(los[2], his[2]) ),
-
+                
                 optim.converged = optim.converged,
                 # to match output of estimate_mle, return BFGS - NM
                 Mhat.opt.diff = mles.bfgs[1] - Mu.hat, 
@@ -207,13 +207,13 @@ estimate_jeffreys_RTMA = function( yi,
 
 # .pars: (.Mu, .Tt) or (.Mu, .Tt2)
 nlpost_jeffreys_RTMA = function( .pars,
-                            .par2is = "Tt",  # "Tt" or "Tt2"
-                            .yi,
-                            .sei,
-                            .crit = qnorm(.975),
-                            
-                            # if .usePrior = FALSE, will just be the MLE
-                            .usePrior = TRUE) {
+                                 .par2is = "Tt",  # "Tt" or "Tt2"
+                                 .yi,
+                                 .sei,
+                                 .crit = qnorm(.975),
+                                 
+                                 # if .usePrior = FALSE, will just be the MLE
+                                 .usePrior = TRUE) {
   
   # variance parameterization
   if (.par2is == "Tt2") stop("Var parameterization not handled yet")
@@ -225,6 +225,7 @@ nlpost_jeffreys_RTMA = function( .pars,
     if ( Tt < 0 ) return(.Machine$integer.max)
     
     # negative log-likelihood
+    # joint_nll_2 uses the TNE version
     nll.value = joint_nll_2( .yi = .yi,
                              .sei = .sei,
                              .Mu = Mu,
@@ -232,6 +233,7 @@ nlpost_jeffreys_RTMA = function( .pars,
                              .crit = .crit )
     
     # log-prior
+    # lprior uses the TNE expected Fisher and then just sums over observations
     if ( .usePrior == TRUE ) {
       prior.value = lprior(.sei = .sei,
                            .Mu = Mu,
@@ -417,49 +419,49 @@ E_fisher_RTMA_OLD = function( .sei, .Mu, .Tt, .crit = qnorm(0.975) ) {
 
 
 
-# RTMA log-likelihood
+# RTMA log-likelihood - now uses TNE version
 # carefully structured for use with Deriv()
 joint_nll_2 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975)) {
   
-  browser()
   .T2t = .Tt^2
   
-  # note: don't calculate Zi = .yi/.sei because Deriv is too stupid
-  # expectation and variance of Zi
-  Vi = (1/.sei^2) * (.T2t + .sei^2)
-  Mi = .Mu/.sei
+  # # note: don't calculate Zi = .yi/.sei because Deriv is too stupid
+  # # expectation and variance of Zi
+  # Vi = (1/.sei^2) * (.T2t + .sei^2)
+  # Mi = .Mu/.sei
+  # 
+  # # "true" Z-score (including .T2t)
+  # Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  # 
+  # # can't use dtrunc or even dnorm and pnorm in here because Deriv is too stupid
+  # 
+  # k = length(.yi)
+  # 
+  # # regular meta-analysis part
+  # # c.f. "SAPH theory - tier 2"
+  # term1 = -0.5*k*log(2*pi) - 0.5*sum( log(Vi) ) -
+  #   0.5*sum( (.yi/.sei - Mi)^2 / Vi ) 
+  # 
+  # # truncation part
+  # # THIS IS WRONG! 
+  # term2 = -sum( log( pnorm(Zi.tilde) ) )
   
-  # "true" Z-score (including .T2t)
-  Zi.tilde = (.yi - .Mu) / sqrt(.T2t + .sei^2)
+  # as in TNE::nll() instead
+  .dat = data.frame(yi = .yi, sei = .sei)
   
-  # can't use dtrunc or even dnorm and pnorm in here because Deriv is too stupid
-  
-  k = length(.yi)
-  
-  # regular meta-analysis part
-  # c.f. "SAPH theory - tier 2"
-  term1 = -0.5*k*log(2*pi) - 0.5*sum( log(Vi) ) -
-    0.5*sum( (.yi/.sei - Mi)^2 / Vi ) 
-  
-  # truncation part
-  term2 = -sum( log( pnorm(Zi.tilde) ) )
-  
-  # sanity checks against TNE::nll() (should match if all ses=1)
-  if ( all(.sei == 1) ) {
-    
-    term1.check = dmvnorm(x = as.matrix(.yi, nrow = 1),
-                          mean = as.matrix(.Mu, nrow = 1),
-                          sigma = as.matrix(.T2t + 1^2, nrow=1),
-                          log = TRUE)
-    
-    term2.check = length(.x) * log( pmvnorm(lower = .a,
-                                      upper = .b,
-                                      mean = .mu,
-                                      sigma = .var ) ) 
-    
-  }
-  
-  term1 + term2
+  .dat = .dat %>% rowwise() %>%
+    mutate( term1 = dmvnorm(x = as.matrix(yi, nrow = 1),
+                            mean = as.matrix(.Mu, nrow = 1),
+                            sigma = as.matrix(.T2t + sei^2, nrow=1),
+                            log = TRUE),
+            
+            term2 = log( pmvnorm( lower = -99,
+                                  upper = .crit * sei,
+                                  mean = .Mu,
+                                  sigma = .T2t + sei^2 ) ) )
+
+              
+-sum(.dat$term1) - sum(.dat$term2)
 }
 
 

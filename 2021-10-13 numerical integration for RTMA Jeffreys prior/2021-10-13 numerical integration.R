@@ -114,13 +114,13 @@ dp = sim_meta(Nmax = 1,
               k.hacked = k )
 
 hist(dp$yi)
-kpub = nrow(dp)
+kn = nrow(dp)
 tcrit = unique(dp$tcrit)
 
 ### Version 1: Joint EFish as in TNE
 ( EFish1 = E_fisher_TNE( .mu = Mu,
                          .sigma = sqrt(Tt^2 + se^2), 
-                         .n = kpub,
+                         .n = kn,
                          .a = -99,
                          #*note that .b here needs to be on yi scale, not Zi scale
                          .b = tcrit*se ) )
@@ -149,7 +149,7 @@ expect_equal( Efish1, Efish2 )
 if ( redo.prior.plots == TRUE ) {
   
   
-  dp = expand.grid( .kpub = c(50), # changing this doesn't matter much
+  dp = expand.grid( .kn = c(50), # changing this doesn't matter much
                     .Mu = seq(-4, 4, .1),
                     .Tt = seq(0.5, 4, .1),
                     .sei = 1.5 )
@@ -158,7 +158,7 @@ if ( redo.prior.plots == TRUE ) {
   # make plotting dataframe by calculating log-prior for a grid of values (mu, sigma)
   dp = dp %>%
     rowwise() %>%
-    mutate( lprior = lprior( .sei = rep(.sei, .kpub),
+    mutate( lprior = lprior( .sei = rep(.sei, .kn),
                              .Mu = .Mu,
                              .Tt = .Tt,
                              # just use z-approx for now
@@ -194,7 +194,7 @@ if ( redo.prior.plots == TRUE ) {
     
     ggtitle(title.string) +
     
-    facet_wrap( .kpub ~.,
+    facet_wrap( .kn ~.,
                 scales = "fixed" ) +
     
     # scale_y_continuous(breaks = seq( min(dp$.sigma), max(dp$.sigma), 0.5),
@@ -279,42 +279,46 @@ if ( redo.prior.plots == TRUE ) {
 Mu = 1
 Tt = 2
 k = 1000
-se = 1.5
+se = 1
+tcrit = unique(dn$tcrit)
 
 # SAVE: this is how data were generated
-# # by setting se super small, we're effectively just truncating at yi > 0
-# #  since all studies with yi > 0 are significant
-# dp = sim_meta(Nmax = 1,
-#               Mu = Mu,
-#               T2 = Tt^2,
-#               m = 100,
-#               t2w = 0,
-#               se = se,
-#               hack = "affirm",
-#               return.only.published = TRUE,
-#               rho = 0,
-#               
-#               k = k,
-#               k.hacked = k )
+# by setting se super small, we're effectively just truncating at yi > 0
+#  since all studies with yi > 0 are significant
+d = sim_meta(Nmax = 1,
+              Mu = Mu,
+              T2 = Tt^2,
+              m = 100,
+              t2w = 0,
+              se = se,
+              hack = "affirm",
+              return.only.published = FALSE,
+              rho = 0,
+
+              k = k,
+              k.hacked = 0 )
+
+# get nonaffirms based on TRUE SEs
+# temporary because otherwise they won't all have same se
+dn = d %>% filter( yi < tcrit * se )
 
 
 setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/2021-10-13 numerical integration for RTMA Jeffreys prior")
-#fwrite(dp, "sim_meta_1.csv")
-dp = fread("sim_meta_1.csv")
+fwrite(dn, "sim_meta_1.csv")
+dn = fread("sim_meta_1.csv")
 
 # set vars for all methods
-kpub = nrow(dp)
-tcrit = unique(dp$tcrit)
+kn = nrow(dn)
 Mu.start = 0
 Tt.start = 1
-sei.true = rep(se, kpub)
+sei.true = rep(se, kn)
 
 
 ### Version 1: MAP ###
-res.MAP = estimate_jeffreys_RTMA(yi = dp$yi,
+res.MAP = estimate_jeffreys_RTMA(yi = dn$yi,
                                  
                                  sei = sei.true,  # true SEs
-                                 # sei = sqrt(dp$vi),  # estimated SEs
+                                 # sei = sqrt(dn$vi),  # estimated SEs
                                  
                                  par2is = "Tt",
                                  Mu.start,
@@ -329,10 +333,10 @@ res.MAP$MuHat
 ### Version 1: MLE ###
 # without using prior
 # doesn't work at all ("Lapack routine dgesv: system is exactly singular: U[1,1] = 0")
-res.MLE = estimate_jeffreys_RTMA(yi = dp$yi,
+res.MLE = estimate_jeffreys_RTMA(yi = dn$yi,
                                  
                                  sei = sei.true,  # true SEs
-                                 # sei = sqrt(dp$vi),  # estimated SEs
+                                 # sei = sqrt(dn$vi),  # estimated SEs
                                  
                                  par2is = "Tt",
                                  Mu.start,
@@ -346,7 +350,7 @@ res.MLE = estimate_jeffreys_RTMA(yi = dp$yi,
 # this does give a value
 ( nll.start.RTMA = nlpost_jeffreys_RTMA( .pars = c(0,1),
                                             .par2is = "Tt",  # "Tt" or "Tt2"
-                                            .yi = dp$yi,
+                                            .yi = dn$yi,
                                             .sei = sei.true,
                                             .crit = qnorm(.975),
                                             
@@ -358,7 +362,7 @@ res.MLE = estimate_jeffreys_RTMA(yi = dp$yi,
 # because SEs are the same
 
 # as in doParallel_TNE.R
-p = data.frame(n = kpub,
+p = data.frame(n = kn,
                a = -99,
                b = tcrit * se,
                stan.iter = 2000,  # default: 2000
@@ -366,7 +370,7 @@ p = data.frame(n = kpub,
                stan.adapt_delta = 0.8,
                get.CIs = FALSE )
 
-res.MLE.TNE = estimate_mle(x = dp$yi,
+res.MLE.TNE = estimate_mle(x = dn$yi,
                            p = p,
                            par2is = "var",  # NOTE: it prefers var parameterization
                            mu.start = Mu.start,
@@ -380,7 +384,7 @@ res.MLE.TNE$Mhat
 
 ( nll.start.TNE = nll(.pars = c(Mu.start, Tt.start),
                     par2is = "sd",
-                    .x = dp$yi,
+                    .x = dn$yi,
                     .a = -99,
                     .b = tcrit*se) )
 
@@ -388,12 +392,12 @@ res.MLE.TNE$Mhat
 ### Figure out why NLLs disagree ###
 
 ### from inside nll()
-( term1 = dnorm(x = dp$yi,
+( term1 = dnorm(x = dn$yi,
                 mean = Mu.start,
                 sd = Tt.start,  
                 log = TRUE) )
 
-( term2 = length(dp$yi) * log( pmvnorm(lower = -99,
+( term2 = length(dn$yi) * log( pmvnorm(lower = -99,
                                     upper = tcrit*se,
                                     mean = Mu.start,
                                     # note use of sigma^2 here because of pmvnorm's different parameterization:
@@ -407,7 +411,7 @@ res.MLE.TNE$Mhat
 
 ### from inside nll2() (SAPH)
 
-joint_nll_2(.yi = dp$yi,
+joint_nll_2(.yi = dn$yi,
             .sei = sei.true,
             .Mu = Mu.start,
             .Tt = Tt.start,
