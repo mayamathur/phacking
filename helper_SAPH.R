@@ -46,27 +46,27 @@ joint_nll_2 = function(.yi, .sei, .Mu, .Tt, .crit = rep(qnorm(.975), length(.yi)
   
   nll = sum(.dat$nll.i)
   
-  # sanity checks
-  term1.new = log( dnorm( x = .dat$yi[1],
-                          mean = .Mu,
-                          sd = sqrt(.T2t + .dat$sei[1]^2) ) )
-  
-  term2.new = log( pnorm( q = .dat$crit[1] * .dat$sei[1],
-                          mean = .Mu,
-                          sd = sqrt(.T2t + .dat$sei[1]^2) ) ) 
-  
-  expect_equal( as.numeric(.dat$term1[1]), as.numeric(term1.new), tol = 0.001 )
-  expect_equal( as.numeric(.dat$term2[1]), as.numeric(term2.new), tol = 0.001 )
-  
-  # another sanity check
-  library(truncnorm)
-  nll.new = -log( dtruncnorm( x = .dat$yi[1],
-                              mean = .Mu,
-                              sd = sqrt(.T2t + .dat$sei[1]^2),
-                              a = -99,
-                              b = .dat$sei[1] * .dat$crit[1] ) )
-  
-  expect_equal( nll.new, as.numeric(.dat$nll.i[1]) , tol = 0.001)
+  # # sanity checks
+  # term1.new = log( dnorm( x = .dat$yi[1],
+  #                         mean = .Mu,
+  #                         sd = sqrt(.T2t + .dat$sei[1]^2) ) )
+  # 
+  # term2.new = log( pnorm( q = .dat$crit[1] * .dat$sei[1],
+  #                         mean = .Mu,
+  #                         sd = sqrt(.T2t + .dat$sei[1]^2) ) ) 
+  # 
+  # expect_equal( as.numeric(.dat$term1[1]), as.numeric(term1.new), tol = 0.001 )
+  # expect_equal( as.numeric(.dat$term2[1]), as.numeric(term2.new), tol = 0.001 )
+  # 
+  # # another sanity check
+  # library(truncnorm)
+  # nll.new = -log( dtruncnorm( x = .dat$yi[1],
+  #                             mean = .Mu,
+  #                             sd = sqrt(.T2t + .dat$sei[1]^2),
+  #                             a = -99,
+  #                             b = .dat$sei[1] * .dat$crit[1] ) )
+  # 
+  # expect_equal( nll.new, as.numeric(.dat$nll.i[1]) , tol = 0.001)
 
   # return it
   return(nll)
@@ -192,6 +192,7 @@ nlpost_jeffreys_RTMA = function( .pars,
 # mu.start, sigma.start: start values for optimatization
 # as illustrated in a sanity check after nlpost_simple, this fn's MAPs agree with
 #  using mle() directly on nlpost_Jeffreys
+# confirmed that this agrees with weightr when usePrior = FALSE; see "2021-11-23 repurpose TNE code"
 estimate_jeffreys_RTMA = function( yi,
                                    sei,
                                    par2is = "Tt",
