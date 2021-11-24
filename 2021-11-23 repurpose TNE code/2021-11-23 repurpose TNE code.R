@@ -40,6 +40,9 @@ prepped.data.dir = "~/Dropbox/Personal computer/Miscellaneous/Journal article li
 res.dir = "~/Dropbox/Personal computer/Miscellaneous/Journal article library/Reproducibility:replicability/Kvarven comparing meta-analysis and multisite replications/Reanalyze Kvarven/Hagger comparison results"
 
 
+setwd(prepped.data.dir)
+dm = read.csv("prepped_hagger_meta_data.csv")
+
 #code.dir = here("2021-10-7 check RTMA Jeffreys theory")
 
 # code.dir = here()
@@ -221,7 +224,7 @@ res.MAP.1$TtHat
 
 ### MLE version 2: weightr ###
 
-# this one does NOT agree
+#  yes, agrees with MLE :)
 ( m1 = weightfunct( effect = yi,
                     v = sei^2,  
                     steps = c(0.025, 1),
@@ -254,7 +257,7 @@ Tt.start = 1
 all( dn$yi <= zcrit * sei )
 
 
-### Version 1: MLE - makes sense! ###
+### Version 1: MLE - agrees with weightr!! ###
 res.MLE.1 = estimate_jeffreys_RTMA( yi = yi,
                                       sei = sei,
                                       par2is = "Tt",
@@ -313,7 +316,6 @@ res.MAP.1$TtHat
 
 ### MLE version 2: weightr ###
 
-# this one does NOT agree
 ( m1 = weightfunct( effect = yi,
                     v = sei^2,  
                     steps = c(0.025, 1),
@@ -321,7 +323,7 @@ res.MAP.1$TtHat
                     table = TRUE ) )
 
 # adjusted point estimate
-m1[[2]]$par[2]
+expect_equal( m1[[2]]$par[2], res.MLE.1$MuHat, tol = 0.001 ) 
 
 
 

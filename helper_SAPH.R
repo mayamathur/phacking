@@ -55,8 +55,8 @@ joint_nll_2 = function(.yi, .sei, .Mu, .Tt, .crit = rep(qnorm(.975), length(.yi)
                           mean = .Mu,
                           sd = sqrt(.T2t + .dat$sei[1]^2) ) ) 
   
-  expect_equal( as.numeric(.dat$term1[1]), as.numeric(term1.new) )
-  expect_equal( as.numeric(.dat$term2[1]), as.numeric(term2.new) )
+  expect_equal( as.numeric(.dat$term1[1]), as.numeric(term1.new), tol = 0.001 )
+  expect_equal( as.numeric(.dat$term2[1]), as.numeric(term2.new), tol = 0.001 )
   
   # another sanity check
   library(truncnorm)
@@ -66,7 +66,7 @@ joint_nll_2 = function(.yi, .sei, .Mu, .Tt, .crit = rep(qnorm(.975), length(.yi)
                               a = -99,
                               b = .dat$sei[1] * .dat$crit[1] ) )
   
-  expect_equal( nll.new, as.numeric(.dat$nll.i[1]) )
+  expect_equal( nll.new, as.numeric(.dat$nll.i[1]) , tol = 0.001)
 
   # return it
   return(nll)
