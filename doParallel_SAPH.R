@@ -154,7 +154,9 @@ if ( run.local == TRUE ) {
                             rho = 0,
                             
                             k = 100,
-                            k.hacked = 0 )  
+                            k.hacked = 0,
+
+                            get.CIs = TRUE)  
   
   
   
@@ -208,7 +210,7 @@ doParallelTime = system.time({
                  
                  k = p$k,
                  k.hacked = p$k.hacked,
-                 return.only.published = FALSE )
+                 return.only.published = FALSE)
     
     
     # dataset of only published results
@@ -241,6 +243,7 @@ doParallelTime = system.time({
     #  with no apparent errors but then were fine as soon as I skipped this step 
     #  via the p$k < 500 criterion
     if ( p$k < 500 ) {
+      # uses rma.mv because studies have multiple draws
       modAll = rma.mv( yi = yi,
                        V = vi,
                        data = d,
@@ -284,6 +287,50 @@ doParallelTime = system.time({
     repRes = add_method_result_row(repRes = NA,
                                    corrObject = modCorr,
                                    methName = "AllNonaffirms")
+    
+    
+    # ~~ Bias-Corrected Estimator #2: TNE with Jeffreys Prior ------------------------------
+    
+    modCorr2 = correct_meta_phack3( .p = p,
+                                   .dp = dp,
+                                   .method = "jeffreys-mode")
+    
+    cat("\n\nSURVIVED MODCORR2 STEP")
+    #print(head(dp))
+    
+    # add to results
+    repRes = add_method_result_row(repRes = repRes,
+                                   corrObject = modCorr2,
+                                   methName = "jeffreys-mode")
+    
+    
+    # ~~ Estimator #3: TNE with MLE ------------------------------
+    
+    modCorr3 = correct_meta_phack3( .p = p,
+                                    .dp = dp,
+                                    .method = "mle")
+    
+    cat("\n\nSURVIVED MODCORR3 STEP")
+    #print(head(dp))
+    
+    # add to results
+    repRes = add_method_result_row(repRes = repRes,
+                                   corrObject = modCorr3,
+                                   methName = "mle")
+    
+    # sanity check: what is the value of the nll at the MLE vs. at the truth?
+    dpn = d %>% filter(Di == 1 & affirm == FALSE)
+    joint_nll_2(.yi = dpn$yi,
+                .sei = sqrt(dpn$vi),
+                .Mu = -0.2,
+                .Tt = .5,
+                .crit = dpn$tcrit )
+    
+    joint_nll_2(.yi = dpn$yi,
+                .sei = sqrt(dpn$vi),
+                .Mu = p$Mu,
+                .Tt = sqrt(p$T2 + p$t2w),
+                .crit = dpn$tcrit )
     
     # # SAVE 
     # # methods from earlier simulations where I was bias-correcting the affirmatives

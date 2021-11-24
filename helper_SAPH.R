@@ -24,11 +24,11 @@
 
 # RTMA log-likelihood - now uses TNE version
 # carefully structured for use with Deriv()
-joint_nll_2 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975)) {
+joint_nll_2 = function(.yi, .sei, .Mu, .Tt, .crit = rep(qnorm(.975), length(.yi) ) ) {
   
   .T2t = .Tt^2
   # as in TNE::nll() instead
-  .dat = data.frame(yi = .yi, sei = .sei)
+  .dat = data.frame(yi = .yi, sei = .sei, crit = .crit)
   
   .dat = .dat %>% rowwise() %>%
     mutate( term1 = dmvnorm(x = as.matrix(yi, nrow = 1),
@@ -37,10 +37,11 @@ joint_nll_2 = function(.yi, .sei, .Mu, .Tt, .crit = qnorm(.975)) {
                             log = TRUE),
             
             term2 = log( pmvnorm( lower = -99,
-                                  upper = .crit * sei,
+                                  upper = crit * sei,
                                   mean = .Mu,
                                   sigma = .T2t + sei^2 ) ) )
   
+
   
   -sum(.dat$term1) - sum(.dat$term2)
   
@@ -183,7 +184,7 @@ estimate_jeffreys_RTMA = function( yi,
   #  and that's a problem with a doParallel loop
   #  if this fn is outside estimate_jeffreys, different parallel iterations will use each other's global vars
   
-  #  expects yi, sei, and crit to be global vars
+  #  expects yi, sei, and crit to be global vars (wrt this inner fn)
   nlpost_simple_RTMA = function(.Mu, .Tt) {
     
     nlpost_jeffreys_RTMA( .pars = c(.Mu, .Tt),
@@ -194,9 +195,11 @@ estimate_jeffreys_RTMA = function( yi,
                           .usePrior = usePrior )
   }
   
+  browser()
+
   #**important: force use of Nelder-Mead optimization, which works better for Jeffreys
   #  (even though BFGS works better for MLE)
-  # for more on this issue, see "2021-9-23 SD vs. var reduc with Jeffreys.R"
+  # for more on this issue, see "2021-9-23 SD vs. var redux with Jeffreys.R"
   res = mle( minuslogl = nlpost_simple_RTMA,
              start = list( .Mu = Mu.start, .Tt = Tt.start),
              method = "Nelder-Mead" )
@@ -464,7 +467,7 @@ correct_dataset_phack = function( .dp,  # published studies
 
 
 
-
+# older version (before TNE)
 # use only the nonaffirms to get trunc MLE
 #  and throws away the affirms
 # **note that the returned Vhat is an estimate of T2 + t2w, not T2 itself
@@ -600,6 +603,53 @@ correct_meta_phack1 = function( .dp,  # published studies
                 )
   ) )
   
+}
+
+
+
+
+# use only the nonaffirms to get trunc MLE
+#  and throws away the affirms
+# **note that the returned Vhat is an estimate of T2 + t2w, not T2 itself
+correct_meta_phack3 = function( .dp,  # published studies
+                                .p,   # parameters as dataframe
+                                .method # "mle", "jeffreys-mode"
+                               
+) { 
+  
+  #bm
+  # published nonaffirmatives only
+  dpn = .dp[ .dp$affirm == FALSE, ]
+  
+  if ( .method == "mle" ) {
+    usePrior = FALSE
+  } else if ( .method == "jeffreys-mode" ) {
+    usePrior = TRUE
+  } else {
+    stop("method not handled")
+  }
+  
+  
+  res = estimate_jeffreys_RTMA( yi = dpn$yi,
+                                     sei = sqrt(dpn$vi),
+                                     par2is = "Tt",
+                                     Mu.start = 0,
+                                     Tt.start = 1,
+                                     crit = dpn$tcrit,
+                                     
+                                     usePrior = usePrior,
+                                     get.CIs = p$get.CIs,
+                                     CI.method = "wald" )
+  
+  
+  ### Return all the things ###
+  return( list(metaCorr = data.frame( MhatCorr = res$MuHat,
+                                       MhatLoCorr = res$Mu.CI[1],
+                                       MhatHiCorr = res$Mu.CI[2],
+                                       MhatCoverCorr = ( res$Mu.CI[1] <=.p$Mu ) & ( res$Mu.CI[2] >=.p$Mu ),
+                                       VhatCorr = res$TtHat^2) ))
+
+
 }
 
 
@@ -1550,15 +1600,18 @@ add_method_result_row = function(repRes = NA,
                                  corrObject,
                                  methName) {
   
-  newRow = cbind( corrObject$metaCorr,
-                  corrObject$sanityChecks )
+
+  # newRow = bind_cols( corrObject$metaCorr,
+  #                 corrObject$sanityChecks )
+  #@TEMP: DON'T KEEP THE SANITY CHECKS BECAUSE CORRECT_META_PHACK2 doesn't have it
+  newRow = corrObject$metaCorr
   
   newRow = newRow %>% add_column(.before = 1,
                                  methName = methName )
   
   
   # "if" condition is hacky way to deal with repRes = NA case
-  if ( is.null( nrow(repRes) ) ) repRes = newRow else repRes = rbind(repRes, newRow)
+  if ( is.null( nrow(repRes) ) ) repRes = newRow else repRes = bind_rows(repRes, newRow)
   return(repRes)
 }
 
