@@ -90,9 +90,151 @@ dm = read.csv("prepped_hagger_meta_data.csv")
 # plot_trunc_densities(.obj)
 
 
+# ~ 2021-11-24: SIM META WITH DIFFERENT SES ----------------------------------------------------
+
+# unlike the sim meta below, now we allow different studies to have different SEs
+# RESULTS DO NOT MAKE SENSE -- ESTIMATES ARE WAY TOO SMALL
+
+Mu = .1
+T2 = .25
+t2w = 0.25
+k = 100
+se = 0.5
+m = 500
+
+# from doParallel:
+# scen.params = data.frame( scen = 1,
+#                           Mu = 0.1,
+#                           T2 = 0.25,
+#                           t2w = 0.25,
+#                           se = 0.5,
+#                           m = 500,
+#                           
+#                           Nmax = 1,
+#                           hack = "affirm", 
+#                           rho = 0,
+#                           
+#                           k = 100,
+#                           k.hacked = 0,
+#                           
+#                           get.CIs = TRUE)
 
 
-# ~ 2021-11-23: WITH DIFFERENT SEs ----------------------------------------------------
+
+# SAVE: this is how data were generated
+d = sim_meta(Nmax = 1,
+             Mu = Mu,
+             T2 = T2,
+             m = m,
+             t2w = t2w,
+             se = se,
+             hack = "affirm",
+             return.only.published = FALSE,
+             rho = 0,
+
+             k = k,
+             k.hacked = 0 )
+
+
+
+# setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/2021-10-13 numerical integration for RTMA Jeffreys prior")
+# # fwrite(dn, "sim_meta_1.csv")
+# dn = fread("sim_meta_1.csv")
+
+dn = d %>% filter(Di == 1 & affirm == FALSE)
+dn$sei = sqrt(dn$vi)
+# sanity check 
+all( dn$yi <= dn$tcrit * dn$sei )
+
+yi = dn$yi
+sei = dn$sei
+crit = dn$tcrit
+
+Mu.start = 0
+Tt.start = 1
+
+### Version 1: MLE ###
+res.MLE.1 = estimate_jeffreys_RTMA( yi = yi,
+                                    sei = sei,
+                                    par2is = "Tt",
+                                    Mu.start = Mu.start,
+                                    Tt.start = Tt.start,
+                                    crit = crit,
+                                    
+                                    usePrior = FALSE,
+                                    get.CIs = TRUE,
+                                    CI.method = "wald" )
+
+res.MLE.1$MuHat
+res.MLE.1$TtHat
+
+
+### Sanity check: optimize the nll directly
+
+joint_nll2_simple = function(.Mu, .Tt) {
+  joint_nll_2( .yi = yi, .sei = sei, .Mu = .Mu, .Tt = .Tt, .crit = crit )
+}
+
+
+res = mle( minuslogl = joint_nll2_simple,
+           start = list( .Mu = Mu.start, .Tt = Tt.start),
+           method = "Nelder-Mead" )
+as.numeric(coef(res))
+# yes, agrees with above :)
+
+# vs. BFGS
+res = mle( minuslogl = joint_nll2_simple,
+           start = list( .Mu = Mu.start, .Tt = Tt.start),
+           method = "BFGS" )
+as.numeric(coef(res))
+# yes, agrees with above :)
+
+
+
+# does nlpost_jeffreys agree? YES
+v1 = joint_nll_2( .yi = yi, .sei = sei, .Mu = Mu.start, .Tt = Tt.start, .crit = crit )
+v2 = nlpost_jeffreys_RTMA( .pars = c(Mu.start, Tt.start),
+                           .par2is = "Tt",
+                           .yi = yi,
+                           .sei = sei,
+                           .crit = crit,
+                           .usePrior = FALSE )
+expect_equal(v1, v2)
+
+### Version 2: MAP ###
+res.MAP.1 = estimate_jeffreys_RTMA( yi = yi,
+                                    sei = sei,
+                                    par2is = "Tt",
+                                    Mu.start = Mu.start,
+                                    Tt.start = Tt.start,
+                                    crit = crit,
+                                    
+                                    usePrior = TRUE,
+                                    get.CIs = TRUE,
+                                    CI.method = "wald" )
+
+res.MAP.1$MuHat
+res.MAP.1$TtHat
+
+# point estimates are similar (MAP vs. MLE) 
+
+
+### MLE version 2: weightr ###
+
+# this one does NOT agree
+( m1 = weightfunct( effect = yi,
+                    v = sei^2,  
+                    steps = c(0.025, 1),
+                    weights = c(0,1), # weight such that ONLY nonaffirmatives are published
+                    table = TRUE ) )
+
+# adjusted point estimate
+m1[[2]]$par[2]
+
+
+
+
+# ~ 2021-11-23: WITH DIFFERENT SEs (HAGGER) ----------------------------------------------------
 
 # scenario: different SEs as in Hagger meta, and we have to use the estimated SEs
 #  rather than the true ones
@@ -182,7 +324,7 @@ res.MAP.1$TtHat
 m1[[2]]$par[2]
 
 
-#bm
+
 
 
 # ~ 2021-11-23: WITH ALL SES EQUAL ----------------------------------------------------

@@ -29,7 +29,7 @@ joint_nll_2 = function(.yi, .sei, .Mu, .Tt, .crit = rep(qnorm(.975), length(.yi)
   .T2t = .Tt^2
   # as in TNE::nll() instead
   .dat = data.frame(yi = .yi, sei = .sei, crit = .crit)
-  
+
   .dat = .dat %>% rowwise() %>%
     mutate( term1 = dmvnorm(x = as.matrix(yi, nrow = 1),
                             mean = as.matrix(.Mu, nrow = 1),
@@ -39,11 +39,37 @@ joint_nll_2 = function(.yi, .sei, .Mu, .Tt, .crit = rep(qnorm(.975), length(.yi)
             term2 = log( pmvnorm( lower = -99,
                                   upper = crit * sei,
                                   mean = .Mu,
-                                  sigma = .T2t + sei^2 ) ) )
+                                  sigma = .T2t + sei^2 ) ),
+            
+            nll.i = -term1 + term2 )
   
+  
+  nll = sum(.dat$nll.i)
+  
+  # sanity checks
+  term1.new = log( dnorm( x = .dat$yi[1],
+                          mean = .Mu,
+                          sd = sqrt(.T2t + .dat$sei[1]^2) ) )
+  
+  term2.new = log( pnorm( q = .dat$crit[1] * .dat$sei[1],
+                          mean = .Mu,
+                          sd = sqrt(.T2t + .dat$sei[1]^2) ) ) 
+  
+  expect_equal( as.numeric(.dat$term1[1]), as.numeric(term1.new) )
+  expect_equal( as.numeric(.dat$term2[1]), as.numeric(term2.new) )
+  
+  # another sanity check
+  library(truncnorm)
+  nll.new = -log( dtruncnorm( x = .dat$yi[1],
+                              mean = .Mu,
+                              sd = sqrt(.T2t + .dat$sei[1]^2),
+                              a = -99,
+                              b = .dat$sei[1] * .dat$crit[1] ) )
+  
+  expect_equal( nll.new, as.numeric(.dat$nll.i[1]) )
 
-  
-  -sum(.dat$term1) - sum(.dat$term2)
+  # return it
+  return(nll)
   
   # from TNE's nll:
   # term1 = dnorm(x = .x,
@@ -195,8 +221,7 @@ estimate_jeffreys_RTMA = function( yi,
                           .usePrior = usePrior )
   }
   
-  browser()
-
+  
   #**important: force use of Nelder-Mead optimization, which works better for Jeffreys
   #  (even though BFGS works better for MLE)
   # for more on this issue, see "2021-9-23 SD vs. var redux with Jeffreys.R"
@@ -614,7 +639,7 @@ correct_meta_phack1 = function( .dp,  # published studies
 correct_meta_phack3 = function( .dp,  # published studies
                                 .p,   # parameters as dataframe
                                 .method # "mle", "jeffreys-mode"
-                               
+                                
 ) { 
   
   #bm
@@ -631,25 +656,25 @@ correct_meta_phack3 = function( .dp,  # published studies
   
   
   res = estimate_jeffreys_RTMA( yi = dpn$yi,
-                                     sei = sqrt(dpn$vi),
-                                     par2is = "Tt",
-                                     Mu.start = 0,
-                                     Tt.start = 1,
-                                     crit = dpn$tcrit,
-                                     
-                                     usePrior = usePrior,
-                                     get.CIs = p$get.CIs,
-                                     CI.method = "wald" )
+                                sei = sqrt(dpn$vi),
+                                par2is = "Tt",
+                                Mu.start = 0,
+                                Tt.start = 1,
+                                crit = dpn$tcrit,
+                                
+                                usePrior = usePrior,
+                                get.CIs = p$get.CIs,
+                                CI.method = "wald" )
   
   
   ### Return all the things ###
   return( list(metaCorr = data.frame( MhatCorr = res$MuHat,
-                                       MhatLoCorr = res$Mu.CI[1],
-                                       MhatHiCorr = res$Mu.CI[2],
-                                       MhatCoverCorr = ( res$Mu.CI[1] <=.p$Mu ) & ( res$Mu.CI[2] >=.p$Mu ),
-                                       VhatCorr = res$TtHat^2) ))
-
-
+                                      MhatLoCorr = res$Mu.CI[1],
+                                      MhatHiCorr = res$Mu.CI[2],
+                                      MhatCoverCorr = ( res$Mu.CI[1] <=.p$Mu ) & ( res$Mu.CI[2] >=.p$Mu ),
+                                      VhatCorr = res$TtHat^2) ))
+  
+  
 }
 
 
@@ -1600,7 +1625,7 @@ add_method_result_row = function(repRes = NA,
                                  corrObject,
                                  methName) {
   
-
+  
   # newRow = bind_cols( corrObject$metaCorr,
   #                 corrObject$sanityChecks )
   #@TEMP: DON'T KEEP THE SANITY CHECKS BECAUSE CORRECT_META_PHACK2 doesn't have it
