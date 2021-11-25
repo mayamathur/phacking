@@ -320,7 +320,7 @@ v2 = nlpost_jeffreys_RTMA( .pars = c(Mu.start, Tt.start),
                       .usePrior = FALSE )
 expect_equal(v1, v2)
 
-### Version 2: MAP ###
+### Version 2: MAP (SD parametrization) ###
 res.MAP.1 = estimate_jeffreys_RTMA( yi = yi,
                                     sei = sei,
                                     par2is = "Tt",
@@ -336,7 +336,20 @@ res.MAP.1$MuHat
 res.MAP.1$TtHat
 #bm: this one is huge!
 
+### Version 3: MAP (var parametrization) ###
+res.MAP.1 = estimate_jeffreys_RTMA( yi = yi,
+                                    sei = sei,
+                                    par2is = "T2t",
+                                    Mu.start = Mu.start,
+                                    Tt.start = Tt.start,
+                                    tcrit = zcrit,
+                                    
+                                    usePrior = TRUE,
+                                    get.CIs = TRUE,
+                                    CI.method = "wald" )
 
+res.MAP.1$MuHat
+res.MAP.1$TtHat
 
 
 

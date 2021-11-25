@@ -24,10 +24,19 @@
 
 # RTMA log-likelihood - now uses TNE version
 # carefully structured for use with Deriv()
-joint_nll_2 = function(.yi, .sei, .Mu, .Tt, .tcrit = rep(qnorm(.975), length(.yi) ) ) {
+joint_nll_2 = function(.yi,
+                       .sei,
+                       .Mu,
+                       .Tt = NULL,  # allow either parameterization
+                       .T2t = NULL,
+                       .tcrit = rep( qnorm(.975), length(.yi) ) ) {
   
-  .T2t = .Tt^2
-  # as in TNE::nll() instead
+  
+  if ( is.null(.T2t) ) .T2t = .Tt^2
+  if ( is.null(.Tt) ) .Tt = sqrt(.T2t)
+  
+  
+  # as in TNE::nll()
   .dat = data.frame(yi = .yi, sei = .sei, crit = .tcrit)
 
   .dat = .dat %>% rowwise() %>%
@@ -174,7 +183,7 @@ lprior = function(.sei, .Mu, .Tt, .tcrit) {
 
 # .pars: (.Mu, .Tt) or (.Mu, .Tt2)
 nlpost_jeffreys_RTMA = function( .pars,
-                                 .par2is = "Tt",  # "Tt" or "Tt2"
+                                 .par2is = "Tt",  # "Tt" or "T2t"
                                  .yi,
                                  .sei,
                                  .tcrit = qnorm(.975),
@@ -183,38 +192,43 @@ nlpost_jeffreys_RTMA = function( .pars,
                                  .usePrior = TRUE) {
   
   # variance parameterization
-  if (.par2is == "Tt2") stop("Var parameterization not handled yet")
+  if (.par2is == "T2t") {
+    stop("This parameterization isn't handled yet")
+    Mu = .pars[1]
+    Tt = sqrt(.pars[2])
+  }
+  
   
   if (.par2is == "Tt") {
     Mu = .pars[1]
     Tt = .pars[2]
-    
-    if ( Tt < 0 ) return(.Machine$integer.max)
-    
-    # negative log-likelihood
-    # joint_nll_2 uses the TNE version
-    nll.value = joint_nll_2( .yi = .yi,
-                             .sei = .sei,
-                             .Mu = Mu,
-                             .Tt = Tt,
-                             .tcrit = .tcrit )
-    
-    # log-prior
-    # lprior uses the TNE expected Fisher and then just sums over observations
-    if ( .usePrior == TRUE ) {
-      prior.value = lprior(.sei = .sei,
+  }
+  
+  if ( Tt < 0 ) return(.Machine$integer.max)
+  
+  # negative log-likelihood
+  # joint_nll_2 uses the TNE version
+  nll.value = joint_nll_2( .yi = .yi,
+                           .sei = .sei,
                            .Mu = Mu,
                            .Tt = Tt,
-                           .tcrit = .tcrit)
-    } else {
-      prior.value = 0
-    }
-    
-    # negative log-posterior
-    nlp.value = sum(nll.value) + prior.value
-    
-    if ( is.infinite(nlp.value) | is.na(nlp.value) ) return(.Machine$integer.max)
+                           .tcrit = .tcrit )
+  
+  # log-prior
+  # lprior uses the TNE expected Fisher and then just sums over observations
+  if ( .usePrior == TRUE ) {
+    prior.value = lprior(.sei = .sei,
+                         .Mu = Mu,
+                         .Tt = Tt,
+                         .tcrit = .tcrit)
+  } else {
+    prior.value = 0
   }
+  
+  # negative log-posterior
+  nlp.value = sum(nll.value) + prior.value
+  
+  if ( is.infinite(nlp.value) | is.na(nlp.value) ) return(.Machine$integer.max)
   
   return(nlp.value)
 }
