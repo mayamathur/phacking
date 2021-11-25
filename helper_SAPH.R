@@ -24,11 +24,11 @@
 
 # RTMA log-likelihood - now uses TNE version
 # carefully structured for use with Deriv()
-joint_nll_2 = function(.yi, .sei, .Mu, .Tt, .crit = rep(qnorm(.975), length(.yi) ) ) {
+joint_nll_2 = function(.yi, .sei, .Mu, .Tt, .tcrit = rep(qnorm(.975), length(.yi) ) ) {
   
   .T2t = .Tt^2
   # as in TNE::nll() instead
-  .dat = data.frame(yi = .yi, sei = .sei, crit = .crit)
+  .dat = data.frame(yi = .yi, sei = .sei, crit = .tcrit)
 
   .dat = .dat %>% rowwise() %>%
     mutate( term1 = dmvnorm(x = as.matrix(yi, nrow = 1),
@@ -114,30 +114,62 @@ E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
 }
 
 
-E_fisher_RTMA = function( .sei, .Mu, .Tt, .crit = qnorm(0.975) ) {
+# important: note that in this fn, critical value is on t/z scale, NOT raw scale
+#  vs. in E_fisher_TNE, .b is on raw scale
+E_fisher_RTMA = function( .sei, .Mu, .Tt, .tcrit = qnorm(0.975) ) {
   # get expected Fisher info for each observation separately, based on its unique SE
   # each observation is RTN, so can just use TNE result!!
+  
   Efish.list = lapply( X = as.list(.sei),
                        FUN = function(.s) {
                          E_fisher_TNE( .mu = .Mu,
                                        .sigma = sqrt(.Tt^2 + .s^2), 
                                        .n = 1,
                                        .a = -99,
-                                       .b = .crit*.s )
+                                       .b = .tcrit*.s )
                        })
   
   # add all the matrices entrywise
   # https://stackoverflow.com/questions/11641701/sum-a-list-of-matrices
   Efish.all = Reduce('+', Efish.list) 
   
+  # cat("\nFirst observation Efish:")
+  # print(Efish.list[[1]])
+  
   return(Efish.all)
 }
 
+# ### Sanity check: Should agree with E_fisher_TNE if all SEs equal
+# n = 10
+# se = 2
+# Mu = 0.1
+# Tt = 2
+# zcrit = 1.96
+# ( Efish1 = E_fisher_RTMA( .sei = rep(se, n),
+#                           .Mu = Mu,
+#                           .Tt = Tt,
+#                           .tcrit = rep(zcrit, n) ) )
+# 
+# ( Efish2 = E_fisher_TNE( .mu = Mu,
+#                          .sigma = sqrt(Tt^2 + se^2),
+#                          .n = n,
+#                          .a = -99,
+#                          .b = zcrit*se ) )
+# expect_equal(Efish1, Efish2)
+# 
+# # c.f.: different SEs but with same mean across studies
+# E_fisher_RTMA( .sei = runif(n = n, min = se - 1, max = se + 1),
+#                .Mu = Mu,
+#                .Tt = Tt,
+#                .tcrit = rep(zcrit, n) )
 
-lprior = function(.sei, .Mu, .Tt, .crit) {
-  Efish = E_fisher_RTMA( .sei = .sei, .Mu = .Mu, .Tt = .Tt, .crit = .crit )
+
+
+lprior = function(.sei, .Mu, .Tt, .tcrit) {
+  Efish = E_fisher_RTMA( .sei = .sei, .Mu = .Mu, .Tt = .Tt, .tcrit = .tcrit )
   log( sqrt( det(Efish) ) )
 }
+
 
 
 # .pars: (.Mu, .Tt) or (.Mu, .Tt2)
@@ -145,7 +177,7 @@ nlpost_jeffreys_RTMA = function( .pars,
                                  .par2is = "Tt",  # "Tt" or "Tt2"
                                  .yi,
                                  .sei,
-                                 .crit = qnorm(.975),
+                                 .tcrit = qnorm(.975),
                                  
                                  # if .usePrior = FALSE, will just be the MLE
                                  .usePrior = TRUE) {
@@ -165,7 +197,7 @@ nlpost_jeffreys_RTMA = function( .pars,
                              .sei = .sei,
                              .Mu = Mu,
                              .Tt = Tt,
-                             .crit = .crit )
+                             .tcrit = .tcrit )
     
     # log-prior
     # lprior uses the TNE expected Fisher and then just sums over observations
@@ -173,7 +205,7 @@ nlpost_jeffreys_RTMA = function( .pars,
       prior.value = lprior(.sei = .sei,
                            .Mu = Mu,
                            .Tt = Tt,
-                           .crit = .crit)
+                           .tcrit = .tcrit)
     } else {
       prior.value = 0
     }
@@ -198,7 +230,7 @@ estimate_jeffreys_RTMA = function( yi,
                                    par2is = "Tt",
                                    Mu.start,
                                    Tt.start,
-                                   crit,
+                                   tcrit,
                                    
                                    usePrior = TRUE,
                                    get.CIs,
@@ -218,7 +250,7 @@ estimate_jeffreys_RTMA = function( yi,
                           .par2is = "Tt",
                           .yi = yi,
                           .sei = sei,
-                          .crit = crit,
+                          .tcrit = tcrit,
                           .usePrior = usePrior )
   }
   
@@ -661,7 +693,7 @@ correct_meta_phack3 = function( .dp,  # published studies
                                 par2is = "Tt",
                                 Mu.start = 0,
                                 Tt.start = 1,
-                                crit = dpn$tcrit,
+                                tcrit = dpn$tcrit,
                                 
                                 usePrior = usePrior,
                                 get.CIs = p$get.CIs,

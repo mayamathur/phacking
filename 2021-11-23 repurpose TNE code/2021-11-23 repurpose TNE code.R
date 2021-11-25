@@ -45,12 +45,12 @@ dm = read.csv("prepped_hagger_meta_data.csv")
 
 #code.dir = here("2021-10-7 check RTMA Jeffreys theory")
 
-# code.dir = here()
-# setwd(code.dir)
-# source("helper_SAPH.R")
+code.dir = here()
+setwd(code.dir)
+source("helper_SAPH.R")
 
 setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/2021-11-23 repurpose TNE code")
-source("_helper.R")
+#source("_helper.R")
 source("fns_from_TNE.R")
 
 
@@ -93,7 +93,14 @@ dm = read.csv("prepped_hagger_meta_data.csv")
 # plot_trunc_densities(.obj)
 
 
-# ~ 2021-11-24: SIM META WITH DIFFERENT SES ----------------------------------------------------
+# ~ 2021-11-24: SIM META WITH SAME SE ----------------------------------------------------
+
+# SUMMARY OF THIS SECTION:
+# truth = (0.1, 0.5)
+
+# at k=100:
+# MLE = (0.21, 0.65) – too big 
+# MAP = (0.31, 0.74) – too big
 
 # unlike the sim meta below, now we allow different studies to have different SEs
 # RESULTS DO NOT MAKE SENSE -- ESTIMATES ARE WAY TOO SMALL
@@ -101,7 +108,7 @@ dm = read.csv("prepped_hagger_meta_data.csv")
 Mu = .1
 T2 = .25
 t2w = 0.25
-k = 100
+k = 1000
 se = 0.5
 m = 500
 
@@ -122,8 +129,6 @@ m = 500
 #                           
 #                           get.CIs = TRUE)
 
-
-
 # SAVE: this is how data were generated
 d = sim_meta(Nmax = 1,
              Mu = Mu,
@@ -139,19 +144,21 @@ d = sim_meta(Nmax = 1,
              k.hacked = 0 )
 
 
-
-# setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/2021-10-13 numerical integration for RTMA Jeffreys prior")
-# # fwrite(dn, "sim_meta_1.csv")
-# dn = fread("sim_meta_1.csv")
-
 dn = d %>% filter(Di == 1 & affirm == FALSE)
 dn$sei = sqrt(dn$vi)
-# sanity check 
+# sanity check
 all( dn$yi <= dn$tcrit * dn$sei )
+setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/2021-10-13 numerical integration for RTMA Jeffreys prior")
+fwrite(dn, "sim_meta_k1000.csv")
+
+setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/2021-10-13 numerical integration for RTMA Jeffreys prior")
+dn = fread("sim_meta_k1000.csv")
+
+
 
 yi = dn$yi
 sei = dn$sei
-crit = dn$tcrit
+tcrit = dn$tcrit
 
 Mu.start = 0
 Tt.start = 1
@@ -162,7 +169,7 @@ res.MLE.1 = estimate_jeffreys_RTMA( yi = yi,
                                     par2is = "Tt",
                                     Mu.start = Mu.start,
                                     Tt.start = Tt.start,
-                                    crit = crit,
+                                    tcrit = tcrit,
                                     
                                     usePrior = FALSE,
                                     get.CIs = TRUE,
@@ -175,7 +182,7 @@ res.MLE.1$TtHat
 ### Sanity check: optimize the nll directly
 
 joint_nll2_simple = function(.Mu, .Tt) {
-  joint_nll_2( .yi = yi, .sei = sei, .Mu = .Mu, .Tt = .Tt, .crit = crit )
+  joint_nll_2( .yi = yi, .sei = sei, .Mu = .Mu, .Tt = .Tt, .tcrit = tcrit )
 }
 
 
@@ -195,12 +202,12 @@ as.numeric(coef(res))
 
 
 # does nlpost_jeffreys agree? YES
-v1 = joint_nll_2( .yi = yi, .sei = sei, .Mu = Mu.start, .Tt = Tt.start, .crit = crit )
+v1 = joint_nll_2( .yi = yi, .sei = sei, .Mu = Mu.start, .Tt = Tt.start, .tcrit = tcrit )
 v2 = nlpost_jeffreys_RTMA( .pars = c(Mu.start, Tt.start),
                            .par2is = "Tt",
                            .yi = yi,
                            .sei = sei,
-                           .crit = crit,
+                           .tcrit = tcrit,
                            .usePrior = FALSE )
 expect_equal(v1, v2)
 
@@ -210,7 +217,7 @@ res.MAP.1 = estimate_jeffreys_RTMA( yi = yi,
                                     par2is = "Tt",
                                     Mu.start = Mu.start,
                                     Tt.start = Tt.start,
-                                    crit = crit,
+                                    tcrit = tcrit,
                                     
                                     usePrior = TRUE,
                                     get.CIs = TRUE,
@@ -218,8 +225,6 @@ res.MAP.1 = estimate_jeffreys_RTMA( yi = yi,
 
 res.MAP.1$MuHat
 res.MAP.1$TtHat
-
-# point estimates are similar (MAP vs. MLE) 
 
 
 ### MLE version 2: weightr ###
@@ -232,12 +237,17 @@ res.MAP.1$TtHat
                     table = TRUE ) )
 
 # adjusted point estimate
-m1[[2]]$par[2]
+res.MLE.1$MuHat; m1[[2]]$par[2]
+# very close, but not exact because of t vs. z cutoff
 
 
 
 
 # ~ 2021-11-23: WITH DIFFERENT SEs (HAGGER) ----------------------------------------------------
+
+# SUMMARY OF THIS SECTION:
+# MLE = 3.31 (seems very big, but agrees with weightr)
+# MAP = 305!!! (horrible)
 
 # scenario: different SEs as in Hagger meta, and we have to use the estimated SEs
 #  rather than the true ones
@@ -259,63 +269,22 @@ all( dn$yi <= zcrit * sei )
 
 ### Version 1: MLE - agrees with weightr!! ###
 res.MLE.1 = estimate_jeffreys_RTMA( yi = yi,
-                                      sei = sei,
-                                      par2is = "Tt",
-                                      Mu.start = Mu.start,
-                                      Tt.start = Tt.start,
-                                      crit = zcrit,
-                                      
-                                      usePrior = FALSE,
-                                      get.CIs = TRUE,
-                                      CI.method = "wald" )
+                                    sei = sei,
+                                    par2is = "Tt",
+                                    Mu.start = Mu.start,
+                                    Tt.start = Tt.start,
+                                    tcrit = zcrit,
+                                    
+                                    usePrior = FALSE,
+                                    get.CIs = TRUE,
+                                    CI.method = "wald" )
 
 res.MLE.1$MuHat
 res.MLE.1$TtHat
 
 
-### Sanity check: optimize the nll directly
-
-joint_nll2_simple = function(.Mu, .Tt) {
-  joint_nll_2( .yi = yi, .sei = sei, .Mu = .Mu, .Tt = .Tt, .crit = zcrit )
-}
-
-
-res = mle( minuslogl = joint_nll2_simple,
-           start = list( .Mu = Mu.start, .Tt = Tt.start),
-           method = "Nelder-Mead" )
-as.numeric(coef(res))
-# yes, agrees with above :)
-
-# does nlpost_jeffreys agree? YES
-v1 = joint_nll_2( .yi = yi, .sei = sei, .Mu = Mu.start, .Tt = Tt.start, .crit = zcrit )
-v2 = nlpost_jeffreys_RTMA( .pars = c(Mu.start, Tt.start),
-                      .par2is = "Tt",
-                      .yi = yi,
-                      .sei = sei,
-                      .crit = zcrit,
-                      .usePrior = FALSE )
-expect_equal(v1, v2)
-
-### Version 2: MAP ###
-res.MAP.1 = estimate_jeffreys_RTMA( yi = yi,
-                                    sei = sei,
-                                    par2is = "Tt",
-                                    Mu.start = Mu.start,
-                                    Tt.start = Tt.start,
-                                    crit = zcrit,
-                                    
-                                    usePrior = TRUE,
-                                    get.CIs = TRUE,
-                                    CI.method = "wald" )
-
-res.MAP.1$MuHat
-res.MAP.1$TtHat
-
-# point estimates are similar (MAP vs. MLE) and they make sense! 
-
-
 ### MLE version 2: weightr ###
-
+# agrees with above :)
 ( m1 = weightfunct( effect = yi,
                     v = sei^2,  
                     steps = c(0.025, 1),
@@ -328,41 +297,89 @@ expect_equal( m1[[2]]$par[2], res.MLE.1$MuHat, tol = 0.001 )
 
 
 
+### Sanity check: optimize the nll directly
+
+joint_nll2_simple = function(.Mu, .Tt) {
+  joint_nll_2( .yi = yi, .sei = sei, .Mu = .Mu, .Tt = .Tt, .tcrit = zcrit )
+}
+
+
+res = mle( minuslogl = joint_nll2_simple,
+           start = list( .Mu = Mu.start, .Tt = Tt.start),
+           method = "Nelder-Mead" )
+as.numeric(coef(res))
+# yes, agrees with above :)
+
+# does nlpost_jeffreys agree? YES
+v1 = joint_nll_2( .yi = yi, .sei = sei, .Mu = Mu.start, .Tt = Tt.start, .tcrit = zcrit )
+v2 = nlpost_jeffreys_RTMA( .pars = c(Mu.start, Tt.start),
+                      .par2is = "Tt",
+                      .yi = yi,
+                      .sei = sei,
+                      .tcrit = zcrit,
+                      .usePrior = FALSE )
+expect_equal(v1, v2)
+
+### Version 2: MAP ###
+res.MAP.1 = estimate_jeffreys_RTMA( yi = yi,
+                                    sei = sei,
+                                    par2is = "Tt",
+                                    Mu.start = Mu.start,
+                                    Tt.start = Tt.start,
+                                    tcrit = zcrit,
+                                    
+                                    usePrior = TRUE,
+                                    get.CIs = TRUE,
+                                    CI.method = "wald" )
+
+res.MAP.1$MuHat
+res.MAP.1$TtHat
+#bm: this one is huge!
+
+
+
+
+
+
 
 # ~ 2021-11-23: WITH ALL SES EQUAL ----------------------------------------------------
+
+# SUMMARY OF THIS SECTION:
+# MLE = 1.02 (excellent)
+# MAP = 0.97 (also excellent)
 
 # scenario: no hacking; all SEs equal
 # this behaves reasonably with either MLE or MAP
 
-Mu = 1
-Tt = 2
-k = 1000
+Mu = 0.1
+Tt = 0.5
+k = 100
 se = 1
 
 
-# # SAVE: this is how data were generated
-# d = sim_meta(Nmax = 1,
-#              Mu = Mu,
-#              T2 = Tt^2,
-#              m = 100,
-#              t2w = 0,
-#              se = se,
-#              hack = "affirm",
-#              return.only.published = FALSE,
-#              rho = 0,
-#              
-#              k = k,
-#              k.hacked = 0 )
-# 
-# # **get nonaffirms based on TRUE SEs
-# # temporary because otherwise they won't all have same se
-# tcrit = unique(dn$tcrit)
-# dn = d %>% filter( yi < tcrit * se )
-# 
-# 
-setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/2021-10-13 numerical integration for RTMA Jeffreys prior")
-# fwrite(dn, "sim_meta_1.csv")
-dn = fread("sim_meta_1.csv")
+# SAVE: this is how data were generated
+d = sim_meta(Nmax = 1,
+             Mu = Mu,
+             T2 = Tt^2,
+             m = 100,
+             t2w = 0,
+             se = se,
+             hack = "affirm",
+             return.only.published = FALSE,
+             rho = 0,
+
+             k = k,
+             k.hacked = 0 )
+
+# **get nonaffirms based on TRUE SEs
+# temporary because otherwise they won't all have same se
+tcrit = unique(dn$tcrit)
+dn = d %>% filter( yi < tcrit * se )
+
+
+# setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/2021-10-13 numerical integration for RTMA Jeffreys prior")
+# # fwrite(dn, "sim_meta_1.csv")
+# dn = fread("sim_meta_1.csv")
 
 # set vars for all methods
 kn = nrow(dn)
@@ -396,47 +413,33 @@ res.MLE.1 = estimate_mle(x = dn$yi,
                            CI.method = "wald")
 
 res.MLE.1$Mhat
-res.MLE.1$Shat
+res.MLE.1$Shat  # this includes se
+( res.MLE.1$TtHat = sqrt( res.MLE.1$Shat^2 - se^2 ) )
 # reasonable
 
 
-### Version 1.1: Compare to estimate_jeffreys_RTMA
+### Version 1.1: Compare to MLE from estimate_jeffreys_RTMA
 
-# should agree with above, I think, BUT DOESN'T
+# should agree with above
+# yes, very similar :)
 res.MLE.2 = estimate_jeffreys_RTMA( yi = dn$yi,
                                       sei = se,
                                       par2is = "Tt",
                                       Mu.start = Mu.start,
                                       Tt.start = Tt.start,
-                                      crit = tcrit,
+                                      tcrit = tcrit,
 
                                       usePrior = FALSE,
                                       get.CIs = FALSE,
                                       CI.method = "wald" )
 
-res.MLE.2$Mhat
-res.MLE.2$Shat
-
-
-# do the nlposts (actually nll in this case) for a single observation agree?
-# runs joint_nll_2 under the hood
-nlpost_jeffreys_RTMA( .pars = c(Mu.start, Tt.start),
-                      .par2is = "Tt",
-                      .yi = yi[1],
-                      .sei = sei[1],
-                      .crit = tcrit,
-                      .usePrior = FALSE )
-
-nll(.pars = c(Mu.start, Tt.start),
-    .x = yi,
-    .a = -99,
-    .b = sei[1] * tcrit,
-    par2is = "sd")
+res.MLE.2$MuHat; res.MLE.1$Mhat
+res.MLE.2$TtHat; res.MLE.1$TtHat
 
 
 
 ### Version 2: MAP from TNE ###
-
+# makes sense
 res.MAP.TNE = estimate_jeffreys( x = dn$yi,
                                  p = p,
                                  par2is = "sd",  # NOTE: it prefers var parameterization
@@ -447,6 +450,7 @@ res.MAP.TNE = estimate_jeffreys( x = dn$yi,
 
 res.MAP.TNE$Mhat
 res.MAP.TNE$Shat
+( res.MAP.TNE$TtHat = sqrt( res.MAP.TNE$Shat^2 - se^2 ) )
 
 # CI
 res.MAP.TNE.CI = estimate_jeffreys( x = dn$yi,
@@ -457,6 +461,28 @@ res.MAP.TNE.CI = estimate_jeffreys( x = dn$yi,
 
 res.MAP.TNE.CI$M.CI
 res.MAP.TNE.CI$S.CI
+
+
+### Version 3: MAP from SAPH code ###
+res.MAP.2 = estimate_jeffreys_RTMA( yi = dn$yi,
+                                    sei = se,
+                                    par2is = "Tt",
+                                    Mu.start = Mu.start,
+                                    Tt.start = Tt.start,
+                                    tcrit = tcrit,
+                                    
+                                    usePrior = TRUE,
+                                    get.CIs = FALSE,
+                                    CI.method = "wald" )
+
+res.MAP.2$MuHat; res.MAP.TNE$Mhat
+res.MAP.2$TtHat; res.MAP.TNE$TtHat
+# very close, but not exactly the same
+
+
+
+
+
 
 
 

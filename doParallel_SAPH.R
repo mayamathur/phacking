@@ -318,19 +318,6 @@ doParallelTime = system.time({
                                    corrObject = modCorr3,
                                    methName = "mle")
     
-    # sanity check: what is the value of the nll at the MLE vs. at the truth?
-    dpn = d %>% filter(Di == 1 & affirm == FALSE)
-    joint_nll_2(.yi = dpn$yi,
-                .sei = sqrt(dpn$vi),
-                .Mu = -0.2,
-                .Tt = .5,
-                .crit = dpn$tcrit )
-    
-    joint_nll_2(.yi = dpn$yi,
-                .sei = sqrt(dpn$vi),
-                .Mu = p$Mu,
-                .Tt = sqrt(p$T2 + p$t2w),
-                .crit = dpn$tcrit )
     
     # # SAVE 
     # # methods from earlier simulations where I was bias-correcting the affirmatives
