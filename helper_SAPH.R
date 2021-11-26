@@ -30,7 +30,7 @@ joint_nll_2 = function(.yi,
                        .Tt = NULL,  # allow either parameterization
                        .T2t = NULL,
                        .tcrit = rep( qnorm(.975), length(.yi) ) ) {
-  
+
   
   if ( is.null(.T2t) ) .T2t = .Tt^2
   if ( is.null(.Tt) ) .Tt = sqrt(.T2t)
@@ -191,9 +191,11 @@ nlpost_jeffreys_RTMA = function( .pars,
                                  # if .usePrior = FALSE, will just be the MLE
                                  .usePrior = TRUE) {
   
+  
+  if ( .pars[2] < 0 ) return(.Machine$integer.max)
+  
   # variance parameterization
   if (.par2is == "T2t") {
-    stop("This parameterization isn't handled yet")
     Mu = .pars[1]
     Tt = sqrt(.pars[2])
   }
@@ -204,7 +206,7 @@ nlpost_jeffreys_RTMA = function( .pars,
     Tt = .pars[2]
   }
   
-  if ( Tt < 0 ) return(.Machine$integer.max)
+  
   
   # negative log-likelihood
   # joint_nll_2 uses the TNE version
@@ -243,7 +245,7 @@ estimate_jeffreys_RTMA = function( yi,
                                    sei,
                                    par2is = "Tt",
                                    Mu.start,
-                                   Tt.start,
+                                   par2.start,
                                    tcrit,
                                    
                                    usePrior = TRUE,
@@ -258,10 +260,11 @@ estimate_jeffreys_RTMA = function( yi,
   #  if this fn is outside estimate_jeffreys, different parallel iterations will use each other's global vars
   
   #  expects yi, sei, and crit to be global vars (wrt this inner fn)
-  nlpost_simple_RTMA = function(.Mu, .Tt) {
+  # second parameter could be Tt or T2t depending on par2is argument above
+  nlpost_simple_RTMA = function(.Mu, .par2) {
     
-    nlpost_jeffreys_RTMA( .pars = c(.Mu, .Tt),
-                          .par2is = "Tt",
+    nlpost_jeffreys_RTMA( .pars = c(.Mu, .par2),
+                          .par2is = par2is,
                           .yi = yi,
                           .sei = sei,
                           .tcrit = tcrit,
@@ -273,7 +276,7 @@ estimate_jeffreys_RTMA = function( yi,
   #  (even though BFGS works better for MLE)
   # for more on this issue, see "2021-9-23 SD vs. var redux with Jeffreys.R"
   res = mle( minuslogl = nlpost_simple_RTMA,
-             start = list( .Mu = Mu.start, .Tt = Tt.start),
+             start = list( .Mu = Mu.start, .par2 = par2.start),
              method = "Nelder-Mead" )
   
   
@@ -282,7 +285,7 @@ estimate_jeffreys_RTMA = function( yi,
   
   # 2021-11-19: try another optimizer (BFGS)
   myMLE.bfgs = mle( minuslogl = nlpost_simple_RTMA,
-                    start = list( .Mu = Mu.start, .Tt = Tt.start),
+                    start = list( .Mu = Mu.start, .par2 = par2.start),
                     method = "BFGS" )
   mles.bfgs = as.numeric( coef(myMLE.bfgs) )
   
@@ -294,13 +297,12 @@ estimate_jeffreys_RTMA = function( yi,
   }
   
   # from TNE
-  # # THIS BEHAVES BADLY
-  # if ( par2is == "var" ) {
-  #   # need this structure for run_method_safe to understand
-  #   Mhat = mles[1]
-  #   Vhat = mles[2]
-  #   Shat = sqrt(mles[2])
-  # }
+  # THIS BEHAVES BADLY
+  if ( par2is == "T2t" ) {
+    # need this structure for run_method_safe to understand
+    Mu.hat = mles[1]
+    Tt.hat = sqrt(mles[2])
+  }
   
   # recode convergence more intuitively
   # optim uses "0" to mean successful convergence
@@ -693,20 +695,22 @@ correct_meta_phack3 = function( .dp,  # published studies
   # published nonaffirmatives only
   dpn = .dp[ .dp$affirm == FALSE, ]
   
-  if ( .method == "mle" ) {
+  if ( .method %in% c("mle-sd", "mle-var") ) {
     usePrior = FALSE
-  } else if ( .method == "jeffreys-mode" ) {
+  } else if ( .method %in% c( "jeffreys-mode-sd", "jeffreys-mode-var" ) ) {
     usePrior = TRUE
   } else {
     stop("method not handled")
   }
   
+  if ( .method %in% c("mle-sd", "jeffreys-mode-sd") ) par2is = "Tt"
+  if ( .method %in% c("mle-var", "jeffreys-mode-var") ) par2is = "T2t"
   
   res = estimate_jeffreys_RTMA( yi = dpn$yi,
                                 sei = sqrt(dpn$vi),
-                                par2is = "Tt",
+                                par2is = par2is,
                                 Mu.start = 0,
-                                Tt.start = 1,
+                                par2.start = 1,  #@HARD-CODED
                                 tcrit = dpn$tcrit,
                                 
                                 usePrior = usePrior,

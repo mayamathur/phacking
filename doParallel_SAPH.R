@@ -174,6 +174,7 @@ if ( run.local == TRUE ) {
 
 # RUN SIMULATION ------------------------------
 
+if ( exists("rs") ) rm(rs)
 
 #for ( scen in scen.params$scen.name ) {  # can't use this part on the cluster
 
@@ -275,25 +276,26 @@ doParallelTime = system.time({
     if ( i == 1 ) cat("\n\nHEAD OF DP AFTER MODPUB STEP:")
     if ( i == 1 ) print(head(dp))
     
-    # ~~ Bias-Corrected Estimator #1: Nonaffirms Only ------------------------------
-    
-    modCorr = correct_meta_phack1( .p = p,
+    # ~~ Nonaffirms Only ------------------------------
+    # the older version from before TNE
+    modCorr1 = correct_meta_phack1( .p = p,
                                    .dp = dp )
     
-    cat("\n\nSURVIVED MODCORR STEP")
+    cat("\n\nSURVIVED MODCORR1 STEP")
     #print(head(dp))
     
     # add to results
     repRes = add_method_result_row(repRes = NA,
-                                   corrObject = modCorr,
+                                   corrObject = modCorr1,
                                    methName = "AllNonaffirms")
+
     
     
-    # ~~ Bias-Corrected Estimator #2: TNE with Jeffreys Prior ------------------------------
+    # ~~ MLE (SD param) ------------------------------
     
     modCorr2 = correct_meta_phack3( .p = p,
-                                   .dp = dp,
-                                   .method = "jeffreys-mode")
+                                    .dp = dp,
+                                    .method = "mle-sd")
     
     cat("\n\nSURVIVED MODCORR2 STEP")
     #print(head(dp))
@@ -301,14 +303,14 @@ doParallelTime = system.time({
     # add to results
     repRes = add_method_result_row(repRes = repRes,
                                    corrObject = modCorr2,
-                                   methName = "jeffreys-mode")
+                                   methName = "mle-sd")
     
     
-    # ~~ Estimator #3: TNE with MLE ------------------------------
+    # ~~ MLE (Var param) ------------------------------
     
     modCorr3 = correct_meta_phack3( .p = p,
                                     .dp = dp,
-                                    .method = "mle")
+                                    .method = "mle-var")
     
     cat("\n\nSURVIVED MODCORR3 STEP")
     #print(head(dp))
@@ -316,7 +318,38 @@ doParallelTime = system.time({
     # add to results
     repRes = add_method_result_row(repRes = repRes,
                                    corrObject = modCorr3,
-                                   methName = "mle")
+                                   methName = "mle-var")
+    
+    # ~~ Jeffreys (SD param)) ------------------------------
+    
+    modCorr4 = correct_meta_phack3( .p = p,
+                                    .dp = dp,
+                                    .method = "jeffreys-mode-sd")
+    
+    cat("\n\nSURVIVED MODCORR4 STEP")
+    #print(head(dp))
+    
+    # add to results
+    repRes = add_method_result_row(repRes = repRes,
+                                   corrObject = modCorr4,
+                                   methName = "jeffreys-mode-sd")
+    
+    
+    # ~~ Jeffreys (var param)) ------------------------------
+    
+    modCorr5 = correct_meta_phack3( .p = p,
+                                    .dp = dp,
+                                    .method = "jeffreys-mode-var")
+    
+    cat("\n\nSURVIVED MODCORR5 STEP")
+    #print(head(dp))
+    
+    # add to results
+    repRes = add_method_result_row(repRes = repRes,
+                                   corrObject = modCorr5,
+                                   methName = "jeffreys-mode-var")
+
+    
     
     
     # # SAVE 

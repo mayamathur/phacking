@@ -168,7 +168,7 @@ res.MLE.1 = estimate_jeffreys_RTMA( yi = yi,
                                     sei = sei,
                                     par2is = "Tt",
                                     Mu.start = Mu.start,
-                                    Tt.start = Tt.start,
+                                    par2.start = Tt.start,
                                     tcrit = tcrit,
                                     
                                     usePrior = FALSE,
@@ -211,12 +211,12 @@ v2 = nlpost_jeffreys_RTMA( .pars = c(Mu.start, Tt.start),
                            .usePrior = FALSE )
 expect_equal(v1, v2)
 
-### Version 2: MAP ###
+### Version 2: MAP (SD parameterization) ###
 res.MAP.1 = estimate_jeffreys_RTMA( yi = yi,
                                     sei = sei,
                                     par2is = "Tt",
                                     Mu.start = Mu.start,
-                                    Tt.start = Tt.start,
+                                    par2.start = Tt.start,
                                     tcrit = tcrit,
                                     
                                     usePrior = TRUE,
@@ -225,6 +225,24 @@ res.MAP.1 = estimate_jeffreys_RTMA( yi = yi,
 
 res.MAP.1$MuHat
 res.MAP.1$TtHat
+
+
+### Version 2.1: MAP (var parameterization)
+
+res.MAP.2 = estimate_jeffreys_RTMA( yi = yi,
+                                    sei = sei,
+                                    par2is = "T2t",
+                                    Mu.start = Mu.start,
+                                    par2.start = Tt.start^2,
+                                    tcrit = tcrit,
+                                    
+                                    usePrior = TRUE,
+                                    get.CIs = TRUE,
+                                    CI.method = "wald" )
+
+res.MAP.2$MuHat
+res.MAP.2$TtHat
+
 
 
 ### MLE version 2: weightr ###
@@ -272,7 +290,7 @@ res.MLE.1 = estimate_jeffreys_RTMA( yi = yi,
                                     sei = sei,
                                     par2is = "Tt",
                                     Mu.start = Mu.start,
-                                    Tt.start = Tt.start,
+                                    par2.start = Tt.start,
                                     tcrit = zcrit,
                                     
                                     usePrior = FALSE,
@@ -295,6 +313,21 @@ res.MLE.1$TtHat
 expect_equal( m1[[2]]$par[2], res.MLE.1$MuHat, tol = 0.001 ) 
 
 
+### MLE with var parameterization ###
+# same
+res.MLE.2 = estimate_jeffreys_RTMA( yi = yi,
+                                    sei = sei,
+                                    par2is = "T2t",
+                                    Mu.start = Mu.start,
+                                    par2.start = Tt.start^2,
+                                    tcrit = zcrit,
+                                    
+                                    usePrior = FALSE,
+                                    get.CIs = TRUE,
+                                    CI.method = "wald" )
+
+res.MLE.2$MuHat
+res.MLE.2$TtHat
 
 
 ### Sanity check: optimize the nll directly
@@ -325,7 +358,7 @@ res.MAP.1 = estimate_jeffreys_RTMA( yi = yi,
                                     sei = sei,
                                     par2is = "Tt",
                                     Mu.start = Mu.start,
-                                    Tt.start = Tt.start,
+                                    par2.start = Tt.start,
                                     tcrit = zcrit,
                                     
                                     usePrior = TRUE,
@@ -336,21 +369,23 @@ res.MAP.1$MuHat
 res.MAP.1$TtHat
 #bm: this one is huge!
 
-### Version 3: MAP (var parametrization) ###
-res.MAP.1 = estimate_jeffreys_RTMA( yi = yi,
+
+### Version 2.1: MAP (var parametrization) ###
+res.MAP.2 = estimate_jeffreys_RTMA( yi = yi,
                                     sei = sei,
                                     par2is = "T2t",
                                     Mu.start = Mu.start,
-                                    Tt.start = Tt.start,
+                                    par2.start = Tt.start^2,
                                     tcrit = zcrit,
                                     
                                     usePrior = TRUE,
                                     get.CIs = TRUE,
                                     CI.method = "wald" )
 
-res.MAP.1$MuHat
-res.MAP.1$TtHat
-
+res.MAP.2$MuHat
+res.MAP.2$TtHat
+# also huge, but now the optimizers disagree:
+res.MAP.2$Mhat.opt.diff
 
 
 
@@ -439,7 +474,7 @@ res.MLE.2 = estimate_jeffreys_RTMA( yi = dn$yi,
                                       sei = se,
                                       par2is = "Tt",
                                       Mu.start = Mu.start,
-                                      Tt.start = Tt.start,
+                                      par2.start = Tt.start,
                                       tcrit = tcrit,
 
                                       usePrior = FALSE,
@@ -481,7 +516,7 @@ res.MAP.2 = estimate_jeffreys_RTMA( yi = dn$yi,
                                     sei = se,
                                     par2is = "Tt",
                                     Mu.start = Mu.start,
-                                    Tt.start = Tt.start,
+                                    par2.start = Tt.start,
                                     tcrit = tcrit,
                                     
                                     usePrior = TRUE,
