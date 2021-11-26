@@ -30,7 +30,7 @@ joint_nll_2 = function(.yi,
                        .Tt = NULL,  # allow either parameterization
                        .T2t = NULL,
                        .tcrit = rep( qnorm(.975), length(.yi) ) ) {
-
+  
   
   if ( is.null(.T2t) ) .T2t = .Tt^2
   if ( is.null(.Tt) ) .Tt = sqrt(.T2t)
@@ -38,7 +38,7 @@ joint_nll_2 = function(.yi,
   
   # as in TNE::nll()
   .dat = data.frame(yi = .yi, sei = .sei, crit = .tcrit)
-
+  
   .dat = .dat %>% rowwise() %>%
     mutate( term1 = dmvnorm(x = as.matrix(yi, nrow = 1),
                             mean = as.matrix(.Mu, nrow = 1),
@@ -76,7 +76,7 @@ joint_nll_2 = function(.yi,
   #                             b = .dat$sei[1] * .dat$crit[1] ) )
   # 
   # expect_equal( nll.new, as.numeric(.dat$nll.i[1]) , tol = 0.001)
-
+  
   # return it
   return(nll)
   
@@ -1074,6 +1074,114 @@ quick_sim = function(.p,
 }
 
 
+
+# changes from sim_meta:
+# sei.expr
+# k.pub.nonaffirm
+sim_meta_2 = function(Nmax,  # max draws to try
+                      Mu,  # overall mean for meta-analysis
+                      T2,  # across-study heterogeneity
+                      
+                      # study parameters, assumed same for all studies:
+                      m,  # sample size for this study
+                      t2w,  # within-study heterogeneity
+                      true.sei.expr,  # TRUE SE string to evaluate
+                      
+                      rho = 0,  # autocorrelation of muin's
+                      
+                      hack,  # mechanism of hacking for studies that DO hack (so not "no")
+                      
+                      k.pub.nonaffirm,  # number of published nonaffirmatives
+                      prob.hacked,
+                      
+                      return.only.published = FALSE
+) {
+  
+  
+  # collect arguments
+  .args = mget(names(formals()), sys.frame(sys.nframe()))
+  # remove unnecessary args for sim_one_study_set
+  .args = .args[ !names(.args) %in% c("k.pub.nonaffirm", "prob.hacked", "true.sei.expr")]
+  
+  
+  if ( hack == "no" ) stop("hack should only be 'affirm' or 'signif' for this fn")
+  
+  k.pub.nonaffirm.achieved = 0
+  i = 1
+  
+  while( k.pub.nonaffirm.achieved < k.pub.nonaffirm ) {
+    
+    is.hacked = rbinom(n = 1, size = 1, prob = prob.hacked)
+    true.se = eval( parse( text = true.sei.expr) )
+    
+    # do we still need this??
+    #if ( exists(".dat") ) startInd = max(.dat$study) + 1 else startInd = 1
+    
+    if ( is.hacked == 0 ) {
+      # to generate unhacked studies, need to change argument "hack"
+      .argsUnhacked = .args
+      .argsUnhacked[ names(.args) == "hack" ] = "no"
+      .argsUnhacked$se = true.se
+      
+      # might be multiple rows if return.only.published = FALSE
+      newRows = do.call( sim_one_study_set, .argsUnhacked )
+      
+      # add study ID
+      newRows = newRows %>% add_column( .before = 1,
+                                        study = i )
+      
+      if ( i == 1 ) .dat = newRows else .dat = rbind( .dat, newRows )
+      
+    } else if ( is.hacked == 1 ) {
+      
+      # for unhacked studies, no need to change argument "hack"
+      .argsHacked = .args
+      .argsHacked$se = true.se
+      
+      # might be multiple rows if return.only.published = FALSE
+      newRows = do.call( sim_one_study_set, .argsHacked )
+      
+      # add study ID
+      newRows = newRows %>% add_column( .before = 1,
+                                        study = i )
+      
+      if ( i == 1 ) .dat = newRows else .dat = rbind( .dat, newRows )
+    }
+    
+    i = i + 1
+    k.pub.nonaffirm.achieved = sum( .dat$affirm == FALSE & .dat$Di == 1 ) 
+    
+  }
+  
+  # add more info to dataset
+  .dat$k.underlying = length(unique(.dat$study))
+  .dat$k.nonaffirm.underlying = length( unique( .dat$study[ .dat$affirm == FALSE ] ) )
+  
+  if ( return.only.published == TRUE ) .dat = .dat[ .dat$Di == 1, ]
+  
+  return(.dat)
+}
+
+# d = sim_meta_2(  # test only
+#   Nmax = 20,
+#   Mu = 1,
+#   T2 = 0.1,
+#   m = 50,
+#   t2w = .5,
+#   true.sei.expr = "runif( n = 1, min = 0.5, max = 2 )",
+#   hack = "affirm",
+#   return.only.published = FALSE,
+#   rho=0,
+#   k.pub.nonaffirm = 30,
+#   prob.hacked = 0.4 )
+# 
+# d$k.nonaffirm.underlying[1]
+# d$k.underlying[1]
+# table(d$Di, d$affirm)
+# #@KEEP/PULL IN THE SANITY CHECKS FROM THE VERSION BELOW
+
+
+# KEEP THIS VERSION FOR REVERSE-COMPATIBILITY AND SANITY CHECKS
 # *note that the number of reported, hacked studies might be less than k.hacked
 #  if all Nmax draws are unsuccessful
 
