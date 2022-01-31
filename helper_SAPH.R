@@ -1654,7 +1654,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
 make_one_draw = function(mui,  # mean for this study set
                          t2w,
                          sd.y,  # TRUE SD
-                         m,
+                         m,  # sample size
                          
                          # for making correlated draws
                          rho = 0,  # autocorrelation of muin's (not yi's)
