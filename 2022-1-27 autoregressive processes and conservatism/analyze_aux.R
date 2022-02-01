@@ -17,11 +17,160 @@ library(robumeta)
 library(here)
 library(xtable)
 library(testthat)
+library(simts)
 
 results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/2022-1-27 autoregressive processes and conservatism"
 
 
 options(scipen=999)
+
+
+# PART 3: TRY TO REPLICATE PATTERNS SEEN IN PART 2 IN PURE TIME SERIES ---------------------------------------
+
+# Goal: If I generate a bucnh of pure time series with mu=0, var=0.5, 50 draws, 
+#  and rho=0.9 (analog to sim_data_7), and then look only at the individual series
+#  that were always negative, will I again see non-stationarity?
+
+# c.f. mechanism in make_one_draw:
+# if ( rho != 0 & !is.na(last.muin) ) {
+#   # draw from BVN conditional, given muin from last draw
+#   # conditional moments given here:
+#   #  https://www.amherst.edu/system/files/media/1150/bivarnorm.PDF
+#   muin = rnorm(mean = mui + rho * (last.muin - mui),
+#                sd = sqrt( t2w * (1 - rho^2) ),
+#                n = 1)
+# }
+# 
+# 
+# # draw subject-level data from this study's population effect
+# y = rnorm( mean = muin,
+#            sd = sd.y,
+#            n = m)
+# 
+# # run a one-sample t-test
+# test = t.test(y,
+#               alternative = "two.sided")
+# 
+# pval = test$p.value
+# tstat = test$statistic
+# vi = test$stderr^2  # ESTIMATED variance
+
+
+
+
+dataset.name = "sim_data_11"
+
+Nmax = 50
+k = 5000
+for ( i in 1:k ) {
+  .d = data.frame( yi = as.numeric( gen_gts( Nmax, AR1(phi = 0.9, sigma2 = 0.5) ) ) )
+  
+  .d$affirm = .d$yi > 0
+  
+  # was this study successful?
+  .d$study.success = any(.d$affirm == TRUE)
+  
+  
+  .d$study = i
+  .d$draw.index = 1:nrow(.d)
+  .d$Di = .d$draw.index == Nmax
+  .d$mui = .d$yi
+  
+  # # confirm that empirical acf is close to 0.9
+  # res = acf(.d$yi)
+  # res$acf[ res$lag == 1 ]
+  
+  # all studies
+  if ( i == 1 ) d = .d else d = bind_rows(d, .d)
+}
+setwd(results.dir)
+setwd("Part 3 datasets")
+
+
+fwrite( d, paste(dataset.name, ".csv", sep = "") )
+
+
+# read in existing dataset
+setwd(results.dir)
+setwd("Part 3 datasets")
+d = fread( paste(dataset.name, ".csv", sep = "") )
+dim(d)
+table(d$Di)  # should match number of studies
+table( d$study.success[ !duplicated(d$study) ] )
+
+
+# make subsets
+dn = d %>% filter(affirm == FALSE)
+du = d %>% filter(study.success == FALSE)
+length(unique(du$study))/length(unique(d$study))  # prop. of studies unsuccessful
+
+# compare to sim_data_7 because I expected them to be the same
+# read in existing dataset
+setwd(results.dir)
+setwd("Part 2 datasets")
+d2 = fread( paste("sim_data_7", ".csv", sep = "") )
+# maybe look at acfs?
+
+
+# ~ Plot time series of unsuccessful vs. successful and affirm vs. nonaffirm ----------------
+temp = d %>% group_by(
+  #study.success,
+                      affirm,
+                      draw.index) %>%
+  summarise(mean(yi))
+
+ggplot( data = temp,
+        aes( x=draw.index,
+             y=`mean(yi)`,
+             color = affirm,
+             #lty = study.success
+             ) ) +
+  geom_line() +
+  ggtitle("All results from pure time series, Nmax=50, Mu = 0") +
+  geom_hline(yintercept=0, color="gray") +
+  theme_bw()
+
+
+
+# ~ Why isn't it strict-sense stationary??  ----------------
+
+temp = d %>% group_by(draw.index) %>%
+  summarise( mn = round( mean(yi), 2 ),
+             SD = round( sd(yi), 2 ) )
+
+
+# variance is definitely increasing with additional draws
+# and yet the theory of AR(1) processes says that the variance should be constant in time
+#  and it has the form sigma^2_epsilon / (1 - phi^2)
+plot(temp$draw.index, temp$SD, type = "l")
+plot(temp$draw.index, temp$mn, type = "l")
+
+summary( lm( SD ~ draw.index,
+    data = temp ) )
+
+
+# affirmatives getting larger over time
+# see interaction term
+summary( lm( yi ~ affirm*draw.index,
+             data = d ) )
+
+# same result, even when accounting for clustering by study...
+library(geepack)
+geeMod = geeglm(yi ~ affirm*draw.index,
+                 id = study,
+                 family = gaussian,
+                 corstr = "exchangeable",
+                 data = d )
+summary(geeMod)
+
+# investigate a single iterate
+x = gen_gts( Nmax, AR1(phi = 0.9, sigma2 = 0.5) )
+
+
+
+# **issue of warmup period:
+# https://stats.stackexchange.com/questions/69419/is-the-ar1-process-always-gaussian-given-gaussian-innovations
+
 
 # PART 2: LOOK AT LAST-DRAW TRY-TO-NMAX HACKING AND ITS STATIONARITY ---------------------------------------
 
@@ -72,6 +221,7 @@ for ( i in 1:k ) {
   # varEmp = c(varEmp, var(d$muin))
 }
 setwd(results.dir)
+setwd("Part 2 datasets")
 
 
 fwrite( d, paste(dataset.name, ".csv", sep = "") )
@@ -79,6 +229,7 @@ fwrite( d, paste(dataset.name, ".csv", sep = "") )
 
 # read in existing dataset
 setwd(results.dir)
+setwd("Part 2 datasets")
 d = fread( paste(dataset.name, ".csv", sep = "") )
 dim(d)
 table(d$Di)  # should match number of studies
@@ -202,6 +353,8 @@ as.data.frame( dn %>% group_by(study.success, draw.index==10) %>%
 as.data.frame( dn %>% group_by(study.success, draw.index==1) %>%
   summarise(mean(yi)) )
 
+
+# ~ Plot time series of unsuccessful vs. successful and affirm vs. nonaffirm
 temp = d %>% group_by(study.success, affirm, draw.index) %>%
   summarise(mean(yi))
 
