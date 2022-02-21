@@ -424,6 +424,407 @@ estimate_jeffreys_RTMA = function( yi,
                 profile.CI.error = profile.CI.error ) )
 }
 
+# modified from TNE (2022-2-21)
+
+# Fns in this category need to return a list with these elements:
+#   Mhat, Vhat, M.SE, M.CI (2-vector), V.SE, V.CI (2-vector)
+# Because these fns are run inside run_method_safe, the latter will handle editing rep.res
+#  All of these fns should take get.CIs as an argument and return CIs as c(NA, NA) if not wanted
+
+estimate_jeffreys_mcmc_RTMA = function(.yi,
+                                       .sei,
+                                       .tcrit,
+                                       .Mu.start,
+                                       .Tt.start) {
+  
+  # LL and UU: cutpoints on RAW scale, not Z-scores
+  # tau: SD, not variance
+  # , vec sei[k], vec tcrit[k]
+  model.text <- "
+functions{
+	real jeffreys_prior(real mu, real tau, int k, real[] sei, real[] tcrit){
+	
+		real mustarL;
+		real mustarU;
+		real alphaL;
+		real alphaU;
+		real kmm;
+		real kms;
+		real kss;
+    real sigma;
+		real LL; 
+		real UU;
+		// will just be set to 1
+		int n; 
+    
+    // this will now be the fisher info for EACH obs
+		matrix[2,2] fishinfo;
+		
+		// this will be the TOTAL fisher info
+		matrix[2,2] fishinfototal;
+		
+
+		// MM: build a Fisher info matrix for EACH observation
+		for (i in 1:k) {
+		
+		  sigma = sqrt(tau^2 + sei[i]^2);
+		  LL = -999;
+		  UU = tcrit[i] * sei[i];
+		
+  		mustarL = (LL - mu) / sigma;
+  		mustarU = (UU - mu) / sigma;
+  		
+  		// because EACH fisher info below has n=1 only
+  		n = 1; 
+  		
+  		// MM: BELOW NEEDS NO EDITS FROM TNE
+  		// note that normal_lpdf, etc., parameterize in terms of SD, not var
+  		//  the (0,1) below are *not* start values for MCMC
+  		alphaL = exp( normal_lpdf(mustarL | 0, 1) - 
+  	                log_diff_exp( normal_lcdf(mustarU | 0, 1),
+  	                normal_lcdf(mustarL | 0, 1) ) ); 
+  	                
+  		alphaU = exp( normal_lpdf(mustarU | 0, 1) - 
+   	                log_diff_exp( normal_lcdf(mustarU | 0, 1),
+   	                normal_lcdf(mustarL | 0, 1) ) );
+  		
+  		// second derivatives for Fisher info			
+  		kmm = -n/sigma^2 + n/sigma^2 * ((alphaU-alphaL)^2 + alphaU*mustarU- alphaL*mustarL);
+  		kms = -2*n/sigma^2 * (alphaL - alphaU) + 
+  	   		  n/sigma^2 * (alphaL - alphaU + (alphaU*mustarU^2 - alphaL*mustarL^2) +
+  			  				(alphaL-alphaU) * (alphaL*mustarL - alphaU*mustarU));
+  		kss = n/sigma^2 - 3*n/sigma^2 * (1 + mustarL*alphaL - mustarU*alphaU) +
+  	   			n/sigma^2 * (mustarU*alphaU*(mustarU^2 - 2) - mustarL*alphaL*(mustarL^2 - 2) +
+  								(alphaU*mustarU - alphaL*mustarL)^2);
+  		
+  		fishinfo[1,1] = -kmm;
+  		fishinfo[1,2] = -kms;
+  		fishinfo[2,1] = -kms;
+  		fishinfo[2,2] = -kss;
+  		// MM: END STUFF THAT NEEDS NO EDITS FROM TNE
+  		
+  		// MM: add the new fisher info to the total one
+  		fishinfototal = fishinfototal +  fishinfo;
+		}
+		
+		return sqrt(determinant(fishinfototal));
+	}
+}
+
+data{
+	int<lower=0> k;
+  real sei[k];
+  real tcrit[k];
+	real y[k];
+}
+
+parameters{
+  real mu;
+	real<lower=0> tau;
+}
+
+
+model{
+	target += log( jeffreys_prior(mu, tau, k, sei, tcrit) );
+	for(i in 1:k)
+        y[i] ~ normal(mu, tau)T[-999, tcrit[i] * sei[i]];
+}
+
+generated quantities{
+  real log_lik = 0;
+  // note that the log_prior is over all k observations already
+  real log_prior = log(jeffreys_prior(mu, tau, k, sei, tcrit));
+  real log_post;
+  
+  for ( i in 1:k ){
+  
+  	real LL = -999;
+		real UU = tcrit[i] * sei[i];
+  
+    log_lik += normal_lpdf(y | mu, sqrt(tau^2 + sei[i]^2));
+    log_lik += -1 * log_diff_exp( normal_lcdf(UU | mu, sqrt(tau^2 + sei[i]^2) ), normal_lcdf(LL | mu, sqrt(tau^2 + sei[i]^2) ) );  	
+  }
+  
+  log_post = log_lik + log_prior;
+}
+"
+
+#bm
+#TEMP: test that syntax is okay
+stan.model <- stan_model(model_code = model.text,
+                         isystem = "~/Desktop")
+
+
+
+
+
+
+# prepare to capture warnings from Stan
+stan.warned = 0
+stan.warning = NA
+
+# set start values for sampler
+init.fcn <- function(o){ list(mu = .Mu.start,
+                              tau = .Tt.start ) }
+
+# like tryCatch, but captures warnings without stopping the function from
+#  returning its results
+withCallingHandlers({
+  
+  cat( paste("\n estimate_jeffreys_mcmc flag 1: about to call stan_model") )
+  
+  # necessary to prevent ReadRDS errors in which cores try to work with other cores' intermediate results
+  # https://groups.google.com/g/stan-users/c/8snqQTTfWVs?pli=1
+  options(mc.cores = parallel::detectCores())
+  
+  # "isystem" arg is just a placeholder to avoid Stan's not understanding special characters
+  #  in getwd(), even though we don't actually use the dir at all
+  # note: removing the isystem arg does NOT fix the very sporadic "error reading from connection" on cluster
+  stan.model <- stan_model(model_code = model.text,
+                           isystem = "~/Desktop")
+  
+  #bm 2022-2-21: rest isn't edited yet
+  
+  # as in E_fisher(), prevent numerical issues due to infinite cutpoints
+  .a = max( -99, p$a )
+  .b = min( 99, p$b )
+  
+  cat( paste("\n estimate_jeffreys_mcmc flag 2: about to call sampling") )
+  post = sampling(stan.model,
+                  cores = 1,
+                  refresh = 0,
+                  data = list( n = p$n, LL = .a, UU = .b, y = x ),
+                  
+                  iter = p$stan.iter,   
+                  control = list(max_treedepth = p$stan.maxtreedepth,
+                                 adapt_delta = p$stan.adapt_delta),
+                  
+                  init = init.fcn)
+  
+  
+}, warning = function(condition){
+  stan.warned <<- 1
+  stan.warning <<- condition$message
+} )
+
+
+cat( paste("\n estimate_jeffreys_mcmc flag 3: about to call postSumm") )
+postSumm = summary(post)$summary
+
+
+# 2022-1-13: pull out best iterate to pass to MAP optimization later
+#bm
+ext = extract(post) # a vector of all post-WU iterates across all chains
+best.ind = which.max(ext$lp__)  # single iterate with best log-posterior should be very close to MAP
+
+
+# posterior means, posterior medians, and max-LP iterate
+Mhat = c( postSumm["mu", "mean"],
+          median( rstan::extract(post, "mu")[[1]] ),
+          ext$mu[best.ind] )
+
+Shat = c( postSumm["sigma", "mean"],
+          median( rstan::extract(post, "sigma")[[1]] ),
+          ext$sigma[best.ind] )
+
+Vhat = Shat^2
+# sanity check
+expect_equal( Mhat[1], mean( rstan::extract(post, "mu")[[1]] ) )
+
+
+# SEs
+MhatSE = postSumm["mu", "se_mean"]
+ShatSE = postSumm["sigma", "se_mean"]
+# because VhatSE uses delta method, VhatSE will be length = length(Shat) because Shat does, too
+VhatSE = ShatSE * 2 * Shat  
+# how Stan estimates the SE: https://discourse.mc-stan.org/t/se-mean-in-print-stanfit/2869
+expect_equal( postSumm["mu", "sd"],
+              sd( rstan::extract(post, "mu")[[1]] ) )
+expect_equal( MhatSE,
+              postSumm["mu", "sd"] / sqrt( postSumm["mu", "n_eff"] ) )
+
+# CI limits
+S.CI = c( postSumm["sigma", "2.5%"], postSumm["sigma", "97.5%"] )
+V.CI = S.CI^2
+M.CI = c( postSumm["mu", "2.5%"], postSumm["mu", "97.5%"] )
+# sanity check:
+myMhatCI = as.numeric( c( quantile( rstan::extract(post, "mu")[[1]], 0.025 ),
+                          quantile( rstan::extract(post, "mu")[[1]], 0.975 ) ) )
+expect_equal(M.CI, myMhatCI)
+
+
+# the point estimates are length 2 (post means, then medians),
+#  but the inference is the same for each type of point estimate
+n.ests = length(Mhat)
+return( list( Mhat = Mhat,
+              Vhat = Vhat,
+              Shat = Shat,
+              
+              MhatSE = rep(MhatSE, length(n.ests)),
+              VhatSE = VhatSE,  # already length = n.ests (see above)
+              ShatSE = rep(ShatSE, length(n.ests)),
+              
+              M.CI = M.CI,
+              V.CI = V.CI,
+              S.CI = S.CI,
+              
+              stan.warned = stan.warned,
+              stan.warning = stan.warning,
+              
+              MhatRhat = postSumm["mu", "Rhat"],
+              ShatRhat = postSumm["sigma", "Rhat"]
+) )
+}
+
+
+# 2021-9-2: MM audited fn by reading through
+# x: data vector
+# doesn't handle the case CI.method = "profile" and par2is = "sd" (will just return NAs)
+estimate_mle = function( x,
+                         p,  # scenario parameters
+                         par2is = "sd",
+                         mu.start = 0,
+                         sigma.start = 1,
+                         get.CIs,  # this is kept separate from p for use inside boot fn (where we'll want to suppress getting CIs)
+                         CI.method = "wald"
+) {
+  
+  #@TEMP
+  #write.csv( c(mu.start, sigma.start), "inside_mle_start_values.csv")
+  
+  ##### Get MLE with Main Optimizer (NM) #####
+  # fn needs to be formatted exactly like this (no additional args)
+  #  in order for mle() to understand
+  nll_simple = function(.mu, .sigma) {
+    nll(.pars = c(.mu, .sigma),
+        par2is = par2is,
+        .x = x, .a = p$a, .b = p$b)
+  }
+  
+  myMLE = mle( minuslogl = nll_simple,
+               method = "BFGS",
+               start = list( .mu=mu.start, .sigma=sigma.start) )
+  
+  mles = as.numeric( coef(myMLE) )
+  
+  
+  # this parameterization behaves badly!
+  if ( par2is == "sd" ) {
+    # need this structure for run_method_safe to understand
+    Mhat = mles[1]
+    Vhat = mles[2]^2
+    Shat = mles[2]
+  }
+  
+  # this parameterization behaves well
+  if ( par2is == "var" ) {
+    # need this structure for run_method_safe to understand
+    Mhat = mles[1]
+    Vhat = mles[2]
+    Shat = sqrt(mles[2])
+  }
+  
+  mles = c(Mhat, Vhat, Shat)
+  
+  # recode convergence more intuitively
+  # optim uses "0" to mean successful convergence
+  optim.converged = attr(myMLE, "details")$convergence == 0
+  
+  
+  ##### Try Other Optimizers #####
+  w = get_optimx_dataframe(.method = "mle",
+                           x = x,
+                           p = p,  # scenario parameters
+                           par2is = par2is,
+                           mu.start = mu.start,
+                           sigma.start = sigma.start)
+  
+  
+  ##### Inference #####
+  # in case someone passes a set of params that aren't handled
+  SEs = los = his = c(NA, NA)
+  
+  profile.CI.error = NA
+  
+  if ( get.CIs == TRUE & CI.method == "wald" & par2is == "sd" ) {
+    # get Wald CI 
+    # SEs for both parameters
+    # these are from the observed Fisher info,
+    #  as confirmed in "2021-8-9 Investigate inference.R"
+    SEs = as.numeric( attr( summary(myMLE), "coef" )[, "Std. Error" ] )
+    
+    # fill in VhatSE using delta method
+    # let g(y) = y^2, where y=Shat
+    VhatSE = SEs[2] * 2 * Shat
+    
+    # include Vhat
+    SEs = c(SEs[1], VhatSE, SEs[2])
+    
+    los = mles - SEs * qnorm(0.975)
+    his = mles + SEs * qnorm(0.975)
+    
+  } else if ( get.CIs == TRUE & CI.method == "wald" & par2is == "var" ) {
+    # get Wald CI 
+    # SEs for both parameters
+    # these are from the observed Fisher info,
+    #  as confirmed in "2021-8-9 Investigate inference.R"
+    SEs = as.numeric( attr( summary(myMLE), "coef" )[, "Std. Error" ] )
+    
+    # fill in ShatSE using delta method
+    # let g(y) = y^(1/2), where y=Shat
+    #  so g'(y) = 0.5 * y^(-0.5)
+    ShatSE = SEs[2] * 0.5*Vhat^(-0.5)
+    
+    # include Vhat
+    SEs = c(SEs[1], SEs[2], ShatSE)
+    
+    los = mles - SEs * qnorm(0.975)
+    his = mles + SEs * qnorm(0.975)
+    
+  } else if ( get.CIs == TRUE & CI.method == "profile" & par2is == "var" ) {
+    
+    tryCatch({
+      CIs = confint(myMLE)
+      
+      los = c( as.numeric( CIs[1,1] ),
+               as.numeric( CIs[2,1] ),
+               sqrt( as.numeric( CIs[2,1] ) ) )
+      his = c( as.numeric( CIs[1,2] ), 
+               as.numeric( CIs[2,2] ),
+               sqrt( as.numeric( CIs[2,2] ) ) )
+      
+      ( res.SEs = as.numeric( attr( summary(myMLE), "coef" )[, "Std. Error" ] ) )
+      
+      # fill in ShatSE using delta method
+      # let g(y) = y^(1/2), where y=Shat
+      #  so g'(y) = 0.5 * y^(-0.5)
+      SEs = c(res.SEs[1], res.SEs[2], res.SEs[2] * 0.5*Vhat^(-0.5) )
+      
+    }, error = function(err) {
+      SEs <<- los <<- his <<- rep(NA, 3)
+      profile.CI.error <<- err$message
+    })
+    
+  }   
+  
+  ##### Organize Results #####
+  return( list( Mhat = Mhat, 
+                Vhat = Vhat,
+                Shat = Shat,
+                
+                MhatSE = SEs[1],
+                VhatSE = SEs[2],
+                ShatSE = SEs[3],
+                
+                M.CI = as.numeric( c(los[1], his[1]) ),
+                V.CI = as.numeric( c(los[2], his[2]) ),
+                S.CI = as.numeric( c(los[3], his[3]) ),
+                optim.converged = optim.converged,
+                profile.CI.error = profile.CI.error,
+                
+                optimx.dataframe = w
+  ) )
+}
 
 
 
