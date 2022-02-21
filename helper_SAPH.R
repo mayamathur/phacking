@@ -1419,6 +1419,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
                    n = 1)
   
   # TRUE SD (not estimated)
+  #@SHOULD BE M-1, I THINK
   sd.y = se * sqrt(m)
   
   # collect all args from outer fn, including default ones
