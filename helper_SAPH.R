@@ -442,6 +442,7 @@ estimate_jeffreys_mcmc_RTMA = function(.yi,
   # , vec sei[k], vec tcrit[k]
   model.text <- "
 functions{
+
 	real jeffreys_prior(real mu, real tau, int k, real[] sei, real[] tcrit){
 	
 		real mustarL;
@@ -549,13 +550,22 @@ generated quantities{
 }
 "
 
-#bm
-#TEMP: test that syntax is okay
+# #bm
+# #TEMP: test that syntax is okay
 stan.model <- stan_model(model_code = model.text,
                          isystem = "~/Desktop")
 
 
 
+#@TEST ONLY
+.yi = dn$yi
+.sei = dn$sei
+.tcrit = dn$tcrit
+.Mu.start = Mu
+.Tt.start = sqrt(T2)
+p = data.frame(stan.maxtreedepth = 10,
+               stan.iter = 2000,
+                 stan.adapt_delta = 0.8)
 
 
 
@@ -583,17 +593,30 @@ withCallingHandlers({
   stan.model <- stan_model(model_code = model.text,
                            isystem = "~/Desktop")
   
-  #bm 2022-2-21: rest isn't edited yet
+
+  # # as in E_fisher(), prevent numerical issues due to infinite cutpoints
+  # .a = max( -99, p$a )
+  # .b = min( 99, p$b )
   
-  # as in E_fisher(), prevent numerical issues due to infinite cutpoints
-  .a = max( -99, p$a )
-  .b = min( 99, p$b )
+  # from data statement in model_text:
+  # int<lower=0> k;
+  # real sei[k];
+  # real tcrit[k];
+  # real y[k];
   
   cat( paste("\n estimate_jeffreys_mcmc flag 2: about to call sampling") )
+  
+  # 2022-2-21
+  # bm: really vague error:
+  # "[1] "Error in sampler$call_sampler(args_list[[i]]) : Initialization failed."
+  #  error occurred during calling the sampler; sampling not done"
   post = sampling(stan.model,
                   cores = 1,
                   refresh = 0,
-                  data = list( n = p$n, LL = .a, UU = .b, y = x ),
+                  data = list( k = length(.yi),
+                               sei = .sei,
+                               tcrit = .tcrit,
+                               y = .yi ),
                   
                   iter = p$stan.iter,   
                   control = list(max_treedepth = p$stan.maxtreedepth,
