@@ -93,17 +93,189 @@ dm = read.csv("prepped_hagger_meta_data.csv")
 # plot_trunc_densities(.obj)
 
 
+
+
+# ~ 2022-2-21: SIM META WITH DIFFERENT SES ----------------------------------------------------
+
+# both MLE and MAP are very close to truth here! 
+
+Mu = .1
+T2 = .25  # ACROSS-study 
+t2w = .25  # WITHIN-STUDY
+k = 1000
+true.sei.expr = "runif(n = 1, min = 0.1, max = 1)"
+m = 500
+
+# from doParallel:
+# scen.params = data.frame( scen = 1,
+#                           Mu = 0.1,
+#                           T2 = 0.25,
+#                           t2w = 0.25,
+#                           se = 0.5,
+#                           m = 500,
+#                           
+#                           Nmax = 1,
+#                           hack = "affirm", 
+#                           rho = 0,
+#                           
+#                           k = 100,
+#                           k.hacked = 0,
+#                           
+#                           get.CIs = TRUE)
+
+
+# Nmax,  # max draws to try
+# Mu,  # overall mean for meta-analysis
+# T2,  # across-study heterogeneity
+# 
+# # study parameters, assumed same for all studies:
+# m,  # sample size for this study
+# t2w,  # within-study heterogeneity
+# true.sei.expr,  # TRUE SE string to evaluate
+# 
+# rho = 0,  # autocorrelation of muin's
+# 
+# hack,  # mechanism of hacking for studies that DO hack (so not "no")
+# 
+# k.pub.nonaffirm,  # number of published nonaffirmatives
+# prob.hacked,
+# 
+# return.only.published = FALSE
+
+# SAVE: this is how data were generated
+d = sim_meta_2(Nmax = 1,
+               Mu = Mu,
+               T2 = T2,
+               m = m,
+               t2w = t2w,
+               true.sei.expr = true.sei.expr,
+               hack = "affirm",
+               
+               rho = 0,
+               
+               k.pub.nonaffirm = 500,
+               prob.hacked = 0,
+               
+               return.only.published = FALSE )
+
+
+dn = d %>% filter(Di == 1 & affirm == FALSE)
+dn$sei = sqrt(dn$vi)
+# sanity check
+all( dn$yi <= dn$tcrit * dn$sei )
+# setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/2021-10-13 numerical integration for RTMA Jeffreys prior")
+# fwrite(dn, "sim_meta_k1000.csv")
+# 
+# setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/2021-10-13 numerical integration for RTMA Jeffreys prior")
+# dn = fread("sim_meta_k1000.csv")
+
+
+
+yi = dn$yi
+sei = dn$sei
+tcrit = dn$tcrit
+
+#@ for now, start at truth (later should start at best MCMC iterate as in TNE)
+Mu.start = Mu
+Tt.start = sqrt(T2)
+
+### Version 1: MLE ###
+res.MLE.1 = estimate_jeffreys_RTMA( yi = yi,
+                                    sei = sei,
+                                    par2is = "Tt",
+                                    Mu.start = Mu.start,
+                                    par2.start = Tt.start,
+                                    tcrit = tcrit,
+                                    
+                                    usePrior = FALSE,
+                                    get.CIs = TRUE,
+                                    CI.method = "wald" )
+
+res.MLE.1$MuHat
+res.MLE.1$TtHat
+
+
+### Sanity check: optimize the nll directly
+
+joint_nll2_simple = function(.Mu, .Tt) {
+  joint_nll_2( .yi = yi, .sei = sei, .Mu = .Mu, .Tt = .Tt, .tcrit = tcrit )
+}
+
+
+res = mle( minuslogl = joint_nll2_simple,
+           start = list( .Mu = Mu.start, .Tt = Tt.start),
+           method = "Nelder-Mead" )
+as.numeric(coef(res))
+# yes, agrees with above :)
+
+# vs. BFGS
+res = mle( minuslogl = joint_nll2_simple,
+           start = list( .Mu = Mu.start, .Tt = Tt.start),
+           method = "BFGS" )
+as.numeric(coef(res))
+# yes, agrees with above :)
+
+
+
+# does nlpost_jeffreys agree when not using prior? YES
+v1 = joint_nll_2( .yi = yi, .sei = sei, .Mu = Mu.start, .Tt = Tt.start, .tcrit = tcrit )
+v2 = nlpost_jeffreys_RTMA( .pars = c(Mu.start, Tt.start),
+                           .par2is = "Tt",
+                           .yi = yi,
+                           .sei = sei,
+                           .tcrit = tcrit,
+                           .usePrior = FALSE )
+expect_equal(v1, v2)
+
+### Version 2: MAP (SD parameterization) ###
+res.MAP.1 = estimate_jeffreys_RTMA( yi = yi,
+                                    sei = sei,
+                                    par2is = "Tt",
+                                    Mu.start = Mu.start,
+                                    par2.start = Tt.start,
+                                    tcrit = tcrit,
+                                    
+                                    usePrior = TRUE,
+                                    get.CIs = TRUE,
+                                    CI.method = "wald" )
+
+res.MAP.1$MuHat
+res.MAP.1$TtHat
+
+
+### Version 2.1: MAP (var parameterization)
+
+res.MAP.2 = estimate_jeffreys_RTMA( yi = yi,
+                                    sei = sei,
+                                    par2is = "T2t",
+                                    Mu.start = Mu.start,
+                                    par2.start = Tt.start^2,
+                                    tcrit = tcrit,
+                                    
+                                    usePrior = TRUE,
+                                    get.CIs = TRUE,
+                                    CI.method = "wald" )
+
+res.MAP.2$MuHat
+res.MAP.2$TtHat
+
+
+
+### MLE version 2: weightr ###
+
+#  yes, agrees with MLE :)
+( m1 = weightfunct( effect = yi,
+                    v = sei^2,  
+                    steps = c(0.025, 1),
+                    weights = c(0,1), # weight such that ONLY nonaffirmatives are published
+                    table = TRUE ) )
+
+# adjusted point estimate
+res.MLE.1$MuHat; m1[[2]]$par[2]
+# very close, but not exact because of t vs. z cutoff
+
+
 # ~ 2021-11-24: SIM META WITH SAME SE ----------------------------------------------------
-
-# SUMMARY OF THIS SECTION:
-# truth = (0.1, 0.5)
-
-# at k=100:
-# MLE = (0.21, 0.65) – too big 
-# MAP = (0.31, 0.74) – too big
-
-# unlike the sim meta below, now we allow different studies to have different SEs
-# RESULTS DO NOT MAKE SENSE -- ESTIMATES ARE WAY TOO SMALL
 
 Mu = .1
 T2 = .25

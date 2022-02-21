@@ -22,6 +22,7 @@
 # ~ 2021-11-22 Jeffreys prior fns ---------------
 
 
+# agrees with weightr per "Repurpose TNE code.R"
 # RTMA log-likelihood - now uses TNE version
 # carefully structured for use with Deriv()
 joint_nll_2 = function(.yi,
@@ -42,6 +43,7 @@ joint_nll_2 = function(.yi,
   .dat = .dat %>% rowwise() %>%
     mutate( term1 = dmvnorm(x = as.matrix(yi, nrow = 1),
                             mean = as.matrix(.Mu, nrow = 1),
+                            # deal with different SEs by just incorporating them into the total variance
                             sigma = as.matrix(.T2t + sei^2, nrow=1),
                             log = TRUE),
             
@@ -180,7 +182,7 @@ lprior = function(.sei, .Mu, .Tt, .tcrit) {
 }
 
 
-
+# with usePrior = FALSE, agrees with weightr per "Repurpose TNE code.R"
 # .pars: (.Mu, .Tt) or (.Mu, .Tt2)
 nlpost_jeffreys_RTMA = function( .pars,
                                  .par2is = "Tt",  # "Tt" or "T2t"
