@@ -3,6 +3,10 @@
 # code is from helper_SAPH::estimate_jeffreys_RTMA on 2022-2-21
 
 
+# for cluster:
+# srun --mem=32G --time=4:00:00 --pty bash
+
+
 library(rstan)
 
 # first 30 observations of a dataframe
@@ -38,7 +42,7 @@ library(rstan)
 
 
 
-# FULL VERSION (BREAKS)
+# FULL VERSION (BREAKS) --------------------------------------
 model.text <- "
 functions{
 
@@ -151,7 +155,7 @@ generated quantities{
 
 
 
-# #3: SIMPLIFY PRIOR AND LPDF  (same error)
+# #3: SIMPLIFY PRIOR AND LPDF  (same error) --------------------------------------
 model.text <- "
 functions{
 
@@ -256,7 +260,15 @@ generated quantities{
 "
 
 
-# #4: COMPLETELY REMOVE PRIOR  (same error)
+
+
+
+
+
+
+
+
+# #4: COMPLETELY REMOVE PRIOR - WORKS ON SHERLOCK --------------------------------------
 model.text <- "
 
 data{
@@ -275,7 +287,7 @@ parameters{
 model{
 	target += 0;
 	for(i in 1:k)
-        y[i] ~ normal(mu, tau);
+        y[i] ~ normal( mu, sqrt(tau^2 + sei[i]^2) );
 }
 
 generated quantities{
@@ -283,7 +295,7 @@ generated quantities{
   real log_post;
   
   for ( i in 1:k ){
-      log_lik += normal_lpdf(y | mu, tau);
+      log_lik += normal_lpdf( y | mu, sqrt(tau^2 + sei[i]^2) );
   }
   
   log_post = log_lik;
@@ -294,18 +306,36 @@ generated quantities{
 stan.model <- stan_model(model_code = model.text,
                          isystem = "~/Desktop")
 
+.Mu.start = 0
+.Tt.start = 1
+k = 100
+.sei = runif( n = k, 0.1, 2 )
+.yi = rnorm( n = k,
+             mean = .Mu.start,
+             sd = sqrt( .Tt.start^2 + .sei^2 ) )
+
+.tcrit = rep(0, k)
+
 
 # set start values for sampler
 init.fcn <- function(o){ list(mu = .Mu.start,
                               tau = .Tt.start ) }
 
-# bm: this model seems to at least try to run, but crashed R
 
 
+options(mc.cores = parallel::detectCores())
 
-# bm: really vague error:
-# "[1] "Error in sampler$call_sampler(args_list[[i]]) : Initialization failed."
-#  error occurred during calling the sampler; sampling not done"
+# package example
+# m <- stan_model(model_code = 'parameters {real y;} model {y ~ normal(0,1);}')
+# f <- sampling(m, iter = 1)  # I reduced iter from 100 to 1
+# that DOES prevent crashing
+# maybe try running it on cluster to see if that prevents crashing?
+# even using iter=1 below doesn't work, so I do think it's a memory issue
+# try on cluster
+# given that #4 above seems ok for syntax but #3 doesn't, seems like the way the prior is written in #3 and earlier 
+#  is wrong
+
+# on Sherlock, this WORKS and gets reasonable estimates of (mu, tau)
 post = sampling(stan.model,
                 cores = 1,
                 refresh = 0,
@@ -313,6 +343,414 @@ post = sampling(stan.model,
                              sei = .sei,
                              tcrit = .tcrit,
                              y = .yi ),
+                iter=2000,  
                 
+                init = init.fcn)
+
+
+
+
+
+
+# #5 ADD PRIORS ONE AT A TIME --------------------------------------
+
+
+# add uniform prior - WORKS on Sherlock
+model.text <- "
+
+// STEP 1 (WORKS): Add just the fn itself but don't call it
+functions{
+	real jeffreys_prior(real mu, real tau, int k, real[] sei, real[] tcrit){
+	// need to return 1 here since we'll be taking log
+		return 1;
+	}
+}
+
+data{
+	int<lower=0> k;
+  real sei[k];
+  real tcrit[k];
+	real y[k];
+}
+
+parameters{
+  real mu;
+	real<lower=0> tau;
+}
+
+
+model{
+	//target += 0;
+	// STEP 2: Replace target so that now we're adding in the fake prior that's always 0
+	target += log( jeffreys_prior(mu, tau, k, sei, tcrit) );
+	for(i in 1:k)
+        y[i] ~ normal( mu, sqrt(tau^2 + sei[i]^2) );
+}
+
+generated quantities{
+  real log_lik = 0;
+  real log_post;
+  
+  for ( i in 1:k ){
+      log_lik += normal_lpdf( y | mu, sqrt(tau^2 + sei[i]^2) );
+  }
+  
+  log_post = log_lik;
+}
+"
+
+
+
+# start adding Jeffreys prior but don't actually calculate Fisher info - WORKS
+model.text <- "
+
+functions{
+
+	real jeffreys_prior(real mu, real tau, int k, real[] sei, real[] tcrit){
+	
+		real mustarL;
+		real mustarU;
+		real alphaL;
+		real alphaU;
+		real kmm;
+		real kms;
+		real kss;
+    real sigma;
+		real LL; 
+		real UU;
+		// will just be set to 1
+		int n; 
+    
+    // this will now be the fisher info for EACH obs
+		matrix[2,2] fishinfo;
+		
+		// this will be the TOTAL fisher info
+		matrix[2,2] fishinfototal;
+		
+		
+		// WORKS: make fake fisherinfo whose determinant is 1
+		fishinfo[1,1] = 1;
+  	fishinfo[1,2] = 1;
+  	fishinfo[2,1] = 1;
+  	fishinfo[2,2] = 2;
+  		
+  	// doesn't print anything... :(
+  	print(fishinfo[1,1]);
+  		
+  	return sqrt( determinant(fishinfo) );
+
+	}
+}
+
+data{
+	int<lower=0> k;
+  real sei[k];
+  real tcrit[k];
+	real y[k];
+}
+
+parameters{
+  real mu;
+	real<lower=0> tau;
+}
+
+
+model{
+	//target += 0;
+	target += log( jeffreys_prior(mu, tau, k, sei, tcrit) );
+	for(i in 1:k)
+        y[i] ~ normal( mu, sqrt(tau^2 + sei[i]^2) );
+}
+
+generated quantities{
+  real log_lik = 0;
+  real log_post;
+  
+  for ( i in 1:k ){
+      log_lik += normal_lpdf( y | mu, sqrt(tau^2 + sei[i]^2) );
+  }
+  
+  log_post = log_lik;
+}
+"
+
+
+
+
+# this WORKS
+model.text <- "
+
+functions{
+
+	real jeffreys_prior(real mu, real tau, int k, real[] sei, real[] tcrit){
+	
+		real mustarL;
+		real mustarU;
+		real alphaL;
+		real alphaU;
+		real kmm;
+		real kms;
+		real kss;
+    real sigma;
+		real LL; 
+		real UU;
+		// will just be set to 1
+		int n; 
+    
+    // this will now be the fisher info for EACH obs
+		matrix[2,2] fishinfo;
+		
+		// this will be the TOTAL fisher info
+		matrix[2,2] fishinfototal;
+		
+		
+		// MM: build a Fisher info matrix for EACH observation
+		// this WORKS
+		for (i in 1:k) {
+		
+		  sigma = sqrt(tau^2 + sei[i]^2);
+		  LL = -999;
+		  UU = tcrit[i] * sei[i];
+		
+  		mustarL = (LL - mu) / sigma;
+  		mustarU = (UU - mu) / sigma;
+  		
+  		// because EACH fisher info below has n=1 only
+  		n = 1; 
+  		
+  		// MM: BELOW NEEDS NO EDITS FROM TNE
+  		// note that normal_lpdf, etc., parameterize in terms of SD, not var
+  		//  the (0,1) below are *not* start values for MCMC
+  		// THIS IS THE LINE THAT BREAKS! Error in sampler$call_sampler(args_list[[i]]) : Initialization failed
+  		// I know that mustarU is FINE and mustarL is BAD
+  		mustarL = -999; // fine if you use these!
+  		alphaL = exp( normal_lpdf(mustarL | 0, 1) - 
+  	                log_diff_exp( normal_lcdf(mustarU | 0, 1),
+  	                normal_lcdf(mustarL | 0, 1) ) ); 
+  	                
+  	                
+  	 // fake version: WORKS
+  	 // so something is wrong with mustarL, mustarU above
+  	  // alphaL = exp( normal_lpdf(-9 | 0, 1) - 
+  	  //              log_diff_exp( normal_lcdf(0 | 0, 1),
+  	   //             normal_lcdf(0 | 0, 1) ) ); 
+  	                
+  		//  alphaU = exp( normal_lpdf(mustarU | 0, 1) - 
+   	  //              log_diff_exp( normal_lcdf(mustarU | 0, 1),
+   	  //              normal_lcdf(mustarL | 0, 1) ) );
+  		
+  		// second derivatives for Fisher info			
+  		// kmm = -n/sigma^2 + n/sigma^2 * ((alphaU-alphaL)^2 + alphaU*mustarU- alphaL*mustarL);
+  		// kms = -2*n/sigma^2 * (alphaL - alphaU) + 
+  	  // 		  n/sigma^2 * (alphaL - alphaU + (alphaU*mustarU^2 - alphaL*mustarL^2) +
+  		//	  				(alphaL-alphaU) * (alphaL*mustarL - alphaU*mustarU));
+  		// kss = n/sigma^2 - 3*n/sigma^2 * (1 + mustarL*alphaL - mustarU*alphaU) +
+  	 //  			n/sigma^2 * (mustarU*alphaU*(mustarU^2 - 2) - mustarL*alphaL*(mustarL^2 - 2) +
+  		//						(alphaU*mustarU - alphaL*mustarL)^2);
+  		
+  		// fishinfo[1,1] = -kmm;
+  		// fishinfo[1,2] = -kms;
+  		// fishinfo[2,1] = -kms;
+  		// fishinfo[2,2] = -kss;
+  		// MM: END STUFF THAT NEEDS NO EDITS FROM TNE
+  		
+  		// MM: add the new fisher info to the total one
+  		// fishinfototal = fishinfototal +  fishinfo;
+		}
+		
+		
+		// WORKS: make fake fishinfototal whose determinant is 1
+		fishinfototal[1,1] = 1;
+  	fishinfototal[1,2] = 1;
+  	fishinfototal[2,1] = 1;
+  	fishinfototal[2,2] = 2;
+		return sqrt(determinant(fishinfototal));
+
+
+	}
+}
+
+data{
+	int<lower=0> k;
+  real sei[k];
+  real tcrit[k];
+	real y[k];
+}
+
+parameters{
+  real mu;
+	real<lower=0> tau;
+}
+
+
+model{
+	//target += 0;
+	target += log( jeffreys_prior(mu, tau, k, sei, tcrit) );
+	for(i in 1:k)
+        y[i] ~ normal( mu, sqrt(tau^2 + sei[i]^2) );
+}
+
+generated quantities{
+  real log_lik = 0;
+  real log_post;
+  
+  for ( i in 1:k ){
+      log_lik += normal_lpdf( y | mu, sqrt(tau^2 + sei[i]^2) );
+  }
+  
+  log_post = log_lik;
+}
+"
+
+
+
+
+#bm
+# not yet implemented in this:
+#  - truncation in lpdfs
+#  - fishintototal is still fake
+model.text <- "
+
+functions{
+
+	real jeffreys_prior(real mu, real tau, int k, real[] sei, real[] tcrit){
+	
+		real mustarL;
+		real mustarU;
+		real alphaL;
+		real alphaU;
+		real kmm;
+		real kms;
+		real kss;
+    real sigma;
+		real LL; 
+		real UU;
+		// will just be set to 1
+		int n; 
+    
+    // this will now be the fisher info for EACH obs
+		matrix[2,2] fishinfo;
+		
+		// this will be the TOTAL fisher info
+		matrix[2,2] fishinfototal;
+		
+		
+		// MM: build a Fisher info matrix for EACH observation
+		// this WORKS
+		for (i in 1:k) {
+		
+		  sigma = sqrt(tau^2 + sei[i]^2);
+		  UU = tcrit[i] * sei[i];
+		
+  		mustarL = -999;
+  		mustarU = (UU - mu) / sigma;
+  		
+  		// because EACH fisher info below has n=1 only
+  		n = 1; 
+  		
+  		// note that normal_lpdf, etc., parameterize in terms of SD, not var
+  		//  the (0,1) below are *not* start values for MCMC
+  		alphaL = exp( normal_lpdf(mustarL | 0, 1) - 
+  	                log_diff_exp( normal_lcdf(mustarU | 0, 1),
+  	                normal_lcdf(mustarL | 0, 1) ) ); 
+  	                
+  		alphaU = exp( normal_lpdf(mustarU | 0, 1) - 
+   	                log_diff_exp( normal_lcdf(mustarU | 0, 1),
+   	                normal_lcdf(mustarL | 0, 1) ) );
+   	                
+   	  // runs fine if everything below in for-loop is commented out
+  		
+  		// second derivatives for Fisher info			
+  		kmm = -n/sigma^2 + n/sigma^2 * ((alphaU-alphaL)^2 + alphaU*mustarU- alphaL*mustarL);
+  		kms = -2*n/sigma^2 * (alphaL - alphaU) + 
+  	   		  n/sigma^2 * (alphaL - alphaU + (alphaU*mustarU^2 - alphaL*mustarL^2) +
+  			  				(alphaL-alphaU) * (alphaL*mustarL - alphaU*mustarU));
+  		 kss = n/sigma^2 - 3*n/sigma^2 * (1 + mustarL*alphaL - mustarU*alphaU) +
+  	   			n/sigma^2 * (mustarU*alphaU*(mustarU^2 - 2) - mustarL*alphaL*(mustarL^2 - 2) +
+  								(alphaU*mustarU - alphaL*mustarL)^2);
+  		
+  		 fishinfo[1,1] = -kmm;
+  		 fishinfo[1,2] = -kms;
+  		 fishinfo[2,1] = -kms;
+  		 fishinfo[2,2] = -kss;
+  		
+  		// MM: add the new fisher info to the total one
+  		// fishinfototal = fishinfototal +  fishinfo;
+		}
+		
+		// WORKS: make fake fishinfototal whose determinant is 1
+		fishinfototal[1,1] = 1;
+  	fishinfototal[1,2] = 1;
+  	fishinfototal[2,1] = 1;
+  	fishinfototal[2,2] = 2;
+		return sqrt(determinant(fishinfototal));
+
+	}
+}
+
+data{
+	int<lower=0> k;
+  real sei[k];
+  real tcrit[k];
+	real y[k];
+}
+
+parameters{
+  real mu;
+	real<lower=0> tau;
+}
+
+
+model{
+	//target += 0;
+	target += log( jeffreys_prior(mu, tau, k, sei, tcrit) );
+	for(i in 1:k)
+        y[i] ~ normal( mu, sqrt(tau^2 + sei[i]^2) );
+}
+
+generated quantities{
+  real log_lik = 0;
+  real log_post;
+  
+  for ( i in 1:k ){
+      log_lik += normal_lpdf( y | mu, sqrt(tau^2 + sei[i]^2) );
+  }
+  
+  log_post = log_lik;
+}
+"
+
+
+stan.model <- stan_model(model_code = model.text,
+                         isystem = "~/Desktop")
+
+# .Mu.start = 0
+# .Tt.start = 1
+# k = 100
+# .sei = runif( n = k, 0.1, 2 )
+# .yi = rnorm( n = k,
+#              mean = .Mu.start,
+#              sd = sqrt( .Tt.start^2 + .sei^2 ) )
+# 
+# .tcrit = rep(1.96, k)
+# 
+# 
+# # set start values for sampler
+# init.fcn <- function(o){ list(mu = .Mu.start,
+#                               tau = .Tt.start ) }
+
+
+
+
+options(mc.cores = parallel::detectCores())
+
+post = sampling(stan.model,
+                cores = 1,
+                refresh = 0,
+                data = list( k = length(.yi),
+                             sei = .sei,
+                             tcrit = .tcrit,
+                             y = .yi ),
+                iter=2000,  
                 
                 init = init.fcn)
