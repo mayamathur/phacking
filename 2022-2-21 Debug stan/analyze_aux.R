@@ -605,10 +605,7 @@ generated quantities{
 
 
 
-#bm
-# not yet implemented in this:
-#  - truncation in lpdfs
-#  - fishintototal is still fake
+# WORKS
 model.text <- "
 
 functions{
@@ -675,7 +672,8 @@ functions{
   		 fishinfo[2,2] = -kss;
   		
   		// MM: add the new fisher info to the total one
-  		// fishinfototal = fishinfototal +  fishinfo;
+  		// 2022-2-22: BREAKS IF YOU UNCOMMENT THIS LINE (even just this line)
+  		 // fishinfototal = fishinfototal +  fishinfo;
 		}
 		
 		// WORKS: make fake fishinfototal whose determinant is 1
@@ -710,13 +708,138 @@ model{
 
 generated quantities{
   real log_lik = 0;
+  real log_prior = log( jeffreys_prior(mu, tau, k, sei, tcrit) );
   real log_post;
   
   for ( i in 1:k ){
       log_lik += normal_lpdf( y | mu, sqrt(tau^2 + sei[i]^2) );
   }
   
+  // note that prior isn't used yet
   log_post = log_lik;
+}
+"
+
+
+
+
+#bm
+# not yet implemented in this:
+#  - truncation in lpdfs
+#  - fishintototal is still fake
+model.text <- "
+
+functions{
+
+	real jeffreys_prior(real mu, real tau, int k, real[] sei, real[] tcrit){
+	
+		real mustarL;
+		real mustarU;
+		real alphaL;
+		real alphaU;
+		real kmm;
+		real kms;
+		real kss;
+		matrix[2,2] fishinfo;
+    real sigma;
+		real LL; 
+		real UU;
+		// will just be set to 1
+		int n; 
+    
+
+		// this will be the TOTALS for all observations
+		matrix[2,2] fishinfototal;
+		fishinfototal[1,1] = 0;
+  	fishinfototal[1,2] = 0;
+  	fishinfototal[2,1] = 0;
+  	fishinfototal[2,2] = 0;
+		
+		
+		// MM: build a Fisher info matrix for EACH observation
+		// this WORKS
+		for (i in 1:k) {
+		
+		  sigma = sqrt(tau^2 + sei[i]^2);
+		  UU = tcrit[i] * sei[i];
+		
+  		mustarL = -999;
+  		mustarU = (UU - mu) / sigma;
+  		
+  		// because EACH fisher info below has n=1 only
+  		n = 1; 
+  		
+  		// note that normal_lpdf, etc., parameterize in terms of SD, not var
+  		//  the (0,1) below are *not* start values for MCMC
+  		alphaL = exp( normal_lpdf(mustarL | 0, 1) - 
+  	                log_diff_exp( normal_lcdf(mustarU | 0, 1),
+  	                normal_lcdf(mustarL | 0, 1) ) ); 
+  	                
+  		alphaU = exp( normal_lpdf(mustarU | 0, 1) - 
+   	                log_diff_exp( normal_lcdf(mustarU | 0, 1),
+   	                normal_lcdf(mustarL | 0, 1) ) );
+   	                
+   	  // runs fine if everything below in for-loop is commented out
+  		
+  		// second derivatives for Fisher info			
+  		kmm = -n/sigma^2 + n/sigma^2 * ((alphaU-alphaL)^2 + alphaU*mustarU- alphaL*mustarL);
+  		kms = -2*n/sigma^2 * (alphaL - alphaU) + 
+  	   		  n/sigma^2 * (alphaL - alphaU + (alphaU*mustarU^2 - alphaL*mustarL^2) +
+  			  				(alphaL-alphaU) * (alphaL*mustarL - alphaU*mustarU));
+  		 kss = n/sigma^2 - 3*n/sigma^2 * (1 + mustarL*alphaL - mustarU*alphaU) +
+  	   			n/sigma^2 * (mustarU*alphaU*(mustarU^2 - 2) - mustarL*alphaL*(mustarL^2 - 2) +
+  								(alphaU*mustarU - alphaL*mustarL)^2);
+  		
+  		 fishinfo[1,1] = -kmm;
+  		 fishinfo[1,2] = -kms;
+  		 fishinfo[2,1] = -kms;
+  		 fishinfo[2,2] = -kss;
+  		
+  		// MM: add the new fisher info to the total one
+  		// 2022-2-22: BREAKS IF YOU UNCOMMENT THIS LINE (even just this line)
+  		 fishinfototal = fishinfototal + fishinfo;
+		}
+		
+		// WORKS: make fake fishinfototal whose determinant is 1
+		//fishinfototal[1,1] = 1;
+  	//fishinfototal[1,2] = 1;
+  	//fishinfototal[2,1] = 1;
+  	//fishinfototal[2,2] = 2;
+		return sqrt(determinant(fishinfototal));
+
+	}
+}
+
+data{
+	int<lower=0> k;
+  real sei[k];
+  real tcrit[k];
+	real y[k];
+}
+
+parameters{
+  real mu;
+	real<lower=0> tau;
+}
+
+
+model{
+	target += log( jeffreys_prior(mu, tau, k, sei, tcrit) );
+	for(i in 1:k)
+        y[i] ~ normal( mu, sqrt(tau^2 + sei[i]^2) );
+}
+
+generated quantities{
+  real log_lik = 0;
+  real log_prior = log( jeffreys_prior(mu, tau, k, sei, tcrit) );
+  real log_post;
+  
+  for ( i in 1:k ){
+      log_lik += normal_lpdf( y | mu, sqrt(tau^2 + sei[i]^2) );
+  }
+  
+  // note that prior isn't used yet
+  log_post = log_prior + log_lik;
 }
 "
 
@@ -733,7 +856,6 @@ stan.model <- stan_model(model_code = model.text,
 #              sd = sqrt( .Tt.start^2 + .sei^2 ) )
 # 
 # .tcrit = rep(1.96, k)
-# 
 # 
 # # set start values for sampler
 # init.fcn <- function(o){ list(mu = .Mu.start,
@@ -754,3 +876,11 @@ post = sampling(stan.model,
                 iter=2000,  
                 
                 init = init.fcn)
+
+
+
+
+
+
+
+
