@@ -12,6 +12,7 @@
 # For more about the small-sample bias: # https://www.jstor.org/stable/2332719?seq=1#metadata_info_tab_contents
 
 
+# .Tt: TOTAL heterogeneity (both across- and within-study)
 
 
 # FNS OF RTMA JEFFREYS PRIOR ---------------------------------------------------------------
@@ -19,7 +20,7 @@
 
 # IMPORTANT NOTATION FOR THESE FNS:
 # .Mu: mean of effect sizes, not Z-scores
-# .T2t: total heterogeneity of effect sizes (=T2 + T2_within)
+# .T2t: total heterogeneity of effect sizes (=T2 + t2w in older notation, or t2a + t2w in newer notation)
 
 # ~ 2021-11-22 Jeffreys prior fns ---------------
 
@@ -256,6 +257,8 @@ estimate_jeffreys_RTMA = function( yi,
                                    get.CIs,
                                    CI.method = "wald" ) {
   
+  #bm
+  
   ### Get MAP by Calling mle() ###
   # IMPORTANT: This fn cannot be moved outside the scope of estimate_jeffreys
   #  because mle() is too dumb to allow extra args (e.g., x) to be passed,
@@ -425,6 +428,8 @@ estimate_jeffreys_RTMA = function( yi,
                 Mhat.opt.diff = mles.bfgs[1] - Mu.hat, 
                 profile.CI.error = profile.CI.error ) )
 }
+
+
 
 # modified from TNE (2022-2-21)
 
@@ -1508,13 +1513,12 @@ quick_sim = function(.p,
 # k.pub.nonaffirm
 sim_meta_2 = function(Nmax,  # max draws to try
                       Mu,  # overall mean for meta-analysis
-                      T2,  # across-study heterogeneity
+                      t2a,  # across-study heterogeneity (NOT total heterogeneity)
                       
                       # study parameters, assumed same for all studies:
                       m,  # sample size for this study
                       t2w,  # within-study heterogeneity
                       true.sei.expr,  # TRUE SE string to evaluate
-                      
                       rho = 0,  # autocorrelation of muin's
                       
                       hack,  # mechanism of hacking for studies that DO hack (so not "no")
@@ -1593,7 +1597,7 @@ sim_meta_2 = function(Nmax,  # max draws to try
 # d = sim_meta_2(  # test only
 #   Nmax = 20,
 #   Mu = 1,
-#   T2 = 0.1,
+#   t2a = 0.1,
 #   m = 50,
 #   t2w = .5,
 #   true.sei.expr = "runif( n = 1, min = 0.5, max = 2 )",
@@ -1818,7 +1822,7 @@ sim_meta = function(Nmax,  # max draws to try
 # NOTE: If you add args here, need to update quick_sim as well
 sim_one_study_set = function(Nmax,  # max draws to try
                              Mu,  # overall mean for meta-analysis
-                             T2,  # across-study heterogeneity
+                             t2a,  # across-study heterogeneity (NOT total heterogeneity)
                              m,  # sample size for this study
                              t2w,  # within-study heterogeneity
                              se,  # TRUE SE for this study
@@ -1833,7 +1837,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
   # # test only
   # Nmax = 20
   # Mu = 0.1
-  # T2 = 0.1
+  # t2a = 0.1
   # m = 50
   # t2w = .5
   # se = 1
@@ -1843,7 +1847,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
   # mean for this study set
   # doesn't have t2w because that applies to results within this study set
   mui = Mu + rnorm(mean = 0,
-                   sd = sqrt(T2),
+                   sd = sqrt(t2a),
                    n = 1)
   
   # TRUE SD (not estimated)
@@ -1944,7 +1948,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
 # ### example
 # d = sim_one_study_set(Nmax = 5,
 #                       Mu = 0.1,
-#                       T2 = 0.1,
+#                       t2a = 0.1,
 #                       m = 50,
 #                       t2w = .5,
 #                       se = 1,
@@ -1958,7 +1962,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
 # for ( i in 1:2000 ) {
 #   newRows = sim_one_study_set(Nmax = 20,
 #                          Mu = 0.1,
-#                          T2 = 0.1,
+#                          t2a = 0.1,
 #                          m = 50,
 #                          t2w = .1,
 #                          se = 1,
@@ -1984,7 +1988,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
 # # no hacking so that we can get a lot of draws
 # d = sim_one_study_set(Nmax = 1000,
 #                       Mu = 0,
-#                       T2 = 0.1,
+#                       t2a = 0.1,
 #                       m = 50,
 #                       t2w = .5,
 #                       se = 0.5,
@@ -2007,7 +2011,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
 # for ( i in 1:250 ) {
 #   d = sim_one_study_set(Nmax = 10,
 #                         Mu = 0,
-#                         T2 = 0.1,
+#                         t2a = 0.1,
 #                         m = 50,
 #                         t2w = .5,
 #                         se = 0.5,
@@ -2038,14 +2042,14 @@ sim_one_study_set = function(Nmax,  # max draws to try
 # # also need to set heterogeneity to 0?
 # d = data.frame( matrix(nrow = 500, ncol = 1))
 # Mu = 1
-# T2 = 0.5
+# t2a = 0.5
 # t2w = 0.3
 # se = 1
 # 
 # d = d %>% rowwise() %>%
 #   mutate( sim_one_study_set( Nmax = Inf,
 #                              Mu = Mu,
-#                              T2 = T2,
+#                              t2a = t2a,
 #                              m = 50,
 #                              t2w = t2w,
 #                              se = se,
@@ -2055,7 +2059,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
 # summary(d$N)
 # 
 # # calculate noncentrality parameter
-# ncp = Mu / sqrt( T2 + t2w + se^2 )
+# ncp = Mu / sqrt( t2a + t2w + se^2 )
 # 
 # # compare to truncated t
 # qqtrunc(x = d$tstat,

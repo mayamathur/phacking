@@ -31,20 +31,46 @@ rm( list = ls() )
 run.local = TRUE
 
 
-allPackages = c("here",
-                "magrittr",
-                "dplyr",
-                "data.table",
-                "tidyverse",
-                "tidyr",
-                "metafor",
-                "robumeta",
-                "testthat",
-                "truncdist",
-                "gmm",
-                "tmvtnorm",
-                "doParallel",
-                "foreach")
+toLoad = c("crayon",
+           "dplyr",
+           "foreach",
+           "doParallel",
+           "boot",
+           "metafor",
+           "robumeta",
+           "data.table",
+           "purrr",
+           "metRology",
+           "fansi",
+           "MetaUtility",
+           "ICC",
+           "cfdecomp",
+           "tidyr",
+           "truncdist",
+           "tibble",
+           "tmvtnorm",
+           "testthat",
+           "truncreg",
+           "truncnorm",
+           "rstan",
+           "optimx",
+           "here") 
+
+
+# allPackages = c("here",
+#                 "magrittr",
+#                 "dplyr",
+#                 "data.table",
+#                 "tidyverse",
+#                 "tidyr",
+#                 "metafor",
+#                 "robumeta",
+#                 "testthat",
+#                 "truncdist",
+#                 "gmm",
+#                 "tmvtnorm",
+#                 "doParallel",
+#                 "foreach")
 
 
 
@@ -61,29 +87,22 @@ if (run.local == FALSE) {
   jobname = args[1]
   scen = args[2]  # this will be a number
   
-  # # install any missing packages
-  # # find the ones that aren't already installed
-  # libDir = "/home/users/mmathur/Rpackages/"
-  # ( packagesNeeded = allPackages[ !( allPackages %in% installed.packages(lib.loc = libDir)[,"Package"] ) ] )
-  # if( length(packagesNeeded) > 0 ) install.packages(packagesNeeded, lib = libDir)
-  # 
-  # # load all packages
-  # lapply( allPackages,
-  #         require,
-  #         character.only = TRUE,
-  #         lib.loc = libDir)
+  # install packages with informative messages if one can't be installed
+  any.failed = FALSE
+  for (pkg in toLoad) {
+    tryCatch({
+      # eval below needed because library() will otherwise be confused
+      # https://www.mitchelloharawild.com/blog/loading-r-packages-in-a-loop/
+      eval( bquote( library( .(pkg) ) ) )
+    }, error = function(err) {
+      cat( paste("\n*** COULD NOT INSTALL PACKAGE:", pkg) )
+      any.failed <<- TRUE
+    })
+    
+  }
+  if ( any.failed == TRUE ) stop("Some packages couldn't be installed. See outfile for details of which ones.")
   
-
   
-  ( packagesNeeded = allPackages[ !( allPackages %in% installed.packages()[,"Package"] ) ] )
-  if( length(packagesNeeded) > 0 ) install.packages(packagesNeeded)
-  
-  # load all packages
-  lapply( allPackages,
-          require,
-          character.only = TRUE)
-  
-  #**you need to see all "TRUE" printed by this in order for the package to actually be loaded
   
   # get scen parameters (made by genSbatch.R)
   path = "/home/groups/manishad/SAPH"
@@ -133,35 +152,37 @@ if ( run.local == TRUE ) {
   #rm(list=ls())
   
   
-  lapply( allPackages,
+  lapply( toLoad,
           require,
           character.only = TRUE)
+
   
   # helper fns
   code.dir = here()
   setwd(code.dir)
   source("helper_SAPH.R")
   
-  scen.params = data.frame( scen = 1,
-                            Mu = 0.1,
-                            T2 = 0.25,
-                            t2w = 0.25,
-                            se = 0.5,
-                            m = 500,
-                            
-                            Nmax = 1,
-                            hack = "affirm", 
-                            rho = 0,
-                            
-                            k = 100,
-                            k.hacked = 0,
 
-                            get.CIs = TRUE)  
+  scen.params = data.frame(scen = 1,
+                           
+                           # args from sim_meta_2
+                           Nmax = 1,
+                           Mu = 0.1,
+                           T2 = 0.25,
+                           m = 500,
+                           t2w = 0.25,
+                           true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
+                           hack = "affirm",
+                           rho = 0,
+                           k.pub.nonaffirm = 500,
+                           prob.hacked = 0,
+                           
+                           get.CIs = TRUE)
   
   
   
   
-  sim.reps = 100  # reps to run in this iterate
+  sim.reps = 1  # reps to run in this iterate
   
   # set the number of local cores
   registerDoParallel(cores=8)
