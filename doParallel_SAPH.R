@@ -301,6 +301,9 @@ doParallelTime = system.time({
     if ( i == 1 ) cat("\n\nHEAD OF DP AFTER MODPUB STEP:")
     if ( i == 1 ) print(head(dp))
     
+    
+    # ~~ MLE (SD param) ------------------------------
+    
 
     # ~~ MLE (SD param) ------------------------------
     

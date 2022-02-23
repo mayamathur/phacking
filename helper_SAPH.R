@@ -12,8 +12,6 @@
 # For more about the small-sample bias: # https://www.jstor.org/stable/2332719?seq=1#metadata_info_tab_contents
 
 
-# .Tt: TOTAL heterogeneity (both across- and within-study)
-
 
 # FNS OF RTMA JEFFREYS PRIOR ---------------------------------------------------------------
 
@@ -21,6 +19,7 @@
 # IMPORTANT NOTATION FOR THESE FNS:
 # .Mu: mean of effect sizes, not Z-scores
 # .T2t: total heterogeneity of effect sizes (=T2 + t2w in older notation, or t2a + t2w in newer notation)
+# "T2t" is synonymous with "V" in parameters and results; "Tt" synonymous with "S" in params and results
 
 # ~ 2021-11-22 Jeffreys prior fns ---------------
 
