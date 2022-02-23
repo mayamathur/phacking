@@ -28,7 +28,7 @@ rm( list = ls() )
 
 
 # are we running locally?
-run.local = TRUE
+run.local = FALSE
 
 
 toLoad = c("crayon",
@@ -53,8 +53,9 @@ toLoad = c("crayon",
            "truncreg",
            "truncnorm",
            "rstan",
-           "optimx",
-           "here") 
+           "optimx")
+
+if ( run.local == TRUE ) toLoad = c(toLoad, "here")
 
 
 # allPackages = c("here",
@@ -103,34 +104,44 @@ if (run.local == FALSE) {
   if ( any.failed == TRUE ) stop("Some packages couldn't be installed. See outfile for details of which ones.")
   
   
+  # FOR AUTOMATIC CLUSTER RUN
+  # # get scen parameters (made by genSbatch.R)
+  # path = "/home/groups/manishad/SAPH"
+  # setwd(path)
+  # scen.params = read.csv( "scen_params.csv" )
+  # p <<- scen.params[ scen.params$scen == scen, ]
+  # print(p)
+  # 
+  # # helper code
+  # setwd(path)
+  # source("helper_SAPH.R")
   
-  # get scen parameters (made by genSbatch.R)
-  path = "/home/groups/manishad/SAPH"
-  setwd(path)
-  scen.params = read.csv( "scen_params.csv" )
-  p <<- scen.params[ scen.params$scen == scen, ]
-  print(p)
-  
+  # FOR INTERACTIVE CLUSTER RUN
   # # alternatively, generate a simple scen.params in order to run doParallel manually in
   # #  Sherlock as a test
-  # scen.params = data.frame( scen = 1,
-  #                           Mu = 0.1,
-  #                           T2 = 0.25,
-  #                           m = 500,
-  #                           t2w = .25,
-  #                           se = 0.5,
-  # 
-  #                           Nmax = 10,
-  #                           hack = "affirm2", # **
-  #                           rho = 0.9,
-  # 
-  #                           k = 100,
-  #                           k.hacked = 100 )  # all published nonaffirms are from hacked studies
-  # scen = 1
-
-  # helper code
+  path = "/home/groups/manishad/SAPH"
   setwd(path)
   source("helper_SAPH.R")
+  scen.params = data.frame(scen = 1,
+                           
+                           # args from sim_meta_2
+                           Nmax = 1,
+                           Mu = 0.1,
+                           t2a = 0.25,
+                           t2w = 0.25,
+                           m = 500,
+                           true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
+                           hack = "affirm",
+                           rho = 0,
+                           k.pub.nonaffirm = 500,
+                           prob.hacked = 0,
+                           
+                           # Stan control args
+                           stan.maxtreedepth = 20,
+                           stan.adapt_delta = 0.98,
+                           
+                           get.CIs = TRUE)
+  scen = 1
   
   # locally, with total k = 100, Nmax = 10, and sim.reps = 250, took 93 min total
   # for that I did sim.reps = 100 per doParallel
@@ -176,6 +187,10 @@ if ( run.local == TRUE ) {
                            rho = 0,
                            k.pub.nonaffirm = 500,
                            prob.hacked = 0,
+                           
+                           # Stan control args
+                           stan.maxtreedepth = 20,
+                           stan.adapt_delta = 0.98,
                            
                            get.CIs = TRUE)
   
@@ -302,8 +317,40 @@ doParallelTime = system.time({
     if ( i == 1 ) print(head(dp))
     
     
-    # ~~ MLE (SD param) ------------------------------
+    # ~~ MCMC ------------------------------
     
+    Mu.start = p$Mu
+    Tt.start = p$S
+    
+    # published nonaffirmatives only
+    dpn = dp[ dp$affirm == FALSE, ]
+    
+    # temp for refreshing code
+    path = "/home/groups/manishad/SAPH"
+    setwd(path)
+    source("helper_SAPH.R")
+    
+    #bm
+    # see TDist :D
+    temp = estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
+                                       .sei = sqrt(dpn$vi),
+                                       .tcrit = dpn$tcrit, 
+                                       .Mu.start = Mu.start,
+                                       .Tt.start = Tt.start,
+                                       .stan.adapt_delta = p$stan.adapt_delta,
+                                       .stan.maxtreedepth = p$stan.maxtreedepth )
+    
+    
+    # # example of this fn's return structure:
+    # temp = list(Mhat = c(0.0930744994629146, 0.0875140499452475, 0.0802400301080542
+    # ), Shat = c(0.714088542990668, 0.709773113521856, 0.703610793133954
+    # ), MhatSE = 0.00245790633583034, ShatSE = 0.00193643612804278, 
+    # M.CI = c(-0.0396834164833489, 0.258278390904679), S.CI = c(0.604726436454416, 
+    #                                                            0.841199109889154), stan.warned = 0, stan.warning = NA, MhatRhat = 1.00115681931032, 
+    # ShatRhat = 1.00029403749682)
+    
+    #@edit start values below
+    #@remember to start repRes below at current one instead of NA :)
 
     # ~~ MLE (SD param) ------------------------------
     

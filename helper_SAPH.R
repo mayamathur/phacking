@@ -378,18 +378,24 @@ estimate_jeffreys_RTMA = function( yi,
 
 estimate_jeffreys_mcmc_RTMA = function(.yi,
                                        .sei,
-                                       .tcrit,
+                                       .tcrit, #VECTOR
                                        .Mu.start,
-                                       .Tt.start) {
+                                       .Tt.start,
+                                       .stan.adapt_delta = 0.8,
+                                       .stan.maxtreedepth = 10 ) {
   
   # LL and UU: cutpoints on RAW scale, not Z-scores
   # tau: SD, not variance
-  # , vec sei[k], vec tcrit[k]
+  # to do:
+  #  - can get rid of mustarL and LL; they are just placeholders now
+  # this model.text is from "2022-2-22 stan for Sherlock"
   model.text <- "
+
 functions{
 
 	real jeffreys_prior(real mu, real tau, int k, real[] sei, real[] tcrit){
 	
+	  // these will be overwritten for EACH observation
 		real mustarL;
 		real mustarU;
 		real alphaL;
@@ -397,33 +403,40 @@ functions{
 		real kmm;
 		real kms;
 		real kss;
+		matrix[2,2] fishinfo;
     real sigma;
 		real LL; 
 		real UU;
 		// will just be set to 1
 		int n; 
     
-    // this will now be the fisher info for EACH obs
-		matrix[2,2] fishinfo;
-		
-		// this will be the TOTAL fisher info
-		matrix[2,2] fishinfototal;
-		
 
+		// this will be the TOTALS for all observations
+		matrix[2,2] fishinfototal;
+		fishinfototal[1,1] = 0;
+  	fishinfototal[1,2] = 0;
+  	fishinfototal[2,1] = 0;
+  	fishinfototal[2,2] = 0;
+		
+		
 		// MM: build a Fisher info matrix for EACH observation
 		for (i in 1:k) {
 		
+		  // marginal SD for this one observation
 		  sigma = sqrt(tau^2 + sei[i]^2);
-		  LL = -999;
+		  
+		  // upper truncation limit (i.e., affirmative threshold)
+		  //   for THIS study, given its SE
 		  UU = tcrit[i] * sei[i];
 		
-  		mustarL = (LL - mu) / sigma;
+		  // standardized truncation limits
+  		mustarL = -999;
   		mustarU = (UU - mu) / sigma;
   		
   		// because EACH fisher info below has n=1 only
   		n = 1; 
   		
-  		// MM: BELOW NEEDS NO EDITS FROM TNE
+  		// beginning of stuff that is not modified at all from TNE
   		// note that normal_lpdf, etc., parameterize in terms of SD, not var
   		//  the (0,1) below are *not* start values for MCMC
   		alphaL = exp( normal_lpdf(mustarL | 0, 1) - 
@@ -433,7 +446,7 @@ functions{
   		alphaU = exp( normal_lpdf(mustarU | 0, 1) - 
    	                log_diff_exp( normal_lcdf(mustarU | 0, 1),
    	                normal_lcdf(mustarL | 0, 1) ) );
-  		
+   	                
   		// second derivatives for Fisher info			
   		kmm = -n/sigma^2 + n/sigma^2 * ((alphaU-alphaL)^2 + alphaU*mustarU- alphaL*mustarL);
   		kms = -2*n/sigma^2 * (alphaL - alphaU) + 
@@ -444,15 +457,14 @@ functions{
   								(alphaU*mustarU - alphaL*mustarL)^2);
   		
   		fishinfo[1,1] = -kmm;
-  		fishinfo[1,2] = -kms;
-  		fishinfo[2,1] = -kms;
-  		fishinfo[2,2] = -kss;
-  		// MM: END STUFF THAT NEEDS NO EDITS FROM TNE
+      fishinfo[1,2] = -kms;
+      fishinfo[2,1] = -kms;
+      fishinfo[2,2] = -kss;
+  		// end stuff that is not modified at all from TNE
   		
   		// MM: add the new fisher info to the total one
-  		fishinfototal = fishinfototal +  fishinfo;
+  		fishinfototal = fishinfototal + fishinfo;
 		}
-		
 		return sqrt(determinant(fishinfototal));
 	}
 }
@@ -473,46 +485,53 @@ parameters{
 model{
 	target += log( jeffreys_prior(mu, tau, k, sei, tcrit) );
 	for(i in 1:k)
-        y[i] ~ normal(mu, tau)T[-999, tcrit[i] * sei[i]];
+	      y[i] ~ normal( mu, sqrt(tau^2 + sei[i]^2) ) T[ , tcrit[i] * sei[i] ];
 }
 
+// this chunk doesn't actually affect the model that's being fit to the data
+//  (I think); it's just re-calculating the prior, lkl, and post to return to user
 generated quantities{
   real log_lik = 0;
-  // note that the log_prior is over all k observations already
-  real log_prior = log(jeffreys_prior(mu, tau, k, sei, tcrit));
+  real log_prior = log( jeffreys_prior(mu, tau, k, sei, tcrit) );
   real log_post;
+  // this is just an intermediate quantity for log_lik
+  real UU;
   
   for ( i in 1:k ){
-  
-  	real LL = -999;
-		real UU = tcrit[i] * sei[i];
-  
-    log_lik += normal_lpdf(y | mu, sqrt(tau^2 + sei[i]^2));
-    log_lik += -1 * log_diff_exp( normal_lcdf(UU | mu, sqrt(tau^2 + sei[i]^2) ), normal_lcdf(LL | mu, sqrt(tau^2 + sei[i]^2) ) );  	
+      log_lik += normal_lpdf( y[i] | mu, sqrt(tau^2 + sei[i]^2) );
+      
+      UU = tcrit[i] * sei[i];
+      
+      // https://mc-stan.org/docs/2_20/reference-manual/sampling-statements-section.html
+      // see Truncation with upper bounds in Stan
+	      if ( y[i] > UU )
+          log_lik += negative_infinity();
+        else
+          log_lik += -1 * normal_lcdf(UU | mu, sqrt(tau^2 + sei[i]^2) ); 
   }
-  
-  log_post = log_lik + log_prior;
+  // easy way to see what is essentially MLE: just remove prior from this
+  log_post = log_prior + log_lik;
 }
 "
 
-# #bm
-# #TEMP: test that syntax is okay
+
 stan.model <- stan_model(model_code = model.text,
                          isystem = "~/Desktop")
 
 
 
-#@TEST ONLY
-.yi = dn$yi
-.sei = dn$sei
-.tcrit = dn$tcrit
-.Mu.start = Mu
-.Tt.start = sqrt(T2)
-p = data.frame(stan.maxtreedepth = 10,
-               stan.iter = 2000,
-                 stan.adapt_delta = 0.8)
+# #@TEST ONLY
+# .yi = dn$yi
+# .sei = dn$sei
+# .tcrit = dn$tcrit
+# .Mu.start = Mu
+# .Tt.start = sqrt(T2)
+# p = data.frame(stan.maxtreedepth = 10,
+#                stan.iter = 2000,
+#                  stan.adapt_delta = 0.8)
 
-
+# handle scalar tcrit
+if ( length(.tcrit) < length(.yi) ) .tcrit = rep( .tcrit, length(.yi) )
 
 # prepare to capture warnings from Stan
 stan.warned = 0
@@ -539,22 +558,8 @@ withCallingHandlers({
                            isystem = "~/Desktop")
   
 
-  # # as in E_fisher(), prevent numerical issues due to infinite cutpoints
-  # .a = max( -99, p$a )
-  # .b = min( 99, p$b )
-  
-  # from data statement in model_text:
-  # int<lower=0> k;
-  # real sei[k];
-  # real tcrit[k];
-  # real y[k];
-  
   cat( paste("\n estimate_jeffreys_mcmc flag 2: about to call sampling") )
   
-  # 2022-2-21
-  # bm: really vague error:
-  # "[1] "Error in sampler$call_sampler(args_list[[i]]) : Initialization failed."
-  #  error occurred during calling the sampler; sampling not done"
   post = sampling(stan.model,
                   cores = 1,
                   refresh = 0,
@@ -563,7 +568,7 @@ withCallingHandlers({
                                tcrit = .tcrit,
                                y = .yi ),
                   
-                  iter = p$stan.iter,   
+                  #iter = p$stan.iter,   
                   control = list(max_treedepth = p$stan.maxtreedepth,
                                  adapt_delta = p$stan.adapt_delta),
                   
@@ -575,13 +580,11 @@ withCallingHandlers({
   stan.warning <<- condition$message
 } )
 
-
 cat( paste("\n estimate_jeffreys_mcmc flag 3: about to call postSumm") )
 postSumm = summary(post)$summary
 
 
-# 2022-1-13: pull out best iterate to pass to MAP optimization later
-#bm
+# pull out best iterate to pass to MAP optimization later
 ext = extract(post) # a vector of all post-WU iterates across all chains
 best.ind = which.max(ext$lp__)  # single iterate with best log-posterior should be very close to MAP
 
@@ -591,20 +594,17 @@ Mhat = c( postSumm["mu", "mean"],
           median( rstan::extract(post, "mu")[[1]] ),
           ext$mu[best.ind] )
 
-Shat = c( postSumm["sigma", "mean"],
-          median( rstan::extract(post, "sigma")[[1]] ),
-          ext$sigma[best.ind] )
+Shat = c( postSumm["tau", "mean"],
+          median( rstan::extract(post, "tau")[[1]] ),
+          ext$tau[best.ind] )
 
-Vhat = Shat^2
 # sanity check
 expect_equal( Mhat[1], mean( rstan::extract(post, "mu")[[1]] ) )
 
 
 # SEs
 MhatSE = postSumm["mu", "se_mean"]
-ShatSE = postSumm["sigma", "se_mean"]
-# because VhatSE uses delta method, VhatSE will be length = length(Shat) because Shat does, too
-VhatSE = ShatSE * 2 * Shat  
+ShatSE = postSumm["tau", "se_mean"]
 # how Stan estimates the SE: https://discourse.mc-stan.org/t/se-mean-in-print-stanfit/2869
 expect_equal( postSumm["mu", "sd"],
               sd( rstan::extract(post, "mu")[[1]] ) )
@@ -612,7 +612,7 @@ expect_equal( MhatSE,
               postSumm["mu", "sd"] / sqrt( postSumm["mu", "n_eff"] ) )
 
 # CI limits
-S.CI = c( postSumm["sigma", "2.5%"], postSumm["sigma", "97.5%"] )
+S.CI = c( postSumm["tau", "2.5%"], postSumm["tau", "97.5%"] )
 V.CI = S.CI^2
 M.CI = c( postSumm["mu", "2.5%"], postSumm["mu", "97.5%"] )
 # sanity check:
@@ -625,22 +625,19 @@ expect_equal(M.CI, myMhatCI)
 #  but the inference is the same for each type of point estimate
 n.ests = length(Mhat)
 return( list( Mhat = Mhat,
-              Vhat = Vhat,
               Shat = Shat,
               
               MhatSE = rep(MhatSE, length(n.ests)),
-              VhatSE = VhatSE,  # already length = n.ests (see above)
               ShatSE = rep(ShatSE, length(n.ests)),
               
               M.CI = M.CI,
-              V.CI = V.CI,
               S.CI = S.CI,
               
               stan.warned = stan.warned,
               stan.warning = stan.warning,
               
               MhatRhat = postSumm["mu", "Rhat"],
-              ShatRhat = postSumm["sigma", "Rhat"]
+              ShatRhat = postSumm["tau", "Rhat"]
 ) )
 }
 
@@ -2161,7 +2158,6 @@ make_one_draw = function(mui,  # mean for this study set
 add_method_result_row = function(repRes = NA,
                                  corrObject,
                                  methName) {
-  
   
   # newRow = bind_cols( corrObject$metaCorr,
   #                 corrObject$sanityChecks )
