@@ -12,6 +12,8 @@
 # For more about the small-sample bias: # https://www.jstor.org/stable/2332719?seq=1#metadata_info_tab_contents
 
 
+
+
 # FNS OF RTMA JEFFREYS PRIOR ---------------------------------------------------------------
 
 
@@ -243,7 +245,7 @@ nlpost_jeffreys_RTMA = function( .pars,
 # as illustrated in a sanity check after nlpost_simple, this fn's MAPs agree with
 #  using mle() directly on nlpost_Jeffreys
 # confirmed that this agrees with weightr when usePrior = FALSE; see "2021-11-23 repurpose TNE code"
-estimate_jeffreys_RTMA = function( yi,
+estimate_jeffreys_RTMA = function( yi, 
                                    sei,
                                    par2is = "Tt",
                                    Mu.start,
