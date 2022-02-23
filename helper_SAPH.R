@@ -251,13 +251,25 @@ estimate_jeffreys_RTMA = function( yi,
                                    par2is = "Tt",
                                    Mu.start,
                                    par2.start,
-                                   tcrit,
+                                   tcrit,  # SCALAR?
                                    
                                    usePrior = TRUE,
                                    get.CIs,
                                    CI.method = "wald" ) {
   
-  #bm
+  # #bm
+  # #@TEST ONLY
+  # dpn = dp[ dp$affirm == FALSE, ]
+  # yi = dpn$yi
+  # sei = sqrt(dpn$vi)
+  # par2is = "Tt"
+  # Mu.start = p$Mu
+  # par2.start = sqrt(p$t2a + p$t2w)
+  # tcrit = qnorm(.975)
+  # usePrior = FALSE
+  # get.CIs = TRUE
+  # CI.method = "wald"
+  
   
   ### Get MAP by Calling mle() ###
   # IMPORTANT: This fn cannot be moved outside the scope of estimate_jeffreys
@@ -266,7 +278,8 @@ estimate_jeffreys_RTMA = function( yi,
   #  and that's a problem with a doParallel loop
   #  if this fn is outside estimate_jeffreys, different parallel iterations will use each other's global vars
   
-  #  expects yi, sei, and crit to be global vars (wrt this inner fn)
+  ##### Get MLE with Main Optimizer #####
+  #  expects yi, sei, and tcrit to be global vars (wrt this inner fn)
   # second parameter could be Tt or T2t depending on par2is argument above
   nlpost_simple_RTMA = function(.Mu, .par2) {
     
@@ -278,144 +291,73 @@ estimate_jeffreys_RTMA = function( yi,
                           .usePrior = usePrior )
   }
   
+  if ( usePrior == FALSE ) main.optimizer = "BFGS" else main.optimizer = "Nelder-Mead"
   
   #**important: force use of Nelder-Mead optimization, which works better for Jeffreys
   #  (even though BFGS works better for MLE)
   # for more on this issue, see "2021-9-23 SD vs. var redux with Jeffreys.R"
-  res = mle( minuslogl = nlpost_simple_RTMA,
+  mle.obj = mle( minuslogl = nlpost_simple_RTMA,
              start = list( .Mu = Mu.start, .par2 = par2.start),
-             method = "Nelder-Mead" )
+             method = main.optimizer )
   
   
   # not actually MLEs, of course, but rather MAPs
-  mles = as.numeric(coef(res))
+  mles = as.numeric(coef(mle.obj))
   
-  # 2021-11-19: try another optimizer (BFGS)
-  myMLE.bfgs = mle( minuslogl = nlpost_simple_RTMA,
-                    start = list( .Mu = Mu.start, .par2 = par2.start),
-                    method = "BFGS" )
-  mles.bfgs = as.numeric( coef(myMLE.bfgs) )
+  # here could pull in TNE code to run optimx
+  # see call to get_optimx_dataframe() inside estimate_mle() 
   
   # THIS BEHAVES WELL
   if ( par2is == "Tt" ) {
     # need this structure for run_method_safe to understand
-    Mu.hat = mles[1]
-    Tt.hat = mles[2]
+    MuHat = mles[1]
+    TtHat = mles[2]
   }
   
   # from TNE
   # THIS BEHAVES BADLY
   if ( par2is == "T2t" ) {
     # need this structure for run_method_safe to understand
-    Mu.hat = mles[1]
-    Tt.hat = sqrt(mles[2])
+    MuHat = mles[1]
+    TtHat = sqrt(mles[2])
   }
   
   # recode convergence more intuitively
   # optim uses "0" to mean successful convergence
-  optim.converged = attr(res, "details")$convergence == 0 
+  optim.converged = attr(mle.obj, "details")$convergence == 0 
   
-  profile.CI.error = NA
+  ##### Inference #####
+  # in case someone passes a set of params that aren't handled
+  SEs = los = his = c(NA, NA)
   
+  #profile.CI.error = NA
   
-  # ### Get CIs ###
-  # if ( get.CIs == TRUE & CI.method == "wald" & par2is == "Tt" ) {
-  #   # get Wald CI 
-  #   # SEs for both parameters
-  #   # this has its own tryCatch in case point estimation was possible, but not inference
-  #   tryCatch({
-  #     
-  #     # IMPORTANT: Despite the name "Ofish", this is actually the Hessian of the nlpost, which incorporates the prior (see Bayesian Data Analysis, page 84)
-  #     # not the Fisher, which would be from the lkl only
-  #     Ofish = attr(res, "details")$hessian
-  #     invFisher = solve(Ofish)
-  #     
-  #     # SEs for Mhat and Shat, leaving blank space for Vhat
-  #     SEs = sqrt( c( invFisher[1,1], NA, invFisher[2,2] ) )
-  #     # fill in VhatSE using delta method
-  #     # let g(y) = y^2, where y=Shat
-  #     SEs[2] = SEs[3] * 2 * Shat
-  #     
-  #     los = ests - SEs * qnorm(0.975)
-  #     his = ests + SEs * qnorm(0.975)
-  #     
-  #   }, error = function(err) {
-  #     SEs <<- los <<- his <<- rep(NA, 3)
-  #     profile.CI.error <<- err$message
-  #   })
-  #   
-  # } else if ( get.CIs == TRUE & CI.method == "profile" & par2is == "sd" ) {
-  #   
-  #   tryCatch({
-  #     # as confirmed in "2021-8-19 Investigate profile penalized LRT inference",
-  #     #  these are indeed profile CIs
-  #     CIs = confint(res)
-  #     # NA's here represent Vhat
-  #     los = c( as.numeric( CIs[1,1] ), as.numeric( CIs[2,1] )^2, as.numeric( CIs[2,1] ) )
-  #     his = c( as.numeric( CIs[1,2] ), as.numeric( CIs[2,2] )^2, as.numeric( CIs[2,2] ) )
-  #     
-  #     ( res.SEs = as.numeric( attr( summary(res), "coef" )[, "Std. Error" ] ) )
-  #     SEs = c(res.SEs[1], NA, res.SEs[2])
-  #     
-  #   }, error = function(err) {
-  #     SEs <<- los <<- his <<- rep(NA, 3)
-  #     profile.CI.error <<- err$message
-  #   })
-  #   
-  #   
-  # } else if ( get.CIs == TRUE & CI.method == "wald" & par2is == "var" ) {
-  #   # get Wald CI 
-  #   # SEs for both parameters
-  #   
-  #   # this has its own tryCatch in case point estimation was possible, but not inference
-  #   tryCatch({
-  #     # as noted above, this is actually the Hessian of the nlpost, not the Fisher info
-  #     Ofish = attr(res, "details")$hessian
-  #     invFisher = solve(Ofish)
-  #     
-  #     # SEs for Mhat and Shat, leaving blank space for Shat
-  #     SEs = sqrt( c( invFisher[1,1], invFisher[2,2], NA ) )
-  #     # fill in ShatSE using delta method
-  #     # let g(y) = y^(1/2), where y=Shat
-  #     #  so g'(y) = 0.5 * y^(-0.5)
-  #     SEs[3] = SEs[2] * 0.5*Vhat^(-0.5)
-  #     
-  #     los = ests - SEs * qnorm(0.975)
-  #     his = ests + SEs * qnorm(0.975)
-  #     
-  #   }, error = function(err) {
-  #     SEs <<- los <<- his <<- rep(NA, 3)
-  #   })
-  #   
-  # } else if ( get.CIs == TRUE & CI.method == "profile" & par2is == "var" ) {
-  #   
-  #   tryCatch({
-  #     # as confirmed in "2021-8-19 Investigate profile penalized LRT inference",
-  #     #  these are indeed profile CIs
-  #     CIs = confint(res)
-  #     # NA's here represent Shat
-  #     los = c( as.numeric( CIs[1,1] ), as.numeric( CIs[2,1] ), sqrt( as.numeric( CIs[2,1] ) ) )
-  #     his = c( as.numeric( CIs[1,2] ), as.numeric( CIs[2,2] ), sqrt( as.numeric( CIs[2,2] ) ) )
-  #     
-  #     
-  #     ( res.SEs = as.numeric( attr( summary(res), "coef" )[, "Std. Error" ] ) )
-  #     SEs = c(res.SEs[1], res.SEs[2], NA)
-  #     SEs[3] = SEs[2] * 0.5*Vhat^(-0.5)
-  #     
-  #   }, error = function(err) {
-  #     SEs <<- los <<- his <<- rep(NA, 3)
-  #   })
-  #   
-  # } else {  # i.e., if get.CIs == FALSE 
-  #   SEs = los = his = c(NA, NA, NA)
-  # }
+  if ( get.CIs == TRUE & CI.method == "wald" ) {
+    # get Wald CI 
+    # SEs for both parameters
+    # these are from the observed Fisher info,
+    #  as confirmed in "2021-8-9 Investigate inference.R"
+    SEs = as.numeric( attr( summary(mle.obj), "coef" )[, "Std. Error" ] )
+    
+    # if needed, overwrite SE for second parameter so that it's 
+    #  on Tt scale rather than T2t scale
+    # delta method:
+    # let g(y) = y^(1/2), where y=Tt
+    #  so g'(y) = 0.5 * y^(-0.5)
+    if ( par2is == "var" ) {
+      TtHatSE = SEs[2] * 0.5*TtHat^(-0.5)
+      SEs[2] = TtHatSE
+    }
+      
+    los = mles - SEs * qnorm(0.975)
+    his = mles + SEs * qnorm(0.975)
+    
+  } else if ( get.CIs == TRUE & CI.method != "wald" ) {
+    warning("That CI.method isn't handled yet")
+  }
   
-  #@temp only
-  SEs = los = his = c(NA, NA, NA)
-  profile.CI.error = NA
-  
-  return( list( MuHat = Mu.hat, 
-                TtHat = Tt.hat,
+  return( list( MuHat = MuHat, 
+                TtHat = TtHat,
                 
                 MuHatSE = SEs[1],
                 TtHatSE = SEs[2],
@@ -423,10 +365,7 @@ estimate_jeffreys_RTMA = function( yi,
                 Mu.CI = as.numeric( c(los[1], his[1]) ),
                 Tt.CI = as.numeric( c(los[2], his[2]) ),
                 
-                optim.converged = optim.converged,
-                # to match output of estimate_mle, return BFGS - NM
-                Mhat.opt.diff = mles.bfgs[1] - Mu.hat, 
-                profile.CI.error = profile.CI.error ) )
+                optim.converged = optim.converged ) )
 }
 
 
@@ -1124,7 +1063,7 @@ correct_meta_phack3 = function( .dp,  # published studies
                                 
 ) { 
   
-  #bm
+
   # published nonaffirmatives only
   dpn = .dp[ .dp$affirm == FALSE, ]
   

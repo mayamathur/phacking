@@ -162,15 +162,15 @@ if ( run.local == TRUE ) {
   setwd(code.dir)
   source("helper_SAPH.R")
   
-
+  
   scen.params = data.frame(scen = 1,
                            
                            # args from sim_meta_2
                            Nmax = 1,
                            Mu = 0.1,
-                           T2 = 0.25,
-                           m = 500,
+                           t2a = 0.25,
                            t2w = 0.25,
+                           m = 500,
                            true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
                            hack = "affirm",
                            rho = 0,
@@ -221,17 +221,17 @@ doParallelTime = system.time({
     
     # ~~ Simulate Dataset ------------------------------
     # includes unpublished studies
-    d = sim_meta( Nmax = p$Nmax,
+    d = sim_meta_2( Nmax = p$Nmax,
                  Mu = p$Mu,
-                 T2 = p$T2,
+                 t2a = p$t2a,
                  m = p$m,
                  t2w = p$t2w,
-                 se = p$se,
+                 true.sei.expr = p$true.sei.expr,
                  hack = p$hack,
                  rho = p$rho,
                  
-                 k = p$k,
-                 k.hacked = p$k.hacked,
+                 k.pub.nonaffirm = p$k.pub.nonaffirm,
+                 prob.hacked = p$prob.hacked,
                  return.only.published = FALSE)
     
     
@@ -264,7 +264,7 @@ doParallelTime = system.time({
     # even on cluster, when I had k > 1000, the jobs would fail at this step 
     #  with no apparent errors but then were fine as soon as I skipped this step 
     #  via the p$k < 500 criterion
-    if ( p$k < 500 ) {
+    if ( nrow(d) < 500 ) {
       # uses rma.mv because studies have multiple draws
       modAll = rma.mv( yi = yi,
                        V = vi,
@@ -297,18 +297,18 @@ doParallelTime = system.time({
     if ( i == 1 ) cat("\n\nHEAD OF DP AFTER MODPUB STEP:")
     if ( i == 1 ) print(head(dp))
     
-    # ~~ Nonaffirms Only ------------------------------
-    # the older version from before TNE
-    modCorr1 = correct_meta_phack1( .p = p,
-                                   .dp = dp )
-    
-    cat("\n\nSURVIVED MODCORR1 STEP")
-    #print(head(dp))
-    
-    # add to results
-    repRes = add_method_result_row(repRes = NA,
-                                   corrObject = modCorr1,
-                                   methName = "AllNonaffirms")
+    # # ~~ Nonaffirms Only ------------------------------
+    # # the older version from before TNE
+    # modCorr1 = correct_meta_phack1( .p = p,
+    #                                .dp = dp )
+    # 
+    # cat("\n\nSURVIVED MODCORR1 STEP")
+    # #print(head(dp))
+    # 
+    # # add to results
+    # repRes = add_method_result_row(repRes = NA,
+    #                                corrObject = modCorr1,
+    #                                methName = "AllNonaffirms")
 
     
     
