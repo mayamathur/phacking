@@ -1059,7 +1059,9 @@ correct_meta_phack1 = function( .dp,  # published studies
 # **note that the returned Vhat is an estimate of T2 + t2w, not T2 itself
 correct_meta_phack3 = function( .dp,  # published studies
                                 .p,   # parameters as dataframe
-                                .method # "mle", "jeffreys-mode"
+                                .method, # see options in estimate_jeffreys_RTMA
+                                .Mu.start,
+                                .par2.start
                                 
 ) { 
   
@@ -1081,8 +1083,8 @@ correct_meta_phack3 = function( .dp,  # published studies
   res = estimate_jeffreys_RTMA( yi = dpn$yi,
                                 sei = sqrt(dpn$vi),
                                 par2is = par2is,
-                                Mu.start = 0,
-                                par2.start = 1,  #@HARD-CODED
+                                Mu.start = .Mu.start,
+                                par2.start = .par2.start,  
                                 tcrit = dpn$tcrit,
                                 
                                 usePrior = usePrior,
@@ -1091,11 +1093,16 @@ correct_meta_phack3 = function( .dp,  # published studies
   
   
   ### Return all the things ###
-  return( list(metaCorr = data.frame( MhatCorr = res$MuHat,
-                                      MhatLoCorr = res$Mu.CI[1],
-                                      MhatHiCorr = res$Mu.CI[2],
-                                      MhatCoverCorr = ( res$Mu.CI[1] <=.p$Mu ) & ( res$Mu.CI[2] >=.p$Mu ),
-                                      VhatCorr = res$TtHat^2) ))
+  return( list(metaCorr = data.frame( Mhat = res$MuHat,
+                                      MhatLo = res$Mu.CI[1],
+                                      MhatHi = res$Mu.CI[2],
+                                      MhatCover = ( res$Mu.CI[1] <=.p$Mu ) & ( res$Mu.CI[2] >=.p$Mu ),
+                                      
+                                      Shat = res$TtHat,
+                                      ShatLo = res$Tt.CI[1],
+                                      ShatHi = res$Tt.CI[2],
+                                      ShatCover = ( res$Tt.CI[1] <= .p$S ) & ( res$Tt.CI[2] >= .p$S ) )
+  ))
   
   
 }

@@ -216,6 +216,10 @@ doParallelTime = system.time({
     # exclude the column with the scenario name itself (col) 
     p = scen.params[ scen.params$scen == scen, names(scen.params) != "scen"]
     
+    # calculate TOTAL heterogeneity
+    p$V = p$t2a + p$t2w
+    p$S = sqrt(p$V)
+    
     if ( i == 1 ) cat("\n\nHEAD OF SCEN.PARAMS:")
     if ( i == 1 ) print(p)
     
@@ -297,32 +301,24 @@ doParallelTime = system.time({
     if ( i == 1 ) cat("\n\nHEAD OF DP AFTER MODPUB STEP:")
     if ( i == 1 ) print(head(dp))
     
-    # # ~~ Nonaffirms Only ------------------------------
-    # # the older version from before TNE
-    # modCorr1 = correct_meta_phack1( .p = p,
-    #                                .dp = dp )
-    # 
-    # cat("\n\nSURVIVED MODCORR1 STEP")
-    # #print(head(dp))
-    # 
-    # # add to results
-    # repRes = add_method_result_row(repRes = NA,
-    #                                corrObject = modCorr1,
-    #                                methName = "AllNonaffirms")
 
-    
-    
     # ~~ MLE (SD param) ------------------------------
+    
+    Mu.start = p$Mu
+    Tt.start = p$S
     
     modCorr2 = correct_meta_phack3( .p = p,
                                     .dp = dp,
-                                    .method = "mle-sd")
+                                    .method = "mle-sd",
+                                    .Mu.start = Mu.start,
+                                    .par2.start = Tt.start
+                                    )
     
     cat("\n\nSURVIVED MODCORR2 STEP")
     #print(head(dp))
     
     # add to results
-    repRes = add_method_result_row(repRes = repRes,
+    repRes = add_method_result_row(repRes = NA,
                                    corrObject = modCorr2,
                                    methName = "mle-sd")
     
@@ -331,7 +327,9 @@ doParallelTime = system.time({
     
     modCorr3 = correct_meta_phack3( .p = p,
                                     .dp = dp,
-                                    .method = "mle-var")
+                                    .method = "mle-var",
+                                    .Mu.start = Mu.start,
+                                    .par2.start = Tt.start^2)
     
     cat("\n\nSURVIVED MODCORR3 STEP")
     #print(head(dp))
@@ -345,7 +343,9 @@ doParallelTime = system.time({
     
     modCorr4 = correct_meta_phack3( .p = p,
                                     .dp = dp,
-                                    .method = "jeffreys-mode-sd")
+                                    .method = "jeffreys-mode-sd",
+                                    .Mu.start = Mu.start,
+                                    .par2.start = Tt.start)
     
     cat("\n\nSURVIVED MODCORR4 STEP")
     #print(head(dp))
@@ -360,7 +360,9 @@ doParallelTime = system.time({
     
     modCorr5 = correct_meta_phack3( .p = p,
                                     .dp = dp,
-                                    .method = "jeffreys-mode-var")
+                                    .method = "jeffreys-mode-var",
+                                    .Mu.start = Mu.start,
+                                    .par2.start = Tt.start^2)
     
     cat("\n\nSURVIVED MODCORR5 STEP")
     #print(head(dp))
