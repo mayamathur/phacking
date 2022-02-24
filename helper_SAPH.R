@@ -699,6 +699,36 @@ return( list( stats = data.frame(
 }
 
 
+
+# nicely report a metafor object with optional suffix to denote which model it is
+# includes coverage
+report_rma = function(.mod,
+                      #.Mu,  # true mean (to get coverage)
+                      .suffix = "") {
+  
+  if ( !is.null(.mod) ) {
+    
+    tau.CI = tau_CI(.mod)
+    .res = data.frame( .mod$b,
+                       .mod$ci.lb,
+                       .mod$ci.ub,
+                       
+                       sqrt(.mod$tau2),
+                       tau.CI[1],
+                       tau.CI[2] )
+  } else {
+    .res = data.frame( rep(NA, 6) )
+  }
+  
+  
+  names(.res) = paste( c("Mhat", "MLo", "MHi", "Shat", "SLo", "SHi"), .suffix, sep = "" )
+  row.names(.res) = NULL
+  
+  return( list(stats = .res) )
+}
+
+
+
 # 2021-9-2: MM audited fn by reading through
 # x: data vector
 # doesn't handle the case CI.method = "profile" and par2is = "sd" (will just return NAs)
@@ -1266,31 +1296,6 @@ correct_meta_phack3 = function( .dp,  # published studies
   
 }
 
-
-# nicely report a metafor object with optional suffix to denote which model it is
-# includes coverage
-report_rma = function(.mod,
-                      .Mu,  # true mean (to get coverage)
-                      .suffix = "") {
-  
-  if ( !is.null(.mod) ) {
-    .res = data.frame( .mod$b,
-                       .mod$ci.lb,
-                       .mod$ci.ub,
-                       (.mod$ci.lb <= .Mu) & (.mod$ci.ub >= .Mu), 
-                       .mod$pval )
-  } else {
-    .res = data.frame( NA,
-                       NA,
-                       NA,
-                       NA, 
-                       NA )
-  }
-  
-  
-  names(.res) = paste( c("Mhat", "MhatLo", "MhatHi", "MhatCover", "MhatPval"), .suffix, sep = "" )
-  return(.res)
-}
 
 
 # ANALYSIS FNS: APPLIED EXAMPLES -----------------------------------------------

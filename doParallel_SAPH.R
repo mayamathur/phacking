@@ -186,7 +186,7 @@ if ( run.local == TRUE ) {
                            true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
                            hack = "affirm",
                            rho = 0,
-                           k.pub.nonaffirm = 500,
+                           k.pub.nonaffirm = 50,
                            prob.hacked = 0,
                            
                            # Stan control args
@@ -285,53 +285,38 @@ doParallelTime = system.time({
     Mhat.MAP = NA
     Shat.MAP = NA
     
-    # # SAVE
-    # # ~~ Fit Gold-Standard Meta-Analysis to All Results  ------------------------------
-    # # unbiased meta-analysis of all studies, even unpublished ones
-    # # account for clustering of draws within studies
-    # # *the tau^2 estimate will be close to T2
-    # 
-    # # this takes forever and gets hung up if k =10^3
-    # # even if I omit the random intercept
-    # 
-    # # only for non-huge k to prevent hangups
-    # # k = 500 hangs up locally
-    # # even on cluster, when I had k > 1000, the jobs would fail at this step 
-    # #  with no apparent errors but then were fine as soon as I skipped this step 
-    # #  via the p$k < 500 criterion
-    # if ( nrow(d) < 500 ) {
-    #   # uses rma.mv because studies have multiple draws
-    #   modAll = rma.mv( yi = yi,
-    #                    V = vi,
-    #                    data = d,
-    #                    method = "REML",
-    #                    random = ~1 | study ) 
-    # } else {
-    #   # set to NULL so that report_rma will work
-    #   modAll = NULL
-    # }
-    # 
-    # 
-    # # ~~ Fit Naive Meta-Analysis on Published Studies  ------------------------------
-    # # biased meta-analysis of only published studies
-    # 
-    # # only for non-huge k to prevent hangups
-    # if ( nrow(dp) < 500 ) {
-    #   modPub = rma( yi = dp$yi,
-    #                 vi = dp$vi,
-    #                 method = "REML",
-    #                 knha = TRUE ) 
-    # } else {
-    #   # set to NULL so that report_rma will work
-    #   modPub = NULL
-    # }
-    # 
-    # 
-    # if ( i == 1 ) cat("\n\nSURVIVED MODPUB STEP")
-    # 
-    # if ( i == 1 ) cat("\n\nHEAD OF DP AFTER MODPUB STEP:")
-    # if ( i == 1 ) print(head(dp))
     
+    # ~~ Fit Gold-Standard Meta-Analysis to All FIRST Draws  ------------------------------
+
+    rep.res = run_method_safe(method.label = c("naive"),
+                              method.fn = function() {
+                                mod = rma( yi = dp$yi,
+                                               vi = dp$vi,
+                                               method = "REML",
+                                               knha = TRUE )
+                                
+                                report_rma(mod)
+                              },
+                              .rep.res = rep.res )
+    
+    
+    # ~~ Fit Naive Meta-Analysis to All PUBLISHED Draws  ------------------------------
+    
+    # keep first draws only
+    #@NOT YET TEST ON DATASET WITH MULTIPLE DRAWS PER STUDY
+    d.first = d[ !duplicated(d$study), ]
+    
+    rep.res = run_method_safe(method.label = c("gold-std"),
+                              method.fn = function() {
+                                mod.all = rma( yi = d.first$yi,
+                                               vi = d.first$vi,
+                                               method = "REML",
+                                               knha = TRUE )
+                                
+                                report_rma(mod.all)
+                              },
+                              .rep.res = rep.res )
+ 
     
     # ~~ MCMC ------------------------------
     
@@ -532,6 +517,8 @@ doParallelTime = system.time({
 } )[3]  # end system.time
 
 
+# quick look locally
+rs %>% mutate_if(is.numeric, function(x) round(x,2) )
 
 #@if using the for-loop for debugging instead of foreach, need to comment
 #  out these parts that look for "rs"
@@ -551,47 +538,47 @@ expect_equal( as.numeric( sum(rs$repSeconds, na.rm = TRUE) ),
 
 
 
-### LOCAL ONLY: Quick look at results ###
-
-if ( run.local == TRUE ) {
-  takeMean = names(rs)[ !names(rs) %in% c( "repName",
-                                           "scenName",
-                                           "methName",
-                                           names(scen.params) ) ]
-
-
-  resTable = rs %>% group_by(methName) %>%
-    #mutate(simReps = n()) %>%
-    summarise_at( takeMean,
-                  function(x) round( mean(x, na.rm = TRUE), 2 ) )
-  View(resTable)
-
-  # should be similar:
-  # *does NOT match with method = "affirm2"
-  resTable$TheoryExpTstat; resTable$MeanTstatUnhacked
-  # the other ones:
-  resTable$MeanTstat; resTable$MeanTstatHacked; resTable$MeanTstatUnhacked
-
-  resTable$TheoryVarTstat; resTable$EstVarTstatUnhacked
-
-
-  # bias:
-  scen.params$Mu
-  resTable$MhatAll
-  resTable$MhatNaive
-  resTable$MhatCorr
-
-
-
-  # CI coverage:
-  resTable$MhatCoverAll  # should definitely be good
-  resTable$MhatCoverNaive
-  resTable$MhatCoverCorr
-
-  # setwd("Results")
-  # fwrite(resTable, "all_hacked_affirm2_Nmax10.csv")
-  # fwrite(resTable, "resTable.csv")
-}
+# ### LOCAL ONLY: Quick look at results ###
+# 
+# if ( run.local == TRUE ) {
+#   takeMean = names(rs)[ !names(rs) %in% c( "repName",
+#                                            "scenName",
+#                                            "methName",
+#                                            names(scen.params) ) ]
+# 
+# 
+#   resTable = rs %>% group_by(methName) %>%
+#     #mutate(simReps = n()) %>%
+#     summarise_at( takeMean,
+#                   function(x) round( mean(x, na.rm = TRUE), 2 ) )
+#   View(resTable)
+# 
+#   # should be similar:
+#   # *does NOT match with method = "affirm2"
+#   resTable$TheoryExpTstat; resTable$MeanTstatUnhacked
+#   # the other ones:
+#   resTable$MeanTstat; resTable$MeanTstatHacked; resTable$MeanTstatUnhacked
+# 
+#   resTable$TheoryVarTstat; resTable$EstVarTstatUnhacked
+# 
+# 
+#   # bias:
+#   scen.params$Mu
+#   resTable$MhatAll
+#   resTable$MhatNaive
+#   resTable$MhatCorr
+# 
+# 
+# 
+#   # CI coverage:
+#   resTable$MhatCoverAll  # should definitely be good
+#   resTable$MhatCoverNaive
+#   resTable$MhatCoverCorr
+# 
+#   # setwd("Results")
+#   # fwrite(resTable, "all_hacked_affirm2_Nmax10.csv")
+#   # fwrite(resTable, "resTable.csv")
+# }
 
 
 
