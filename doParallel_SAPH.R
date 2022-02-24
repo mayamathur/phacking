@@ -89,6 +89,7 @@ if (run.local == FALSE) {
   scen = args[2]  # this will be a number
   
   # install packages with informative messages if one can't be installed
+  # **Common reason to get the "could not library" error: You did ml load R/XXX using an old version
   any.failed = FALSE
   for (pkg in toLoad) {
     tryCatch({
@@ -96,7 +97,7 @@ if (run.local == FALSE) {
       # https://www.mitchelloharawild.com/blog/loading-r-packages-in-a-loop/
       eval( bquote( library( .(pkg) ) ) )
     }, error = function(err) {
-      cat( paste("\n*** COULD NOT INSTALL PACKAGE:", pkg) )
+      cat( paste("\n*** COULD NOT LIBRARYIZE PACKAGE:", pkg) )
       any.failed <<- TRUE
     })
     
@@ -268,59 +269,63 @@ doParallelTime = system.time({
     # # same as second row of above table
     # dpu = d %>% filter(hack == "no" & Di == 1)
     
+    # initialize rep.res st run_method_safe and other standalone estimation fns
+    #  will correctly recognize it as having 0 rows
+    rep.res = data.frame()
     
     
-    # ~~ Fit Gold-Standard Meta-Analysis to All Results  ------------------------------
-    # unbiased meta-analysis of all studies, even unpublished ones
-    # account for clustering of draws within studies
-    # *the tau^2 estimate will be close to T2
-    
-    # this takes forever and gets hung up if k =10^3
-    # even if I omit the random intercept
-    
-    # only for non-huge k to prevent hangups
-    # k = 500 hangs up locally
-    # even on cluster, when I had k > 1000, the jobs would fail at this step 
-    #  with no apparent errors but then were fine as soon as I skipped this step 
-    #  via the p$k < 500 criterion
-    if ( nrow(d) < 500 ) {
-      # uses rma.mv because studies have multiple draws
-      modAll = rma.mv( yi = yi,
-                       V = vi,
-                       data = d,
-                       method = "REML",
-                       random = ~1 | study ) 
-    } else {
-      # set to NULL so that report_rma will work
-      modAll = NULL
-    }
-    
-    
-    # ~~ Fit Naive Meta-Analysis on Published Studies  ------------------------------
-    # biased meta-analysis of only published studies
-    
-    # only for non-huge k to prevent hangups
-    if ( nrow(dp) < 500 ) {
-      modPub = rma( yi = dp$yi,
-                    vi = dp$vi,
-                    method = "REML",
-                    knha = TRUE ) 
-    } else {
-      # set to NULL so that report_rma will work
-      modPub = NULL
-    }
-    
-    
-    if ( i == 1 ) cat("\n\nSURVIVED MODPUB STEP")
-    
-    if ( i == 1 ) cat("\n\nHEAD OF DP AFTER MODPUB STEP:")
-    if ( i == 1 ) print(head(dp))
+    # # SAVE
+    # # ~~ Fit Gold-Standard Meta-Analysis to All Results  ------------------------------
+    # # unbiased meta-analysis of all studies, even unpublished ones
+    # # account for clustering of draws within studies
+    # # *the tau^2 estimate will be close to T2
+    # 
+    # # this takes forever and gets hung up if k =10^3
+    # # even if I omit the random intercept
+    # 
+    # # only for non-huge k to prevent hangups
+    # # k = 500 hangs up locally
+    # # even on cluster, when I had k > 1000, the jobs would fail at this step 
+    # #  with no apparent errors but then were fine as soon as I skipped this step 
+    # #  via the p$k < 500 criterion
+    # if ( nrow(d) < 500 ) {
+    #   # uses rma.mv because studies have multiple draws
+    #   modAll = rma.mv( yi = yi,
+    #                    V = vi,
+    #                    data = d,
+    #                    method = "REML",
+    #                    random = ~1 | study ) 
+    # } else {
+    #   # set to NULL so that report_rma will work
+    #   modAll = NULL
+    # }
+    # 
+    # 
+    # # ~~ Fit Naive Meta-Analysis on Published Studies  ------------------------------
+    # # biased meta-analysis of only published studies
+    # 
+    # # only for non-huge k to prevent hangups
+    # if ( nrow(dp) < 500 ) {
+    #   modPub = rma( yi = dp$yi,
+    #                 vi = dp$vi,
+    #                 method = "REML",
+    #                 knha = TRUE ) 
+    # } else {
+    #   # set to NULL so that report_rma will work
+    #   modPub = NULL
+    # }
+    # 
+    # 
+    # if ( i == 1 ) cat("\n\nSURVIVED MODPUB STEP")
+    # 
+    # if ( i == 1 ) cat("\n\nHEAD OF DP AFTER MODPUB STEP:")
+    # if ( i == 1 ) print(head(dp))
     
     
     # ~~ MCMC ------------------------------
     
-    Mu.start = p$Mu
-    Tt.start = p$S
+    Mhat.start = p$Mu
+    Shat.start = p$S
     
     # published nonaffirmatives only
     dpn = dp[ dp$affirm == FALSE, ]
@@ -331,38 +336,70 @@ doParallelTime = system.time({
     source("helper_SAPH.R")
     
     #bm
-    # see TDist :D
-    temp = estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
-                                       .sei = sqrt(dpn$vi),
-                                       .tcrit = dpn$tcrit, 
-                                       .Mu.start = Mu.start,
-                                       .Tt.start = Tt.start,
-                                       .stan.adapt_delta = p$stan.adapt_delta,
-                                       .stan.maxtreedepth = p$stan.maxtreedepth )
+    # temp = estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
+    #                                    .sei = sqrt(dpn$vi),
+    #                                    .tcrit = dpn$tcrit, 
+    #                                    .Mu.start = Mu.start,
+    #                                    .Tt.start = Tt.start,
+    #                                    .stan.adapt_delta = p$stan.adapt_delta,
+    #                                    .stan.maxtreedepth = p$stan.maxtreedepth )
+    
+    # this one has two labels in method arg because a single call to estimate_jeffreys_mcmc
+    #  returns 2 lines of output, one for posterior mean and one for posterior median
+    # order of labels in method arg needs to match return structure of estimate_jeffreys_mcmc
+    rep.res = run_method_safe(method.label = c("jeffreys-mcmc-pmean",
+                                               "jeffreys-mcmc-pmed",
+                                               "jeffreys-mcmc-max-lp-iterate"),
+                              method.fn = function() estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
+                                                                                 .sei = sqrt(dpn$vi),
+                                                                                 .tcrit = dpn$tcrit, 
+                                                                                 .Mu.start = Mhat.start,
+                                                                                 .Tt.start = Shat.start,
+                                                                                 .stan.adapt_delta = p$stan.adapt_delta,
+                                                                                 .stan.maxtreedepth = p$stan.maxtreedepth),
+                              .rep.res = rep.res )
+    
+    Mhat.MaxLP = rep.res$Mhat[ rep.res$method == "jeffreys-mcmc-max-lp-iterate" ]
+    Shat.MaxLP = rep.res$Shat[ rep.res$method == "jeffreys-mcmc-max-lp-iterate" ]
     
     
-    # # example of this fn's return structure:
-    # temp = list(Mhat = c(0.0930744994629146, 0.0875140499452475, 0.0802400301080542
-    # ), Shat = c(0.714088542990668, 0.709773113521856, 0.703610793133954
-    # ), MhatSE = 0.00245790633583034, ShatSE = 0.00193643612804278, 
-    # M.CI = c(-0.0396834164833489, 0.258278390904679), S.CI = c(0.604726436454416, 
-    #                                                            0.841199109889154), stan.warned = 0, stan.warning = NA, MhatRhat = 1.00115681931032, 
-    # ShatRhat = 1.00029403749682)
+    # ~~ Change Starting Values -----
     
-    #@edit start values below
-    #@remember to start repRes below at current one instead of NA :)
+    if ( !is.na(Mhat.MAP) ) Mhat.start = Mhat.MAP else Mhat.start = 0
+    if ( !is.na(Shat.MAP) ) Shat.start = Shat.MAP else Shat.start = 1
 
     # ~~ MLE (SD param) ------------------------------
     
-    Mu.start = p$Mu
-    Tt.start = p$S
+    # modCorr2 = correct_meta_phack3( .p = p,
+    #                                 .dp = dp,
+    #                                 .method = "mle-sd",
+    #                                 .Mu.start = Mu.start,
+    #                                 .par2.start = Tt.start
+    #                                 )
     
-    modCorr2 = correct_meta_phack3( .p = p,
-                                    .dp = dp,
-                                    .method = "mle-sd",
-                                    .Mu.start = Mu.start,
-                                    .par2.start = Tt.start
-                                    )
+    rep.res = run_method_safe(method.label = c("mle-sd"),
+                              method.fn = function() estimate_jeffreys_mcmc_RTMA(yi = dpn$yi,
+                                                                                 sei = sqrt(dpn$vi),
+                                                                                 par2is = "sd",
+                                                                                 tcrit = dpn$tcrit, 
+                                                                                 Mu.start = Mhat.start,
+                                                                                 par2.start = Shat.start,
+                                                                                 get.CIs = p$get.CIs,
+                                                                                 CI.method = "wald"),
+                              .rep.res = rep.res )
+    
+    
+    
+    # estimate_jeffreys_RTMA( yi = dpn$yi,
+    #                         sei = sqrt(dpn$vi),
+    #                         par2is = par2is,
+    #                         Mu.start = .Mu.start,
+    #                         par2.start = .par2.start,  
+    #                         tcrit = dpn$tcrit,
+    #                         
+    #                         usePrior = usePrior,
+    #                         get.CIs = p$get.CIs,
+    #                         CI.method = "wald" )
     
     cat("\n\nSURVIVED MODCORR2 STEP")
     #print(head(dp))

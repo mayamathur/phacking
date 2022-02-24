@@ -239,6 +239,37 @@ nlpost_jeffreys_RTMA = function( .pars,
   return(nlp.value)
 }
 
+# ESTIMATION METHOD FNS ----------------------------------------------
+
+# ~~ Estimation Methods That ARE Structured for Use Inside run_method_safe --------
+
+
+# Because these fns are run inside run_method_safe, the latter will handle editing rep.res
+#  All of these fns should take get.CIs as an argument and return CIs as c(NA, NA) if not wanted
+# Fns in this category need to return a dataframe with the below structure, although it's okay if they don't return all of these names since run_method_safe will handle that. Note that this is a LIST with a dataframe called "stats", not just the dataframe; this allows easy extension in case you want to return other objects, like model objects.
+
+# return( list( stats = data.frame( method = "jeffreys-mcmc",
+#                                   
+#                                   Mhat = Mhat,
+#                                   Shat = Shat,
+#                                   
+#                                   MhatSE = MhatSE,
+#                                   ShatSE = ShatSE,
+#                                   
+#                                   # this will use same CI limits for all 3 pt estimates
+#                                   MLo = M.CI[1],
+#                                   MHi = M.CI[2],
+#                                   
+#                                   SLo = S.CI[1],
+#                                   SHi = S.CI[2],
+#                                   
+#                                   stan.warned = stan.warned,
+#                                   stan.warning = stan.warning,
+#                                   MhatRhat = postSumm["mu", "Rhat"],
+#                                   ShatRhat = postSumm["tau", "Rhat"],
+#                                   
+#                                   overall.error = error ) ) )
+
 
 # 2021-9-2: MM audited fn by reading
 # mu.start, sigma.start: start values for optimatization
@@ -296,8 +327,8 @@ estimate_jeffreys_RTMA = function( yi,
   #  (even though BFGS works better for MLE)
   # for more on this issue, see "2021-9-23 SD vs. var redux with Jeffreys.R"
   mle.obj = mle( minuslogl = nlpost_simple_RTMA,
-             start = list( .Mu = Mu.start, .par2 = par2.start),
-             method = main.optimizer )
+                 start = list( .Mu = Mu.start, .par2 = par2.start),
+                 method = main.optimizer )
   
   
   # not actually MLEs, of course, but rather MAPs
@@ -347,7 +378,7 @@ estimate_jeffreys_RTMA = function( yi,
       TtHatSE = SEs[2] * 0.5*TtHat^(-0.5)
       SEs[2] = TtHatSE
     }
-      
+    
     los = mles - SEs * qnorm(0.975)
     his = mles + SEs * qnorm(0.975)
     
@@ -557,7 +588,7 @@ withCallingHandlers({
   stan.model <- stan_model(model_code = model.text,
                            isystem = "~/Desktop")
   
-
+  
   cat( paste("\n estimate_jeffreys_mcmc flag 2: about to call sampling") )
   
   post = sampling(stan.model,
@@ -621,24 +652,47 @@ myMhatCI = as.numeric( c( quantile( rstan::extract(post, "mu")[[1]], 0.025 ),
 expect_equal(M.CI, myMhatCI)
 
 
+
+# n.ests = length(Mhat)
+# # OLD return structure (list)
+# return( list( Mhat = Mhat,
+#               Shat = Shat,
+#               
+#               MhatSE = rep(MhatSE, length(n.ests)),
+#               ShatSE = rep(ShatSE, length(n.ests)),
+#               
+#               M.CI = M.CI,
+#               S.CI = S.CI,
+#               
+#               stan.warned = stan.warned,
+#               stan.warning = stan.warning,
+#               
+#               MhatRhat = postSumm["mu", "Rhat"],
+#               ShatRhat = postSumm["tau", "Rhat"]
+# ) )
+
 # the point estimates are length 2 (post means, then medians),
 #  but the inference is the same for each type of point estimate
-n.ests = length(Mhat)
-return( list( Mhat = Mhat,
-              Shat = Shat,
-              
-              MhatSE = rep(MhatSE, length(n.ests)),
-              ShatSE = rep(ShatSE, length(n.ests)),
-              
-              M.CI = M.CI,
-              S.CI = S.CI,
-              
-              stan.warned = stan.warned,
-              stan.warning = stan.warning,
-              
-              MhatRhat = postSumm["mu", "Rhat"],
-              ShatRhat = postSumm["tau", "Rhat"]
-) )
+return( list( stats = data.frame( 
+                                  
+                                  Mhat = Mhat,
+                                  Shat = Shat,
+                                  
+                                  MhatSE = MhatSE,
+                                  ShatSE = ShatSE,
+                                  
+                                  # this will use same CI limits for all 3 pt estimates
+                                  MLo = M.CI[1],
+                                  MHi = M.CI[2],
+                                  
+                                  SLo = S.CI[1],
+                                  SHi = S.CI[2],
+                                  
+                                  stan.warned = stan.warned,
+                                  stan.warning = stan.warning,
+                                  MhatRhat = postSumm["mu", "Rhat"],
+                                  ShatRhat = postSumm["tau", "Rhat"] ) ) )
+
 }
 
 
@@ -1050,6 +1104,114 @@ correct_meta_phack1 = function( .dp,  # published studies
 
 
 
+
+
+
+# Notes from TNE:
+# In order to catch errors from individual estimation methods safely and informatively,
+#  in general the estimation method fns are structured st they can be run within the
+#  fn run_method_safe, which automatically runs the method within a tryCatch loop, 
+#  records any error messages, and writes a results row to global var rep.res whether 
+#  or not the estimation method threw an error.
+
+# ~~ Wrapper Fn to Safely Run a Method -------
+
+# See note at the beginning of this script
+#  this fn automatically runs the method within a tryCatch loop, 
+#  records any error messages, and writes a results row to global var rep.res whether 
+#  or not the estimation method threw an error
+
+# Important: this fn works if method.fn() returns multiple rows
+# BUT in that case, it assumes that the CIs are shared for all rows of that method
+
+# expects global vars: all.errors, rep.res
+# directly edits res via superassignment
+run_method_safe = function( method.label,
+                            method.fn,
+                            .rep.res ) {
+  
+  cat( paste("\n run_method_safe flag 1: about to try running method", method.label) )
+  
+  
+  tryCatch({
+    
+    new.rows = method.fn()$stats
+    
+    cat(new.rows)
+    
+    cat( paste("\n run_method_safe flag 2: done calling method.fn() for", method.label) )
+
+    error = NA
+    
+  }, error = function(err) {
+    # needs to be superassignment because inside the "error" fn
+    error <<- err$message
+    
+    # only need one variable in the blank dataframe since bind_rows below
+    #  will fill in the rest
+    new.rows = data.frame( method = method.label )
+    
+  })
+
+  new.rows = new.rows %>% add_column( method = method.label, .before = 1 )
+  new.rows$overall.error = error
+  
+  # optimx.dataframe is itself a df, so needs to be handled differently
+  # if ( !is.null(optimx.dataframe) ) new.row = bind_cols(new.row, optimx.dataframe)
+  
+  if ( nrow(.rep.res) == 0 ) .rep.res = new.rows else .rep.res = bind_rows(.rep.res, new.rows)
+  return(.rep.res) 
+  
+}
+
+# example of how to call it when method.fn takes args
+# all.errors = c()
+# if  exists("rep.res") ) r("rep.re("rep.re
+# run_method_safe( method = "mle",
+#                  method.fn = function() estimate_mles(x = x, get.CIs = TRUE ) )
+
+# #### Sanity checks ####
+# # fake method for estimating the moments, but it breaks if x<0 or x>5
+# crappy_method = function(x) {
+#   if ( x > 0 & x < 5 ) return( list(Mhat = x+1,
+#                                     Vhat = x-1,
+#                                     M.CI = c(NA, NA),
+#                                     V.CI = c(NA, NA) ) )
+#   if ( x <= 0 ) stop("Fake error A generated by method.fn!")
+#   if ( x >= 5 ) stop("Fake error B generated by method.fn!")
+# }
+# 
+# all.errors = c()
+# if( exists("rep.res") ) rm(rep.res)
+# 
+# run_method_safe( "mle",
+#                  method.fn = function() { crappy_method(-1) } )
+# 
+# # no error on this one
+# run_method_safe( "mle",
+#                  method.fn = function() { crappy_method(4) } )
+# 
+# 
+# # this one will have a different error
+# # no error on this one
+# run_method_safe( "mle", method.fn = function() { crappy_method(40) } )
+# 
+# expect_equal( all.errors, c( "mle: Fake error A generated by method.fn!",
+#                             "mle: Fake error B generated by method.fn!" ) )
+# 
+# expect_equal( rep.res,
+#               data.frame( method = rep("mle", 3),
+#                           Mhat = c(NA, 5, NA),
+#                           Vhat = c(NA, 3, NA),
+#                           MLo = rep(NA, 3),
+#                           MHi = rep(NA, 3),
+#                           VLo = rep(NA, 3),
+#                           VHi = rep(NA, 3) ) )
+# #### end sanity checks
+
+
+
+# 2022-2-24: NO LONGER IN USE; NOW USING RUN_METHOD_SAFE ABOVE
 # use only the nonaffirms to get trunc MLE
 #  and throws away the affirms
 # **note that the returned Vhat is an estimate of T2 + t2w, not T2 itself
@@ -1061,7 +1223,7 @@ correct_meta_phack3 = function( .dp,  # published studies
                                 
 ) { 
   
-
+  
   # published nonaffirmatives only
   dpn = .dp[ .dp$affirm == FALSE, ]
   
