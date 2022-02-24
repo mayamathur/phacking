@@ -1668,12 +1668,6 @@ sim_meta_2 = function(Nmax,  # max draws to try
       # might be multiple rows if return.only.published = FALSE
       newRows = do.call( sim_one_study_set, .argsUnhacked )
       
-      # add study ID
-      newRows = newRows %>% add_column( .before = 1,
-                                        study = i )
-      
-      if ( i == 1 ) .dat = newRows else .dat = rbind( .dat, newRows )
-      
     } else if ( is.hacked == 1 ) {
       
       # for unhacked studies, no need to change argument "hack"
@@ -1683,12 +1677,18 @@ sim_meta_2 = function(Nmax,  # max draws to try
       # might be multiple rows if return.only.published = FALSE
       newRows = do.call( sim_one_study_set, .argsHacked )
       
-      # add study ID
-      newRows = newRows %>% add_column( .before = 1,
-                                        study = i )
-      
-      if ( i == 1 ) .dat = newRows else .dat = rbind( .dat, newRows )
     }
+    
+    # add study ID
+    newRows = newRows %>% add_column( .before = 1,
+                                      study = i )
+    
+    # add study-draw ID
+    study.draw = paste(newRows$study, 1:nrow(newRows), sep = "_")
+    newRows = newRows %>% add_column( .after = 1,
+                                      study.draw )
+    
+    if ( i == 1 ) .dat = newRows else .dat = rbind( .dat, newRows )
     
     i = i + 1
     k.pub.nonaffirm.achieved = sum( .dat$affirm == FALSE & .dat$Di == 1 ) 
@@ -2046,8 +2046,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
     d$Di = 0
     d$Di[ length(d$Di) ] = 1
   }
-  
-  
+
   if ( return.only.published == TRUE ) d = d[ d$Di == 1, ]
   
   return(d)

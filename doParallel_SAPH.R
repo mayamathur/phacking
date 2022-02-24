@@ -178,7 +178,7 @@ if ( run.local == TRUE ) {
   scen.params = data.frame(scen = 1,
                            
                            # args from sim_meta_2
-                           Nmax = 1,
+                           Nmax = 10,
                            Mu = 0.1,
                            t2a = 0.25,
                            t2w = 0.25,
@@ -187,7 +187,7 @@ if ( run.local == TRUE ) {
                            hack = "affirm",
                            rho = 0,
                            k.pub.nonaffirm = 50,
-                           prob.hacked = 0,
+                           prob.hacked = 0.5,
                            
                            # Stan control args
                            stan.maxtreedepth = 20,
@@ -226,7 +226,7 @@ doParallelTime = system.time({
     if ( i == 1 ) cat("\n\n~~~~~~~~~~~~~~~~ BEGIN SIM REP", i, "~~~~~~~~~~~~~~~~")
     
     # results for just this simulation rep
-    if ( exists("repRes") ) rm(repRes)
+    if ( exists("rep.res") ) rm(rep.res)
     
     # extract simulation params for this scenario (row)
     # exclude the column with the scenario name itself (col) 
@@ -286,7 +286,7 @@ doParallelTime = system.time({
     Shat.MAP = NA
     
     
-    # ~~ Fit Gold-Standard Meta-Analysis to All FIRST Draws  ------------------------------
+    # ~~ Fit Naive Meta-Analysis (All PUBLISHED Draws) ------------------------------
 
     rep.res = run_method_safe(method.label = c("naive"),
                               method.fn = function() {
@@ -300,7 +300,7 @@ doParallelTime = system.time({
                               .rep.res = rep.res )
     
     
-    # ~~ Fit Naive Meta-Analysis to All PUBLISHED Draws  ------------------------------
+    # ~~ Fit Gold-Standard Meta-Analysis (ALL FIRST Draws) ------------------------------
     
     # keep first draws only
     #@NOT YET TEST ON DATASET WITH MULTIPLE DRAWS PER STUDY
@@ -347,8 +347,9 @@ doParallelTime = system.time({
     
     #@TEMP TO AVOID SLOW MCMC PROCESS
     # example of rep.res at this point (to avoid having to re-run the method; it's slow):
-    rep.res = structure(list(method = c("jeffreys-mcmc-pmean", "jeffreys-mcmc-pmed","jeffreys-mcmc-max-lp-iterate"), Mhat = c(0.196768652710757,0.19216059632037, 0.178221722070505), Shat = c(0.791416690654329, 0.790397445863146, 0.77856755485064), MhatSE = c(0.00266867786965314, 0.00266867786965314, 0.00266867786965314), ShatSE = c(0.00190121931174173, 0.00190121931174173, 0.00190121931174173), MLo = c(0.0368586243904465, 0.0368586243904465, 0.0368586243904465), MHi = c(0.384655875223785, 0.384655875223785, 0.384655875223785), SLo = c(0.672480635939751, 0.672480635939751, 0.672480635939751), SHi = c(0.921641744315143, 0.921641744315143, 0.921641744315143), stan.warned = c(0, 0, 0), stan.warning = c(NA, NA, NA), MhatRhat = c(1.00428369239268, 1.00428369239268, 1.00428369239268), ShatRhat = c(1.00170913954403, 1.00170913954403, 1.00170913954403), overall.error = c("argument 1 (type 'list') cannot be handled by 'cat'", "argument 1 (type 'list') cannot be handled by 'cat'", "argument 1 (type 'list') cannot be handled by 'cat'")), row.names = 2:4, class = "data.frame")
-    
+    new.rows = structure(list(method = c("jeffreys-mcmc-pmean", "jeffreys-mcmc-pmed","jeffreys-mcmc-max-lp-iterate"), Mhat = c(0.196768652710757,0.19216059632037, 0.178221722070505), Shat = c(0.791416690654329, 0.790397445863146, 0.77856755485064), MhatSE = c(0.00266867786965314, 0.00266867786965314, 0.00266867786965314), ShatSE = c(0.00190121931174173, 0.00190121931174173, 0.00190121931174173), MLo = c(0.0368586243904465, 0.0368586243904465, 0.0368586243904465), MHi = c(0.384655875223785, 0.384655875223785, 0.384655875223785), SLo = c(0.672480635939751, 0.672480635939751, 0.672480635939751), SHi = c(0.921641744315143, 0.921641744315143, 0.921641744315143), stan.warned = c(0, 0, 0), stan.warning = c(NA, NA, NA), MhatRhat = c(1.00428369239268, 1.00428369239268, 1.00428369239268), ShatRhat = c(1.00170913954403, 1.00170913954403, 1.00170913954403), overall.error = c(NA,NA,NA)), row.names = 2:4, class = "data.frame")
+    rep.res = bind_rows(rep.res, new.rows)
+    # END TEMP
     
     Mhat.MaxLP = rep.res$Mhat[ rep.res$method == "jeffreys-mcmc-max-lp-iterate" ]
     Shat.MaxLP = rep.res$Shat[ rep.res$method == "jeffreys-mcmc-max-lp-iterate" ]
@@ -509,6 +510,47 @@ doParallelTime = system.time({
     # 
     # cat("\nSURVIVED MAKING REPRES:")
     # print(repRes)
+    
+    # ~ Write Results ------------------------------
+
+    # add in scenario parameters
+    # do NOT use rbind here; bind_cols accommodates possibility that some methods' rep.res
+    #  have more columns than others
+    rep.res = p %>% bind_cols( rep.res )
+    
+    # add more info
+    rep.res = rep.res %>% add_column( rep.name = i, .before = 1 )
+    rep.res = rep.res %>% add_column( scen.name = scen, .before = 1 )
+    rep.res = rep.res %>% add_column( job.name = jobname, .before = 1 )
+    
+    # add info about simulated datasets
+    
+    perc.studies.published = 100 * mean( d.first$study %in% unique(dp$study) )
+    expect_equal( perc.studies.published, nrow(dp)/nrow(d.first) )
+    perc.hacked.studies.published = 100 * mean( d.first$study[ d.first$hack != "no" ] %in% unique( dp$study[ dp$hack != "no" ] ) )
+    perc.unhacked.studies.published = 100 * mean( d.first$study[ d.first$hack == "no" ] %in% unique( dp$study[ dp$hack == "no" ] ) )
+    #bm
+    
+    
+    
+    perc.hacked.draws.published = 100 * mean( d.first$study[ d.first$hack != "no" ] %in% unique( dp$study[ dp$hack != "no" ] ) )
+    perc.unhacked.draws.published = 100 * mean( d.first$study[ d.first$hack == "no" ] %in% unique( dp$study[ dp$hack == "no" ] ) )
+    
+    # a benchmark for average power
+    perc.unhacked.draws.affirm = 100 * mean( d$affirm[ d$hack == "no" ] )
+    
+    
+    rep.res = rep.res %>% add_column(   dp.k = nrow(dp),
+                                        dp.kAffirm = sum(dp$affirm == TRUE),
+                                        dp.kNonaffirm = sum(dp$affirm == FALSE),
+                                        
+                                        # means draws per HACKED, published study
+                                        dp.Nrealized = mean( dp$N[dp$hack == "affirm"] ),
+                                        
+                                        perc.studies.published = ,
+                                        perc.hacked.published = 100 * mean( d.first$study %in% unique(dp$study) ) 
+                                          
+                                          )
     
     rep.res
     
