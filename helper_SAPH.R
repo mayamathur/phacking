@@ -386,16 +386,19 @@ estimate_jeffreys_RTMA = function( yi,
     warning("That CI.method isn't handled yet")
   }
   
-  return( list( MuHat = MuHat, 
-                TtHat = TtHat,
-                
-                MuHatSE = SEs[1],
-                TtHatSE = SEs[2],
-                
-                Mu.CI = as.numeric( c(los[1], his[1]) ),
-                Tt.CI = as.numeric( c(los[2], his[2]) ),
-                
-                optim.converged = optim.converged ) )
+  return( list( stats = data.frame( Mhat = MuHat, 
+                                    Shat = TtHat,
+                                    
+                                    MhatSE = SEs[1],
+                                    ShatSE = SEs[2],
+                                    
+                                    MLo = as.numeric(los[1]),
+                                    MHi = as.numeric(his[1]),
+                                    
+                                    SLo = as.numeric(los[2]),
+                                    SHi = as.numeric(his[2]),
+                                    
+                                    optim.converged = optim.converged ) ) )
 }
 
 
@@ -674,24 +677,24 @@ expect_equal(M.CI, myMhatCI)
 # the point estimates are length 2 (post means, then medians),
 #  but the inference is the same for each type of point estimate
 return( list( stats = data.frame( 
-                                  
-                                  Mhat = Mhat,
-                                  Shat = Shat,
-                                  
-                                  MhatSE = MhatSE,
-                                  ShatSE = ShatSE,
-                                  
-                                  # this will use same CI limits for all 3 pt estimates
-                                  MLo = M.CI[1],
-                                  MHi = M.CI[2],
-                                  
-                                  SLo = S.CI[1],
-                                  SHi = S.CI[2],
-                                  
-                                  stan.warned = stan.warned,
-                                  stan.warning = stan.warning,
-                                  MhatRhat = postSumm["mu", "Rhat"],
-                                  ShatRhat = postSumm["tau", "Rhat"] ) ) )
+  
+  Mhat = Mhat,
+  Shat = Shat,
+  
+  MhatSE = MhatSE,
+  ShatSE = ShatSE,
+  
+  # this will use same CI limits for all 3 pt estimates
+  MLo = M.CI[1],
+  MHi = M.CI[2],
+  
+  SLo = S.CI[1],
+  SHi = S.CI[2],
+  
+  stan.warned = stan.warned,
+  stan.warning = stan.warning,
+  MhatRhat = postSumm["mu", "Rhat"],
+  ShatRhat = postSumm["tau", "Rhat"] ) ) )
 
 }
 
@@ -1137,10 +1140,8 @@ run_method_safe = function( method.label,
     
     new.rows = method.fn()$stats
     
-    cat(new.rows)
-    
     cat( paste("\n run_method_safe flag 2: done calling method.fn() for", method.label) )
-
+    
     error = NA
     
   }, error = function(err) {
@@ -1152,7 +1153,7 @@ run_method_safe = function( method.label,
     new.rows = data.frame( method = method.label )
     
   })
-
+  
   new.rows = new.rows %>% add_column( method = method.label, .before = 1 )
   new.rows$overall.error = error
   
