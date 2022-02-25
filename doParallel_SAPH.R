@@ -182,12 +182,12 @@ if ( run.local == TRUE ) {
                            Mu = 0.1,
                            t2a = 0.25,
                            t2w = 0.25,
-                           m = 500,
+                           m = 50,
                            true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
                            hack = "affirm",
                            rho = 0,
                            k.pub.nonaffirm = 50,
-                           prob.hacked = 0.5,
+                           prob.hacked = 0.2,
                            
                            # Stan control args
                            stan.maxtreedepth = 20,
@@ -219,8 +219,12 @@ if ( exists("rs") ) rm(rs)
 
 #for ( scen in scen.params$scen.name ) {  # can't use this part on the cluster
 
+
+
+### Add meta-variables to dataset ###
+
 # system.time is in seconds
-doParallelTime = system.time({
+doParallel.seconds = system.time({
   #@change this back before running for real
   rs = foreach( i = 1:sim.reps, .combine=rbind ) %dopar% {
     # for debugging (out file will contain all printed things):
@@ -580,69 +584,66 @@ doParallelTime = system.time({
   
 } )[3]  # end system.time
 
-
-# quick look locally
-rs %>% mutate_if(is.numeric, function(x) round(x,2) )
-
-#@if using the for-loop for debugging instead of foreach, need to comment
-#  out these parts that look for "rs"
-
-### Add meta-variables to dataset ###
-
 # estimated time for 1 simulation rep
 # use NAs for additional methods so that the SUM of the rep times will be the
 #  total computational time
-nMethods = length(unique(rs$methName))
-rs$doParallelTime = doParallelTime
-rs$repSeconds = rep( c( doParallelTime / sim.reps,
+nMethods = length( unique(rs$method) )
+rs$doParallel.seconds = doParallel.seconds
+rs$rep.seconds = rep( c( doParallel.seconds / sim.reps,
                         rep( NA, nMethods - 1 ) ), sim.reps )
 
-expect_equal( as.numeric( sum(rs$repSeconds, na.rm = TRUE) ),
-              as.numeric(doParallelTime) )
+expect_equal( as.numeric( sum(rs$rep.seconds, na.rm = TRUE) ),
+              as.numeric(doParallel.seconds) )
 
 
 
-# ### LOCAL ONLY: Quick look at results ###
-# 
-# if ( run.local == TRUE ) {
-#   takeMean = names(rs)[ !names(rs) %in% c( "repName",
-#                                            "scenName",
-#                                            "methName",
-#                                            names(scen.params) ) ]
-# 
-# 
-#   resTable = rs %>% group_by(methName) %>%
-#     #mutate(simReps = n()) %>%
-#     summarise_at( takeMean,
-#                   function(x) round( mean(x, na.rm = TRUE), 2 ) )
-#   View(resTable)
-# 
-#   # should be similar:
-#   # *does NOT match with method = "affirm2"
-#   resTable$TheoryExpTstat; resTable$MeanTstatUnhacked
-#   # the other ones:
-#   resTable$MeanTstat; resTable$MeanTstatHacked; resTable$MeanTstatUnhacked
-# 
-#   resTable$TheoryVarTstat; resTable$EstVarTstatUnhacked
-# 
-# 
-#   # bias:
-#   scen.params$Mu
-#   resTable$MhatAll
-#   resTable$MhatNaive
-#   resTable$MhatCorr
-# 
-# 
-# 
-#   # CI coverage:
-#   resTable$MhatCoverAll  # should definitely be good
-#   resTable$MhatCoverNaive
-#   resTable$MhatCoverCorr
-# 
-#   # setwd("Results")
-#   # fwrite(resTable, "all_hacked_affirm2_Nmax10.csv")
-#   # fwrite(resTable, "resTable.csv")
-# }
+
+
+
+# ~ QUICK RESULTS SUMMARY ---------------------------------------------------
+
+if ( run.local == TRUE ) {
+  
+  
+  # quick look locally
+  rs %>% mutate_if(is.numeric, function(x) round(x,2) )
+  
+  agg = rs %>% group_by(method) %>%
+    summarise( PropMhatNA = mean(is.na(Mhat)),
+               PropCI.NA = mean(is.na(MLo)),
+               
+               MhatMSE = meanNA( (Mhat - Mu)^2 ),
+               MhatBias = meanNA(Mhat - Mu),
+               MhatEmpSE = sd( Mhat, na.rm = TRUE ),
+               #ShatMn = meanNA(Shat),
+               
+               MhatCover = meanNA(MLo < Mu & MHi > Mu),
+               MhatWidth = meanNA( MHi - MLo ),
+               MLo = meanNA(MLo),
+               MHi = meanNA(MHi) )
+  
+  # round
+  agg = as.data.frame( agg %>% mutate_if( is.numeric,
+                                          function(x) round(x,2) ) )
+  
+  agg
+  
+  
+  # scenario diagnostics for scenario
+  agg.checks = rs %>% summarise_if( contains("prob."),
+                                    function(x) round( mean(x), 2) )
+  
+  agg.checks
+  
+}
+
+
+
+
+
+
+
+
 
 
 
