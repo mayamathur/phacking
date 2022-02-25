@@ -177,9 +177,9 @@ if ( run.local == TRUE ) {
   
   # ~~ Set Local Sim Params -----------------------------
   # methods.to.run options:
-  # naive ; gold-std ; maon ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
+  # naive ; gold-std ; 2psm ; maon ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
   scen.params = data.frame(scen = 1,
-                           rep.methods = "naive ; gold-std ; maon ; jeffreys-sd ; mle-sd ; mle-var",
+                           rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-sd ; mle-sd ; mle-var",
                            
                            # args from sim_meta_2
                            Nmax = 10,
@@ -229,7 +229,7 @@ if ( exists("rs") ) rm(rs)
 
 # system.time is in seconds
 doParallel.seconds = system.time({
-  rs = foreach( i = 1:sim.reps, .combine=bind_rows ) %dopar% {
+  rs = foreach( i = 1:sim.reps, .combine = bind_rows ) %dopar% {
     # for debugging (out file will contain all printed things):
     #for ( i in 1:sim.reps ) {
     
@@ -359,6 +359,36 @@ doParallel.seconds = system.time({
       
     }
     
+    
+    # ~~ Fit 2PSM (All Published Draws) ------------------------------
+    
+    if ( "2psm" %in% all.methods ) {
+      
+      rep.res = run_method_safe(method.label = c("2psm"),
+                                method.fn = function() {
+                                  mod = weightfunct( effect = dp$yi,
+                                                     v = dp$vi,
+                                                     steps = c(0.025, 1),
+                                                     table = TRUE ) 
+                                  
+                                  H = mod[[2]]$hessian
+                                  ses = sqrt( diag( solve(H) ) )
+                                  
+                                  # follow the same return structure as report_meta
+                                  data.frame( Mhat = mod[[2]]$par[2],
+                                              MLo = mod[[2]]$par[2] - qnorm(.975) * ses[2],
+                                              MHi = mod[[2]]$par[2] + qnorm(.975) * ses[2],
+                                              
+                                              # might be possible to get these from weightr
+                                              # I didn't even try
+                                              Shat = NA,
+                                              SLo = NA,
+                                              SHi = NA )
+                                },
+                                .rep.res = rep.res )
+      
+    }
+
     
     # ~~ MCMC ------------------------------
     

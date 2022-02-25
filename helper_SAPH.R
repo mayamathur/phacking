@@ -2391,6 +2391,14 @@ namesWith = function(pattern, dat){
   names(dat)[ grepl(pattern = pattern, x = names(dat) ) ]
 }
 
+
+# quick length(unique)
+nuni = function(x) {
+  length(unique(x))
+}
+
+
+
 # 2021-5-8 CLUSTER FNS ---------------------------------------------------------------
 
 # DO NOT CHANGE THE INDENTATION IN THE BELOW OR ELSE SLURM 
