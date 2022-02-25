@@ -175,11 +175,11 @@ if ( run.local == TRUE ) {
   source("helper_SAPH.R")
   
   
+  # ~~ Set Local Sim Params -----------------------------
   # methods.to.run options:
-  # naive ; gold-std ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
-  
+  # naive ; gold-std ; maon ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
   scen.params = data.frame(scen = 1,
-                           rep.methods = "naive ; gold-std ; jeffreys-sd ; mle-sd ; mle-var",
+                           rep.methods = "naive ; gold-std ; maon ; jeffreys-sd ; mle-sd ; mle-var",
                            
                            # args from sim_meta_2
                            Nmax = 10,
@@ -225,14 +225,13 @@ if ( exists("rs") ) rm(rs)
 
 
 
-### Add meta-variables to dataset ###
+# ~~ Beginning of ForEach Loop -----------------------------
 
 # system.time is in seconds
 doParallel.seconds = system.time({
-  #@change this back before running for real
-  #rs = foreach( i = 1:sim.reps, .combine=rbind ) %dopar% {
-  # for debugging (out file will contain all printed things):
-  for ( i in 1:sim.reps ) {
+  rs = foreach( i = 1:sim.reps, .combine=bind_rows ) %dopar% {
+    # for debugging (out file will contain all printed things):
+    #for ( i in 1:sim.reps ) {
     
     # only print info for first sim rep for visual clarity
     if ( i == 1 ) cat("\n\n~~~~~~~~~~~~~~~~ BEGIN SIM REP", i, "~~~~~~~~~~~~~~~~")
@@ -318,7 +317,7 @@ doParallel.seconds = system.time({
                                              method = "REML",
                                              knha = TRUE )
                                   
-                                  report_rma(mod)
+                                  report_meta(mod, .mod.type = "rma")
                                 },
                                 .rep.res = rep.res )
     }
@@ -337,15 +336,31 @@ doParallel.seconds = system.time({
                                                  method = "REML",
                                                  knha = TRUE )
                                   
-                                  report_rma(mod.all)
+                                  report_meta(mod.all, .mod.type = "rma")
                                 },
                                 .rep.res = rep.res )
     }
     
+    # ~~ Fit MAON (Nonaffirmative Published Draws) ------------------------------
+    
+    if ( "maon" %in% all.methods ) {
+      
+      rep.res = run_method_safe(method.label = c("maon"),
+                                method.fn = function() {
+                                  mod = robu( yi ~ 1, 
+                                              data = dpn, 
+                                              studynum = 1:nrow(dpn),
+                                              var.eff.size = vi,
+                                              small = TRUE )
+                                  
+                                  report_meta(mod, .mod.type = "robu")
+                                },
+                                .rep.res = rep.res )
+      
+    }
     
     
     # ~~ MCMC ------------------------------
-    
     
     if ( "jeffreys-mcmc" %in% all.methods ) {
       # # temp for refreshing code
@@ -553,16 +568,16 @@ doParallel.seconds = system.time({
     
     # add info about simulated datasets
     # "ustudies"/"udraws" refers to underlying studies/draws prior to hacking or publication bias
-    ( prob.ustudies.published =  mean( d.first$study %in% unique(dp$study) ) )
-    expect_equal( prob.ustudies.published, nrow(dp)/nrow(d.first) )
+    ( sancheck.prob.ustudies.published =  mean( d.first$study %in% unique(dp$study) ) )
+    expect_equal( sancheck.prob.ustudies.published, nrow(dp)/nrow(d.first) )
     # this one should always be 100% unless there's also publication bias:
-    ( prob.unhacked.ustudies.published =  mean( d.first$study[ d.first$hack == "no" ] %in% unique( dp$study[ dp$hack == "no" ] ) ) )
+    ( sancheck.prob.unhacked.ustudies.published =  mean( d.first$study[ d.first$hack == "no" ] %in% unique( dp$study[ dp$hack == "no" ] ) ) )
     # under affim hacking, will be <100%:
-    ( prob.hacked.ustudies.published =  mean( d.first$study[ d.first$hack != "no" ] %in% unique( dp$study[ dp$hack != "no" ] ) ) )
+    ( sancheck.prob.hacked.ustudies.published =  mean( d.first$study[ d.first$hack != "no" ] %in% unique( dp$study[ dp$hack != "no" ] ) ) )
     
     # might NOT be 100% if you're generating multiple draws per unhacked studies but favoring, e.g., a random one:
-    ( prob.unhacked.udraws.published =  mean( d$study.draw[ d$hack == "no" ] %in% unique( dp$study.draw[ dp$hack == "no" ] ) ) )
-    ( prob.hacked.udraws.published =  mean( d$study.draw[ d$hack != "no" ] %in% unique( dp$study.draw[ dp$hack != "no" ] ) ) )
+    ( sancheck.prob.unhacked.udraws.published =  mean( d$study.draw[ d$hack == "no" ] %in% unique( dp$study.draw[ dp$hack == "no" ] ) ) )
+    ( sancheck.prob.hacked.udraws.published =  mean( d$study.draw[ d$hack != "no" ] %in% unique( dp$study.draw[ dp$hack != "no" ] ) ) )
     
     
     #*this one is especially important: under worst-case hacking, it's analogous to prop.retained  in
@@ -605,6 +620,8 @@ doParallel.seconds = system.time({
   
 } )[3]  # end system.time
 
+
+# ~~ End of ForEach Loop ----------------
 # estimated time for 1 simulation rep
 # use NAs for additional methods so that the SUM of the rep times will be the
 #  total computational time
@@ -615,9 +632,6 @@ rs$rep.seconds = rep( c( doParallel.seconds / sim.reps,
 
 expect_equal( as.numeric( sum(rs$rep.seconds, na.rm = TRUE) ),
               as.numeric(doParallel.seconds) )
-
-
-
 
 
 
@@ -651,19 +665,13 @@ if ( run.local == TRUE ) {
   
   
   # scenario diagnostics for scenario
-  agg.checks = rs %>% summarise_if( contains("prob."),
+  keepers = namesWith("sancheck.", rs)
+  agg.checks = rs %>% summarise_at( keepers,
                                     function(x) round( mean(x), 2) )
   
-  agg.checks
+  t(agg.checks)
   
 }
-
-
-
-
-
-
-
 
 
 

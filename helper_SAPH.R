@@ -700,22 +700,37 @@ return( list( stats = data.frame(
 
 
 
-# nicely report a metafor object with optional suffix to denote which model it is
-# includes coverage
-report_rma = function(.mod,
-                      #.Mu,  # true mean (to get coverage)
+# nicely report a metafor or robumeta object with optional suffix to denote which model
+report_meta = function(.mod,
+                      .mod.type = "rma",  # "rma" or "robu"
                       .suffix = "") {
   
   if ( !is.null(.mod) ) {
     
-    tau.CI = tau_CI(.mod)
-    .res = data.frame( .mod$b,
-                       .mod$ci.lb,
-                       .mod$ci.ub,
-                       
-                       sqrt(.mod$tau2),
-                       tau.CI[1],
-                       tau.CI[2] )
+    
+    if ( .mod.type == "rma" ) {
+      tau.CI = tau_CI(.mod)
+      .res = data.frame( .mod$b,
+                         .mod$ci.lb,
+                         .mod$ci.ub,
+                         
+                         sqrt(.mod$tau2),
+                         tau.CI[1],
+                         tau.CI[2] )
+    } 
+    
+
+    if ( .mod.type == "robu" ) {
+
+      .res = data.frame( .mod$b.r,
+                         .mod$reg_table$CI.L,
+                         .mod$reg_table$CI.U,
+                         
+                         sqrt(.mod$mod_info$tau.sq),
+                         NA,
+                         NA )
+    } 
+ 
   } else {
     .res = data.frame( rep(NA, 6) )
   }
@@ -2358,7 +2373,23 @@ my_ggsave = function(name,
 }
 
 
+# SMALL GENERIC HELPERS ---------------------
 
+# quick mean with NAs removed
+meanNA = function(x){
+  mean(x, na.rm = TRUE)
+}
+
+
+# check CI coverage
+covers = function( truth, lo, hi ) {
+  return( (lo <= truth) & (hi >= truth) )
+}
+
+# get names of dataframe containing a string
+namesWith = function(pattern, dat){
+  names(dat)[ grepl(pattern = pattern, x = names(dat) ) ]
+}
 
 # 2021-5-8 CLUSTER FNS ---------------------------------------------------------------
 
