@@ -653,6 +653,12 @@ doParallel.seconds = system.time({
 } )[3]  # end system.time
 
 
+
+table(rs$method)
+
+
+names(rs)
+
 # ~~ End of ForEach Loop ----------------
 # estimated time for 1 simulation rep
 # use NAs for additional methods so that the SUM of the rep times will be the
@@ -673,12 +679,13 @@ if ( run.local == TRUE ) {
   
   
   # quick look locally
-  rs %>% mutate_if(is.numeric, function(x) round(x,2) )
+  # rs %>% mutate_if(is.numeric, function(x) round(x,2) )
   
   agg = rs %>% group_by(method) %>%
     summarise( PropMhatNA = mean(is.na(Mhat)),
                PropCI.NA = mean(is.na(MLo)),
                
+               Mhat = meanNA(Mhat),
                MhatMSE = meanNA( (Mhat - Mu)^2 ),
                MhatBias = meanNA(Mhat - Mu),
                MhatEmpSE = sd( Mhat, na.rm = TRUE ),
