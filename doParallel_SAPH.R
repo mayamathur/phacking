@@ -30,7 +30,7 @@ rm( list = ls() )
 # are we running locally?
 run.local = TRUE
 
-
+# ~~ Packages -----------------------------------------------
 toLoad = c("crayon",
            "dplyr",
            "foreach",
@@ -53,7 +53,8 @@ toLoad = c("crayon",
            "truncreg",
            "truncnorm",
            "rstan",
-           "optimx")
+           "optimx",
+           "weightr")
 
 if ( run.local == TRUE ) toLoad = c(toLoad, "here")
 
@@ -179,6 +180,7 @@ if ( run.local == TRUE ) {
   # methods.to.run options:
   # naive ; gold-std ; 2psm ; maon ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
   scen.params = data.frame(scen = 1,
+                           
                            rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-sd ; mle-sd ; mle-var",
                            
                            # args from sim_meta_2
@@ -375,20 +377,20 @@ doParallel.seconds = system.time({
                                   ses = sqrt( diag( solve(H) ) )
                                   
                                   # follow the same return structure as report_meta
-                                  data.frame( Mhat = mod[[2]]$par[2],
-                                              MLo = mod[[2]]$par[2] - qnorm(.975) * ses[2],
-                                              MHi = mod[[2]]$par[2] + qnorm(.975) * ses[2],
-                                              
-                                              # might be possible to get these from weightr
-                                              # I didn't even try
-                                              Shat = NA,
-                                              SLo = NA,
-                                              SHi = NA )
+                                  list( stats = data.frame( Mhat = mod[[2]]$par[2],
+                                                            MLo = mod[[2]]$par[2] - qnorm(.975) * ses[2],
+                                                            MHi = mod[[2]]$par[2] + qnorm(.975) * ses[2],
+                                                            
+                                                            # could definitely get these from weightr
+                                                            # I didn't even try
+                                                            Shat = NA,
+                                                            SLo = NA,
+                                                            SHi = NA ) )
                                 },
                                 .rep.res = rep.res )
       
     }
-
+    
     
     # ~~ MCMC ------------------------------
     
