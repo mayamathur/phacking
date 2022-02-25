@@ -205,6 +205,10 @@ if ( run.local == TRUE ) {
   
   scen = 1
   # data.frame(scen.params %>% filter(scen.name == scen))
+  
+  # just to avoid errors in doParallel script below
+  jobname = "job_1"
+  i = 1
 }
 
 
@@ -226,7 +230,7 @@ doParallelTime = system.time({
     if ( i == 1 ) cat("\n\n~~~~~~~~~~~~~~~~ BEGIN SIM REP", i, "~~~~~~~~~~~~~~~~")
     
     # results for just this simulation rep
-    if ( exists("rep.res") ) rm(rep.res)
+    if ( exists("rep.res") ) suppressWarnings( rm(rep.res) )
     
     # extract simulation params for this scenario (row)
     # exclude the column with the scenario name itself (col) 
@@ -257,6 +261,9 @@ doParallelTime = system.time({
     
     # dataset of only published results
     dp = d %>% filter(Di == 1)
+    
+    # keep first draws only
+    d.first = d[ !duplicated(d$study), ]
     
     if ( i == 1 ) cat("\n\nHEAD OF DP:\n")
     if ( i == 1 ) print(head(dp))
@@ -301,10 +308,6 @@ doParallelTime = system.time({
     
     
     # ~~ Fit Gold-Standard Meta-Analysis (ALL FIRST Draws) ------------------------------
-    
-    # keep first draws only
-    #@NOT YET TEST ON DATASET WITH MULTIPLE DRAWS PER STUDY
-    d.first = d[ !duplicated(d$study), ]
     
     rep.res = run_method_safe(method.label = c("gold-std"),
                               method.fn = function() {
@@ -524,32 +527,51 @@ doParallelTime = system.time({
     rep.res = rep.res %>% add_column( job.name = jobname, .before = 1 )
     
     # add info about simulated datasets
+    # "ustudies"/"udraws" refers to underlying studies/draws prior to hacking or publication bias
+    ( prob.ustudies.published =  mean( d.first$study %in% unique(dp$study) ) )
+    expect_equal( prob.ustudies.published, nrow(dp)/nrow(d.first) )
+    # this one should always be 100% unless there's also publication bias:
+    ( prob.unhacked.ustudies.published =  mean( d.first$study[ d.first$hack == "no" ] %in% unique( dp$study[ dp$hack == "no" ] ) ) )
+    # under affim hacking, will be <100%:
+    ( prob.hacked.ustudies.published =  mean( d.first$study[ d.first$hack != "no" ] %in% unique( dp$study[ dp$hack != "no" ] ) ) )
     
-    perc.studies.published = 100 * mean( d.first$study %in% unique(dp$study) )
-    expect_equal( perc.studies.published, nrow(dp)/nrow(d.first) )
-    perc.hacked.studies.published = 100 * mean( d.first$study[ d.first$hack != "no" ] %in% unique( dp$study[ dp$hack != "no" ] ) )
-    perc.unhacked.studies.published = 100 * mean( d.first$study[ d.first$hack == "no" ] %in% unique( dp$study[ dp$hack == "no" ] ) )
-    #bm
+    # might NOT be 100% if you're generating multiple draws per unhacked studies but favoring, e.g., a random one:
+    ( prob.unhacked.udraws.published =  mean( d$study.draw[ d$hack == "no" ] %in% unique( dp$study.draw[ dp$hack == "no" ] ) ) )
+    ( prob.hacked.udraws.published =  mean( d$study.draw[ d$hack != "no" ] %in% unique( dp$study.draw[ dp$hack != "no" ] ) ) )
     
     
+    #*this one is especially important: under worst-case hacking, it's analogous to prop.retained  in
+    #  TNE since it's the proportion of the underlying distribution that's nonaffirmative
+    ( prob.unhacked.udraws.nonaffirm =  mean( d$affirm[ d$hack == "no" ] == FALSE ) )
+    # a benchmark for average power:
+    ( prob.unhacked.udraws.affirm =  mean( d$affirm[ d$hack == "no" ] ) )
+    ( prob.hacked.udraws.nonaffirm =  mean( d$affirm[ d$hack != "no" ] == FALSE ) )
+    ( prob.hacked.udraws.affirm =  mean( d$affirm[ d$hack != "no" ] ) )
     
-    perc.hacked.draws.published = 100 * mean( d.first$study[ d.first$hack != "no" ] %in% unique( dp$study[ dp$hack != "no" ] ) )
-    perc.unhacked.draws.published = 100 * mean( d.first$study[ d.first$hack == "no" ] %in% unique( dp$study[ dp$hack == "no" ] ) )
-    
-    # a benchmark for average power
-    perc.unhacked.draws.affirm = 100 * mean( d$affirm[ d$hack == "no" ] )
-    
+    # probability that a published, nonaffirmative draw is from a hacked study
+    # under worst-case hacking, should be 0
+    ( prob.published.nonaffirm.is.hacked = mean( dp$hack[ dp$affirm == 0 ] != "no" ) )
     
     rep.res = rep.res %>% add_column(   dp.k = nrow(dp),
-                                        dp.kAffirm = sum(dp$affirm == TRUE),
-                                        dp.kNonaffirm = sum(dp$affirm == FALSE),
+                                        dp.k.affirm = sum(dp$affirm == TRUE),
+                                        dp.k.nonaffirm = sum(dp$affirm == FALSE),
                                         
                                         # means draws per HACKED, published study
-                                        dp.Nrealized = mean( dp$N[dp$hack == "affirm"] ),
+                                        dp.meanN.hacked = mean( dp$N[dp$hack == "affirm"] ),
                                         
-                                        perc.studies.published = ,
-                                        perc.hacked.published = 100 * mean( d.first$study %in% unique(dp$study) ) 
-                                          
+                                        prob.ustudies.published = prob.ustudies.published,
+                                        prob.unhacked.ustudies.published = prob.unhacked.ustudies.published,
+                                        prob.hacked.ustudies.published = prob.hacked.ustudies.published,
+                                        
+                                        prob.unhacked.udraws.published = prob.unhacked.udraws.published,
+                                        prob.hacked.udraws.published = prob.hacked.udraws.published,
+                                        
+                                        prob.unhacked.udraws.nonaffirm = prob.unhacked.udraws.nonaffirm,
+                                        prob.unhacked.udraws.affirm = prob.unhacked.udraws.affirm,
+                                        prob.hacked.udraws.nonaffirm = prob.hacked.udraws.nonaffirm,
+                                        prob.hacked.udraws.affirm = prob.hacked.udraws.affirm,
+                                        
+                                        prob.published.nonaffirm.is.hacked = prob.published.nonaffirm.is.hacked
                                           )
     
     rep.res
