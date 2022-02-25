@@ -151,7 +151,7 @@ if (run.local == FALSE) {
   # **this need to match n.reps.in.doParallel in the genSbatch script
   sim.reps = 5  #@update this 
   
-
+  
   # set the number of cores
   registerDoParallel(cores=16)
   
@@ -167,7 +167,7 @@ if ( run.local == TRUE ) {
   lapply( toLoad,
           require,
           character.only = TRUE)
-
+  
   
   # helper fns
   code.dir = here()
@@ -175,7 +175,11 @@ if ( run.local == TRUE ) {
   source("helper_SAPH.R")
   
   
+  # methods.to.run options:
+  # naive ; gold-std ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
+  
   scen.params = data.frame(scen = 1,
+                           rep.methods = "naive ; gold-std ; jeffreys-sd ; mle-sd ; mle-var",
                            
                            # args from sim_meta_2
                            Nmax = 10,
@@ -226,10 +230,10 @@ if ( exists("rs") ) rm(rs)
 # system.time is in seconds
 doParallel.seconds = system.time({
   #@change this back before running for real
-  rs = foreach( i = 1:sim.reps, .combine=rbind ) %dopar% {
-    # for debugging (out file will contain all printed things):
-    #for ( i in 1:sim.reps ) {
-      
+  #rs = foreach( i = 1:sim.reps, .combine=rbind ) %dopar% {
+  # for debugging (out file will contain all printed things):
+  for ( i in 1:sim.reps ) {
+    
     # only print info for first sim rep for visual clarity
     if ( i == 1 ) cat("\n\n~~~~~~~~~~~~~~~~ BEGIN SIM REP", i, "~~~~~~~~~~~~~~~~")
     
@@ -247,20 +251,24 @@ doParallel.seconds = system.time({
     if ( i == 1 ) cat("\n\nHEAD OF SCEN.PARAMS:\n")
     if ( i == 1 ) print(p)
     
+    # parse methods string
+    all.methods = unlist( strsplit( x = p$rep.methods,
+                                    split = " ; " ) )
+    
     # ~~ Simulate Dataset ------------------------------
     # includes unpublished studies
     d = sim_meta_2( Nmax = p$Nmax,
-                 Mu = p$Mu,
-                 t2a = p$t2a,
-                 m = p$m,
-                 t2w = p$t2w,
-                 true.sei.expr = p$true.sei.expr,
-                 hack = p$hack,
-                 rho = p$rho,
-                 
-                 k.pub.nonaffirm = p$k.pub.nonaffirm,
-                 prob.hacked = p$prob.hacked,
-                 return.only.published = FALSE)
+                    Mu = p$Mu,
+                    t2a = p$t2a,
+                    m = p$m,
+                    t2w = p$t2w,
+                    true.sei.expr = p$true.sei.expr,
+                    hack = p$hack,
+                    rho = p$rho,
+                    
+                    k.pub.nonaffirm = p$k.pub.nonaffirm,
+                    prob.hacked = p$prob.hacked,
+                    return.only.published = FALSE)
     
     
     # dataset of only published results
@@ -268,6 +276,9 @@ doParallel.seconds = system.time({
     
     # keep first draws only
     d.first = d[ !duplicated(d$study), ]
+    
+    # published nonaffirmatives only
+    dpn = dp[ dp$affirm == FALSE, ]
     
     if ( i == 1 ) cat("\n\nHEAD OF DP:\n")
     if ( i == 1 ) print(head(dp))
@@ -298,72 +309,78 @@ doParallel.seconds = system.time({
     
     
     # ~~ Fit Naive Meta-Analysis (All PUBLISHED Draws) ------------------------------
-
-    rep.res = run_method_safe(method.label = c("naive"),
-                              method.fn = function() {
-                                mod = rma( yi = dp$yi,
-                                               vi = dp$vi,
-                                               method = "REML",
-                                               knha = TRUE )
-                                
-                                report_rma(mod)
-                              },
-                              .rep.res = rep.res )
+    
+    if ( "naive" %in% all.methods ) {
+      rep.res = run_method_safe(method.label = c("naive"),
+                                method.fn = function() {
+                                  mod = rma( yi = dp$yi,
+                                             vi = dp$vi,
+                                             method = "REML",
+                                             knha = TRUE )
+                                  
+                                  report_rma(mod)
+                                },
+                                .rep.res = rep.res )
+    }
+    
+    
     
     
     # ~~ Fit Gold-Standard Meta-Analysis (ALL FIRST Draws) ------------------------------
     
-    rep.res = run_method_safe(method.label = c("gold-std"),
-                              method.fn = function() {
-                                mod.all = rma( yi = d.first$yi,
-                                               vi = d.first$vi,
-                                               method = "REML",
-                                               knha = TRUE )
-                                
-                                report_rma(mod.all)
-                              },
-                              .rep.res = rep.res )
- 
+    if ( "gold-std" %in% all.methods ) {
+      
+      rep.res = run_method_safe(method.label = c("gold-std"),
+                                method.fn = function() {
+                                  mod.all = rma( yi = d.first$yi,
+                                                 vi = d.first$vi,
+                                                 method = "REML",
+                                                 knha = TRUE )
+                                  
+                                  report_rma(mod.all)
+                                },
+                                .rep.res = rep.res )
+    }
+    
+    
     
     # ~~ MCMC ------------------------------
     
-    # published nonaffirmatives only
-    dpn = dp[ dp$affirm == FALSE, ]
     
-    # # temp for refreshing code
-    # path = "/home/groups/manishad/SAPH"
-    # setwd(path)
-    # source("helper_SAPH.R")
+    if ( "jeffreys-mcmc" %in% all.methods ) {
+      # # temp for refreshing code
+      # path = "/home/groups/manishad/SAPH"
+      # setwd(path)
+      # source("helper_SAPH.R")
+      
+      # this one has two labels in method arg because a single call to estimate_jeffreys_mcmc
+      #  returns 2 lines of output, one for posterior mean and one for posterior median
+      # order of labels in method arg needs to match return structure of estimate_jeffreys_mcmc
+      rep.res = run_method_safe(method.label = c("jeffreys-mcmc-pmean",
+                                                 "jeffreys-mcmc-pmed",
+                                                 "jeffreys-mcmc-max-lp-iterate"),
+                                method.fn = function() estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
+                                                                                   .sei = sqrt(dpn$vi),
+                                                                                   .tcrit = dpn$tcrit,
+                                                                                   .Mu.start = Mhat.start,
+                                                                                   .Tt.start = Shat.start,
+                                                                                   .stan.adapt_delta = p$stan.adapt_delta,
+                                                                                   .stan.maxtreedepth = p$stan.maxtreedepth),
+                                .rep.res = rep.res )
+      
+      
+      # #@TEMP TO AVOID SLOW MCMC PROCESS
+      # # example of rep.res at this point (to avoid having to re-run the method; it's slow):
+      # new.rows = structure(list(method = c("jeffreys-mcmc-pmean", "jeffreys-mcmc-pmed","jeffreys-mcmc-max-lp-iterate"), Mhat = c(0.196768652710757,0.19216059632037, 0.178221722070505), Shat = c(0.791416690654329, 0.790397445863146, 0.77856755485064), MhatSE = c(0.00266867786965314, 0.00266867786965314, 0.00266867786965314), ShatSE = c(0.00190121931174173, 0.00190121931174173, 0.00190121931174173), MLo = c(0.0368586243904465, 0.0368586243904465, 0.0368586243904465), MHi = c(0.384655875223785, 0.384655875223785, 0.384655875223785), SLo = c(0.672480635939751, 0.672480635939751, 0.672480635939751), SHi = c(0.921641744315143, 0.921641744315143, 0.921641744315143), stan.warned = c(0, 0, 0), stan.warning = c(NA, NA, NA), MhatRhat = c(1.00428369239268, 1.00428369239268, 1.00428369239268), ShatRhat = c(1.00170913954403, 1.00170913954403, 1.00170913954403), overall.error = c(NA,NA,NA)), row.names = 2:4, class = "data.frame")
+      # rep.res = bind_rows(rep.res, new.rows)
+      # # END TEMP
+      
+      Mhat.MaxLP = rep.res$Mhat[ rep.res$method == "jeffreys-mcmc-max-lp-iterate" ]
+      Shat.MaxLP = rep.res$Shat[ rep.res$method == "jeffreys-mcmc-max-lp-iterate" ]
+      
+      cat("\n doParallel flag: Done jeffreys-mcmc if applicable")
+    }
     
-
-    # this one has two labels in method arg because a single call to estimate_jeffreys_mcmc
-    #  returns 2 lines of output, one for posterior mean and one for posterior median
-    # order of labels in method arg needs to match return structure of estimate_jeffreys_mcmc
-    # rep.res = run_method_safe(method.label = c("jeffreys-mcmc-pmean",
-    #                                            "jeffreys-mcmc-pmed",
-    #                                            "jeffreys-mcmc-max-lp-iterate"),
-    #                           method.fn = function() estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
-    #                                                                              .sei = sqrt(dpn$vi),
-    #                                                                              .tcrit = dpn$tcrit, 
-    #                                                                              .Mu.start = Mhat.start,
-    #                                                                              .Tt.start = Shat.start,
-    #                                                                              .stan.adapt_delta = p$stan.adapt_delta,
-    #                                                                              .stan.maxtreedepth = p$stan.maxtreedepth),
-    #                           .rep.res = rep.res )
-    
-    
-    #@TEMP TO AVOID SLOW MCMC PROCESS
-    # example of rep.res at this point (to avoid having to re-run the method; it's slow):
-    new.rows = structure(list(method = c("jeffreys-mcmc-pmean", "jeffreys-mcmc-pmed","jeffreys-mcmc-max-lp-iterate"), Mhat = c(0.196768652710757,0.19216059632037, 0.178221722070505), Shat = c(0.791416690654329, 0.790397445863146, 0.77856755485064), MhatSE = c(0.00266867786965314, 0.00266867786965314, 0.00266867786965314), ShatSE = c(0.00190121931174173, 0.00190121931174173, 0.00190121931174173), MLo = c(0.0368586243904465, 0.0368586243904465, 0.0368586243904465), MHi = c(0.384655875223785, 0.384655875223785, 0.384655875223785), SLo = c(0.672480635939751, 0.672480635939751, 0.672480635939751), SHi = c(0.921641744315143, 0.921641744315143, 0.921641744315143), stan.warned = c(0, 0, 0), stan.warning = c(NA, NA, NA), MhatRhat = c(1.00428369239268, 1.00428369239268, 1.00428369239268), ShatRhat = c(1.00170913954403, 1.00170913954403, 1.00170913954403), overall.error = c(NA,NA,NA)), row.names = 2:4, class = "data.frame")
-    rep.res = bind_rows(rep.res, new.rows)
-    # END TEMP
-    
-    Mhat.MaxLP = rep.res$Mhat[ rep.res$method == "jeffreys-mcmc-max-lp-iterate" ]
-    Shat.MaxLP = rep.res$Shat[ rep.res$method == "jeffreys-mcmc-max-lp-iterate" ]
-    
-    cat("\n doParallel flag: Done jeffreys-mcmc if applicable")
-    
-
     
     
     # ~~ Change Starting Values -----
@@ -372,75 +389,79 @@ doParallel.seconds = system.time({
     
     # ~~ MAP (SD param) ------------------------------
     
-    # # temp for refreshing code
-    # path = "/home/groups/manishad/SAPH"
-    # setwd(path)
-    # source("helper_SAPH.R")
-    
-    rep.res = run_method_safe(method.label = c("jeffreys-sd-param"),
-                              method.fn = function() estimate_jeffreys_RTMA(yi = dpn$yi,
-                                                                            sei = sqrt(dpn$vi),
-                                                                            par2is = "Tt",
-                                                                            tcrit = dpn$tcrit, 
-                                                                            Mu.start = Mhat.start,
-                                                                            par2.start = Shat.start,
-                                                                            usePrior = TRUE,
-                                                                            get.CIs = p$get.CIs,
-                                                                            CI.method = "wald"),
-                              .rep.res = rep.res )
-    
-    Mhat.MAP = rep.res$Mhat[ rep.res$method == "jeffreys-sd-param" ]
-    Shat.MAP = rep.res$Shat[ rep.res$method == "jeffreys-sd-param" ]
-    
+    if ( "jeffreys-sd" %in% all.methods ) {
+      # # temp for refreshing code
+      # path = "/home/groups/manishad/SAPH"
+      # setwd(path)
+      # source("helper_SAPH.R")
+      
+      rep.res = run_method_safe(method.label = c("jeffreys-sd"),
+                                method.fn = function() estimate_jeffreys_RTMA(yi = dpn$yi,
+                                                                              sei = sqrt(dpn$vi),
+                                                                              par2is = "Tt",
+                                                                              tcrit = dpn$tcrit, 
+                                                                              Mu.start = Mhat.start,
+                                                                              par2.start = Shat.start,
+                                                                              usePrior = TRUE,
+                                                                              get.CIs = p$get.CIs,
+                                                                              CI.method = "wald"),
+                                .rep.res = rep.res )
+      
+      Mhat.MAP = rep.res$Mhat[ rep.res$method == "jeffreys-sd" ]
+      Shat.MAP = rep.res$Shat[ rep.res$method == "jeffreys-sd" ]
+    }
     
     # ~~ Change Starting Values -----
     
     if ( !is.na(Mhat.MAP) ) Mhat.start = Mhat.MAP 
     if ( !is.na(Shat.MAP) ) Shat.start = Shat.MAP 
-
+    
     # ~~ MLE (SD param) ------------------------------
     
-    # # temp for refreshing code
-    # path = "/home/groups/manishad/SAPH"
-    # setwd(path)
-    # source("helper_SAPH.R")
+    if ( "mle-sd" %in% all.methods ) {
+      
+      # # temp for refreshing code
+      # path = "/home/groups/manishad/SAPH"
+      # setwd(path)
+      # source("helper_SAPH.R")
+      
+      rep.res = run_method_safe(method.label = c("mle-sd"),
+                                method.fn = function() estimate_jeffreys_RTMA(yi = dpn$yi,
+                                                                              sei = sqrt(dpn$vi),
+                                                                              par2is = "Tt",
+                                                                              tcrit = dpn$tcrit, 
+                                                                              Mu.start = Mhat.start,
+                                                                              par2.start = Shat.start,
+                                                                              usePrior = FALSE,
+                                                                              get.CIs = p$get.CIs,
+                                                                              CI.method = "wald"),
+                                .rep.res = rep.res )
+      
+      
+      
+      cat("\n doParallel flag: Done mle-sd if applicable")
+    }
     
-    rep.res = run_method_safe(method.label = c("mle-sd"),
-                              method.fn = function() estimate_jeffreys_RTMA(yi = dpn$yi,
-                                                                            sei = sqrt(dpn$vi),
-                                                                            par2is = "Tt",
-                                                                            tcrit = dpn$tcrit, 
-                                                                            Mu.start = Mhat.start,
-                                                                            par2.start = Shat.start,
-                                                                            usePrior = FALSE,
-                                                                            get.CIs = p$get.CIs,
-                                                                            CI.method = "wald"),
-                              .rep.res = rep.res )
-    
-  
-    
-    cat("\n doParallel flag: Done mle-sd if applicable")
-    
-   
     # ~~ MLE (Var param) ------------------------------
     
-    rep.res = run_method_safe(method.label = c("mle-var"),
-                              method.fn = function() estimate_jeffreys_RTMA(yi = dpn$yi,
-                                                                            sei = sqrt(dpn$vi),
-                                                                            par2is = "T2t",
-                                                                            tcrit = dpn$tcrit, 
-                                                                            Mu.start = Mhat.start,
-                                                                            par2.start = Shat.start^2,
-                                                                            usePrior = FALSE,
-                                                                            get.CIs = p$get.CIs,
-                                                                            CI.method = "wald"),
-                              .rep.res = rep.res )
-    
-    
-    
-    cat("\n doParallel flag: Done mle-var if applicable")
-    
-   
+    if ( "mle-var" %in% all.methods ) {
+      rep.res = run_method_safe(method.label = c("mle-var"),
+                                method.fn = function() estimate_jeffreys_RTMA(yi = dpn$yi,
+                                                                              sei = sqrt(dpn$vi),
+                                                                              par2is = "T2t",
+                                                                              tcrit = dpn$tcrit, 
+                                                                              Mu.start = Mhat.start,
+                                                                              par2.start = Shat.start^2,
+                                                                              usePrior = FALSE,
+                                                                              get.CIs = p$get.CIs,
+                                                                              CI.method = "wald"),
+                                .rep.res = rep.res )
+      
+      
+      
+      cat("\n doParallel flag: Done mle-var if applicable")
+      
+    }
     
     # # SAVE 
     # # methods from earlier simulations where I was bias-correcting the affirmatives
@@ -519,7 +540,7 @@ doParallel.seconds = system.time({
     # print(repRes)
     
     # ~ Write Results ------------------------------
-
+    
     # add in scenario parameters
     # do NOT use rbind here; bind_cols accommodates possibility that some methods' rep.res
     #  have more columns than others
@@ -546,37 +567,37 @@ doParallel.seconds = system.time({
     
     #*this one is especially important: under worst-case hacking, it's analogous to prop.retained  in
     #  TNE since it's the proportion of the underlying distribution that's nonaffirmative
-    ( prob.unhacked.udraws.nonaffirm =  mean( d$affirm[ d$hack == "no" ] == FALSE ) )
+    ( sancheck.prob.unhacked.udraws.nonaffirm =  mean( d$affirm[ d$hack == "no" ] == FALSE ) )
     # a benchmark for average power:
-    ( prob.unhacked.udraws.affirm =  mean( d$affirm[ d$hack == "no" ] ) )
-    ( prob.hacked.udraws.nonaffirm =  mean( d$affirm[ d$hack != "no" ] == FALSE ) )
-    ( prob.hacked.udraws.affirm =  mean( d$affirm[ d$hack != "no" ] ) )
+    ( sancheck.prob.unhacked.udraws.affirm =  mean( d$affirm[ d$hack == "no" ] ) )
+    ( sancheck.prob.hacked.udraws.nonaffirm =  mean( d$affirm[ d$hack != "no" ] == FALSE ) )
+    ( sancheck.prob.hacked.udraws.affirm =  mean( d$affirm[ d$hack != "no" ] ) )
     
     # probability that a published, nonaffirmative draw is from a hacked study
     # under worst-case hacking, should be 0
-    ( prob.published.nonaffirm.is.hacked = mean( dp$hack[ dp$affirm == 0 ] != "no" ) )
+    ( sancheck.prob.published.nonaffirm.is.hacked = mean( dp$hack[ dp$affirm == 0 ] != "no" ) )
     
-    rep.res = rep.res %>% add_column(   dp.k = nrow(dp),
-                                        dp.k.affirm = sum(dp$affirm == TRUE),
-                                        dp.k.nonaffirm = sum(dp$affirm == FALSE),
+    rep.res = rep.res %>% add_column(   sancheck.dp.k = nrow(dp),
+                                        sancheck.dp.k.affirm = sum(dp$affirm == TRUE),
+                                        sancheck.dp.k.nonaffirm = sum(dp$affirm == FALSE),
                                         
                                         # means draws per HACKED, published study
                                         dp.meanN.hacked = mean( dp$N[dp$hack == "affirm"] ),
                                         
-                                        prob.ustudies.published = prob.ustudies.published,
-                                        prob.unhacked.ustudies.published = prob.unhacked.ustudies.published,
-                                        prob.hacked.ustudies.published = prob.hacked.ustudies.published,
+                                        sancheck.prob.ustudies.published = sancheck.prob.ustudies.published,
+                                        sancheck.prob.unhacked.ustudies.published = sancheck.prob.unhacked.ustudies.published,
+                                        sancheck.prob.hacked.ustudies.published = sancheck.prob.hacked.ustudies.published,
                                         
-                                        prob.unhacked.udraws.published = prob.unhacked.udraws.published,
-                                        prob.hacked.udraws.published = prob.hacked.udraws.published,
+                                        sancheck.prob.unhacked.udraws.published = sancheck.prob.unhacked.udraws.published,
+                                        sancheck.prob.hacked.udraws.published = sancheck.prob.hacked.udraws.published,
                                         
-                                        prob.unhacked.udraws.nonaffirm = prob.unhacked.udraws.nonaffirm,
-                                        prob.unhacked.udraws.affirm = prob.unhacked.udraws.affirm,
-                                        prob.hacked.udraws.nonaffirm = prob.hacked.udraws.nonaffirm,
-                                        prob.hacked.udraws.affirm = prob.hacked.udraws.affirm,
+                                        sancheck.prob.unhacked.udraws.nonaffirm = sancheck.prob.unhacked.udraws.nonaffirm,
+                                        sancheck.prob.unhacked.udraws.affirm = sancheck.prob.unhacked.udraws.affirm,
+                                        sancheck.prob.hacked.udraws.nonaffirm = sancheck.prob.hacked.udraws.nonaffirm,
+                                        sancheck.prob.hacked.udraws.affirm = sancheck.prob.hacked.udraws.affirm,
                                         
-                                        prob.published.nonaffirm.is.hacked = prob.published.nonaffirm.is.hacked
-                                          )
+                                        sancheck.prob.published.nonaffirm.is.hacked = sancheck.prob.published.nonaffirm.is.hacked
+    )
     
     rep.res
     
@@ -590,7 +611,7 @@ doParallel.seconds = system.time({
 nMethods = length( unique(rs$method) )
 rs$doParallel.seconds = doParallel.seconds
 rs$rep.seconds = rep( c( doParallel.seconds / sim.reps,
-                        rep( NA, nMethods - 1 ) ), sim.reps )
+                         rep( NA, nMethods - 1 ) ), sim.reps )
 
 expect_equal( as.numeric( sum(rs$rep.seconds, na.rm = TRUE) ),
               as.numeric(doParallel.seconds) )
