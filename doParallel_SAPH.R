@@ -23,12 +23,19 @@
 #  and modPub small to prevent those models from being fit. 
 
 
+# for interactive Sherlock:
+# ml load v8
+# ml load R/4.1.2
+# srun --mem=32G --time=4:00:00 --pty bash
+
+
+
 # because Sherlock 2.0 restores previous workspace
 rm( list = ls() )
 
 
 # are we running locally?
-run.local = TRUE
+run.local = FALSE
 
 # ~~ Packages -----------------------------------------------
 toLoad = c("crayon",
@@ -59,27 +66,8 @@ toLoad = c("crayon",
 if ( run.local == TRUE ) toLoad = c(toLoad, "here")
 
 
-# allPackages = c("here",
-#                 "magrittr",
-#                 "dplyr",
-#                 "data.table",
-#                 "tidyverse",
-#                 "tidyr",
-#                 "metafor",
-#                 "robumeta",
-#                 "testthat",
-#                 "truncdist",
-#                 "gmm",
-#                 "tmvtnorm",
-#                 "doParallel",
-#                 "foreach")
-
-
-
 
 # FOR CLUSTER USE ------------------------------
-
-
 
 
 if (run.local == FALSE) {
@@ -107,50 +95,52 @@ if (run.local == FALSE) {
   
   
   # FOR AUTOMATIC CLUSTER RUN
-  # # get scen parameters (made by genSbatch.R)
-  # path = "/home/groups/manishad/SAPH"
-  # setwd(path)
-  # scen.params = read.csv( "scen_params.csv" )
-  # p <<- scen.params[ scen.params$scen == scen, ]
-  # print(p)
-  # 
-  # # helper code
-  # setwd(path)
-  # source("helper_SAPH.R")
-  
-  # FOR INTERACTIVE CLUSTER RUN
-  # # alternatively, generate a simple scen.params in order to run doParallel manually in
-  # #  Sherlock as a test
+  # get scen parameters (made by genSbatch.R)
   path = "/home/groups/manishad/SAPH"
   setwd(path)
+  scen.params = read.csv( "scen_params.csv" )
+  p <<- scen.params[ scen.params$scen == scen, ]
+  print(p)
+
+  # helper code
+  setwd(path)
   source("helper_SAPH.R")
-  scen.params = data.frame(scen = 1,
-                           
-                           # args from sim_meta_2
-                           Nmax = 1,
-                           Mu = 0.1,
-                           t2a = 0.25,
-                           t2w = 0.25,
-                           m = 500,
-                           true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
-                           hack = "affirm",
-                           rho = 0,
-                           k.pub.nonaffirm = 500,
-                           prob.hacked = 0,
-                           
-                           # Stan control args
-                           stan.maxtreedepth = 20,
-                           stan.adapt_delta = 0.98,
-                           
-                           get.CIs = TRUE)
-  scen = 1
+  
+  # # FOR INTERACTIVE CLUSTER RUN
+  # # alternatively, generate a simple scen.params in order to run doParallel manually in
+  # # Sherlock as a test
+  # path = "/home/groups/manishad/SAPH"
+  # setwd(path)
+  # source("helper_SAPH.R")
+  # scen.params = data.frame(scen = 1,
+  #                          
+  #                          rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var",
+  #                          
+  #                          # args from sim_meta_2
+  #                          Nmax = 10,
+  #                          Mu = 0.1,
+  #                          t2a = 0.25,
+  #                          t2w = 0.25,
+  #                          m = 50,
+  #                          true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
+  #                          hack = "affirm",
+  #                          rho = 0,
+  #                          k.pub.nonaffirm = 50,
+  #                          prob.hacked = 0.2,
+  #                          
+  #                          # Stan control args
+  #                          stan.maxtreedepth = 20,
+  #                          stan.adapt_delta = 0.98,
+  #                          
+  #                          get.CIs = TRUE)
+  # scen = 1
   
   # locally, with total k = 100, Nmax = 10, and sim.reps = 250, took 93 min total
   # for that I did sim.reps = 100 per doParallel
   
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
-  sim.reps = 5  #@update this 
+  sim.reps = 1  #@update this 
   
   
   # set the number of cores
@@ -676,7 +666,6 @@ expect_equal( as.numeric( sum(rs$rep.seconds, na.rm = TRUE) ),
 # ~ QUICK RESULTS SUMMARY ---------------------------------------------------
 
 if ( run.local == TRUE ) {
-  
   
   # quick look locally
   # rs %>% mutate_if(is.numeric, function(x) round(x,2) )
