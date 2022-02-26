@@ -33,10 +33,15 @@ nano /home/groups/manishad/SAPH/sim_results/overall_stitched/sti*
   
 # CODE -> SHERLOCK ----------------------------------
 
-# push helper.SAPH
-scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/helper_SAPH.R mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH
+# push all Sherlock code
+scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/Sherlock\ code/* mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH
 
-scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/2021-5-9\ nonaffirm\ MLEs\ on\ Sherlock/doParallel.R mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH
+
+# push helper.SAPH
+scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/Sherlock\ code/helper_SAPH.R mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH
+
+# push doParallel only
+scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/Sherlock\ code/2021-5-9\ nonaffirm\ MLEs\ on\ Sherlock/doParallel.R mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH
 
 
 # SHERLOCK -> DESKTOP ----------------------------------
@@ -70,18 +75,19 @@ scp mmathur@login.sherlock.stanford.edu /home/groups/manishad/SAPH/results/overa
 
 ####################### CLEAN UP ####################### 
 
-# clean up the directory
-rm /home/groups/manishad/SAPH/stitched_results/*
-rm /home/groups/manishad/SAPH/long_results/*
+
+  # FASTER VERSION
+  # DELETE ALL SBATCHES
+  # https://unix.stackexchange.com/questions/37329/efficiently-delete-large-directory-containing-thousands-of-files
+  # https://superuser.com/questions/156664/what-are-the-differences-between-the-rsync-delete-options
+  mkdir /home/groups/manishad/SAPH/empty_dir
+rsync -a --delete /home/groups/manishad/SAPH/empty_dir/ /home/groups/manishad/SAPH/sbatch_files/
   
+  # DELETE ALL LONG RESULTS
+  mkdir /home/groups/manishad/SAPH/empty_dir
+rsync -a --delete /home/groups/manishad/SAPH/empty_dir/ /home/groups/manishad/SAPH/sim_results/long/
   
-# clean up "rm" files
-  rm /home/users/mmathur/rm*
-  rm /home/groups/manishad/SAPH/rm*
-  rm /home/groups/manishad/SAPH/sbatch_files/rm*
-  rm /home/groups/manishad/SAPH/sbatch_files/slurm*
-  
-  
-  # remove all sbatches
-  #  rm -r /home/groups/manishad/SAPH/sbatch_files/*
+  # clean up the directory
+  rm /home/groups/manishad/TNE/sim_results/overall_stitched/*
+  rm /home/users/mmathur/rm_*
   

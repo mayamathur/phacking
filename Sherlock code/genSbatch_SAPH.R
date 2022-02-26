@@ -125,6 +125,8 @@ generateSbatch(sbatch_params, runfile_path)
 
 n.files
 
+# run just the first one
+# sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
 # 2400
 # max hourly submissions seems to be 300, which is 12 seconds/job

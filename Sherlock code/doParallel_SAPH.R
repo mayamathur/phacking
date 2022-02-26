@@ -81,6 +81,9 @@ if (run.local == FALSE) {
   # **Common reason to get the "could not library" error: You did ml load R/XXX using an old version
   any.failed = FALSE
   for (pkg in toLoad) {
+    
+    cat( paste("\nAbout to try loading package", pkg) )
+    
     tryCatch({
       # eval below needed because library() will otherwise be confused
       # https://www.mitchelloharawild.com/blog/loading-r-packages-in-a-loop/

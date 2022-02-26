@@ -13,236 +13,9 @@
 
 
 
-# FNS OF RTMA JEFFREYS PRIOR ---------------------------------------------------------------
-
-
-# IMPORTANT NOTATION FOR THESE FNS:
-# .Mu: mean of effect sizes, not Z-scores
-# .T2t: total heterogeneity of effect sizes (=T2 + t2w in older notation, or t2a + t2w in newer notation)
-# "T2t" is synonymous with "V" in parameters and results; "Tt" synonymous with "S" in params and results
-
-# ~ 2021-11-22 Jeffreys prior fns ---------------
-
-
-# agrees with weightr per "Repurpose TNE code.R"
-# RTMA log-likelihood - now uses TNE version
-# carefully structured for use with Deriv()
-joint_nll_2 = function(.yi,
-                       .sei,
-                       .Mu,
-                       .Tt = NULL,  # allow either parameterization
-                       .T2t = NULL,
-                       .tcrit = rep( qnorm(.975), length(.yi) ) ) {
-  
-  
-  if ( is.null(.T2t) ) .T2t = .Tt^2
-  if ( is.null(.Tt) ) .Tt = sqrt(.T2t)
-  
-  
-  # as in TNE::nll()
-  .dat = data.frame(yi = .yi, sei = .sei, crit = .tcrit)
-  
-  .dat = .dat %>% rowwise() %>%
-    mutate( term1 = dmvnorm(x = as.matrix(yi, nrow = 1),
-                            mean = as.matrix(.Mu, nrow = 1),
-                            # deal with different SEs by just incorporating them into the total variance
-                            sigma = as.matrix(.T2t + sei^2, nrow=1),
-                            log = TRUE),
-            
-            term2 = log( pmvnorm( lower = -99,
-                                  upper = crit * sei,
-                                  mean = .Mu,
-                                  sigma = .T2t + sei^2 ) ),
-            
-            nll.i = -term1 + term2 )
-  
-  
-  nll = sum(.dat$nll.i)
-  
-  # # sanity checks
-  # term1.new = log( dnorm( x = .dat$yi[1],
-  #                         mean = .Mu,
-  #                         sd = sqrt(.T2t + .dat$sei[1]^2) ) )
-  # 
-  # term2.new = log( pnorm( q = .dat$crit[1] * .dat$sei[1],
-  #                         mean = .Mu,
-  #                         sd = sqrt(.T2t + .dat$sei[1]^2) ) ) 
-  # 
-  # expect_equal( as.numeric(.dat$term1[1]), as.numeric(term1.new), tol = 0.001 )
-  # expect_equal( as.numeric(.dat$term2[1]), as.numeric(term2.new), tol = 0.001 )
-  # 
-  # # another sanity check
-  # library(truncnorm)
-  # nll.new = -log( dtruncnorm( x = .dat$yi[1],
-  #                             mean = .Mu,
-  #                             sd = sqrt(.T2t + .dat$sei[1]^2),
-  #                             a = -99,
-  #                             b = .dat$sei[1] * .dat$crit[1] ) )
-  # 
-  # expect_equal( nll.new, as.numeric(.dat$nll.i[1]) , tol = 0.001)
-  
-  # return it
-  return(nll)
-  
-  # from TNE's nll:
-  # term1 = dnorm(x = .x,
-  #               mean = .mu,
-  #               sd = .sigma,  
-  #               log = TRUE)
-  # 
-  # term2 = length(.x) * log( pmvnorm(lower = .a,
-  #                                   upper = .b,
-  #                                   mean = .mu,
-  #                                   # note use of sigma^2 here because of pmvnorm's different parameterization:
-  #                                   sigma = .sigma^2 ) ) 
-}
-
-
-
-# verbatim from TNE
-E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
-  
-  # prevent infinite cutpoints
-  # if either cutpoint is infinite, there are numerical issues because the alpha*Z terms
-  #  below are 0*Inf
-  Za = max( -99, (.a - .mu) / .sigma )
-  Zb = min( 99, (.b - .mu) / .sigma )
-  
-  alpha.a = dnorm(Za) / ( pnorm(Zb) - pnorm(Za) )
-  alpha.b = dnorm(Zb) / ( pnorm(Zb) - pnorm(Za) )
-  
-  k11 = -(.n/.sigma^2) + (.n/.sigma^2)*( (alpha.b - alpha.a)^2 + (alpha.b*Zb - alpha.a*Za) )
-  
-  k12 = -( 2*.n*(alpha.a - alpha.b) / .sigma^2 ) +
-    (.n/.sigma^2)*( alpha.a - alpha.b + alpha.b*Zb^2 - alpha.a*Za^2 +
-                      (alpha.a - alpha.b)*(alpha.a*Za - alpha.b*Zb) )
-  
-  k22 = (.n/.sigma^2) - (3*.n*(1 + alpha.a*Za - alpha.b*Zb) / .sigma^2) +
-    (.n/.sigma^2)*( Zb*alpha.b*(Zb^2 - 2) - Za*alpha.a*(Za^2 - 2) +
-                      (alpha.b*Zb - alpha.a*Za)^2 )
-  
-  return( matrix( c(-k11, -k12, -k12, -k22),
-                  nrow = 2,
-                  byrow = TRUE ) )
-}
-
-
-# important: note that in this fn, critical value is on t/z scale, NOT raw scale
-#  vs. in E_fisher_TNE, .b is on raw scale
-E_fisher_RTMA = function( .sei, .Mu, .Tt, .tcrit = qnorm(0.975) ) {
-  # get expected Fisher info for each observation separately, based on its unique SE
-  # each observation is RTN, so can just use TNE result!!
-  
-  Efish.list = lapply( X = as.list(.sei),
-                       FUN = function(.s) {
-                         E_fisher_TNE( .mu = .Mu,
-                                       .sigma = sqrt(.Tt^2 + .s^2), 
-                                       .n = 1,
-                                       .a = -99,
-                                       .b = .tcrit*.s )
-                       })
-  
-  # add all the matrices entrywise
-  # https://stackoverflow.com/questions/11641701/sum-a-list-of-matrices
-  Efish.all = Reduce('+', Efish.list) 
-  
-  # cat("\nFirst observation Efish:")
-  # print(Efish.list[[1]])
-  
-  return(Efish.all)
-}
-
-# ### Sanity check: Should agree with E_fisher_TNE if all SEs equal
-# n = 10
-# se = 2
-# Mu = 0.1
-# Tt = 2
-# zcrit = 1.96
-# ( Efish1 = E_fisher_RTMA( .sei = rep(se, n),
-#                           .Mu = Mu,
-#                           .Tt = Tt,
-#                           .tcrit = rep(zcrit, n) ) )
-# 
-# ( Efish2 = E_fisher_TNE( .mu = Mu,
-#                          .sigma = sqrt(Tt^2 + se^2),
-#                          .n = n,
-#                          .a = -99,
-#                          .b = zcrit*se ) )
-# expect_equal(Efish1, Efish2)
-# 
-# # c.f.: different SEs but with same mean across studies
-# E_fisher_RTMA( .sei = runif(n = n, min = se - 1, max = se + 1),
-#                .Mu = Mu,
-#                .Tt = Tt,
-#                .tcrit = rep(zcrit, n) )
-
-
-
-lprior = function(.sei, .Mu, .Tt, .tcrit) {
-  Efish = E_fisher_RTMA( .sei = .sei, .Mu = .Mu, .Tt = .Tt, .tcrit = .tcrit )
-  log( sqrt( det(Efish) ) )
-}
-
-
-# with usePrior = FALSE, agrees with weightr per "Repurpose TNE code.R"
-# .pars: (.Mu, .Tt) or (.Mu, .Tt2)
-nlpost_jeffreys_RTMA = function( .pars,
-                                 .par2is = "Tt",  # "Tt" or "T2t"
-                                 .yi,
-                                 .sei,
-                                 .tcrit = qnorm(.975),
-                                 
-                                 # if .usePrior = FALSE, will just be the MLE
-                                 .usePrior = TRUE) {
-  
-  
-  if ( .pars[2] < 0 ) return(.Machine$integer.max)
-  
-  # variance parameterization
-  if (.par2is == "T2t") {
-    Mu = .pars[1]
-    Tt = sqrt(.pars[2])
-  }
-  
-  
-  if (.par2is == "Tt") {
-    Mu = .pars[1]
-    Tt = .pars[2]
-  }
-  
-  
-  
-  # negative log-likelihood
-  # joint_nll_2 uses the TNE version
-  nll.value = joint_nll_2( .yi = .yi,
-                           .sei = .sei,
-                           .Mu = Mu,
-                           .Tt = Tt,
-                           .tcrit = .tcrit )
-  
-  # log-prior
-  # lprior uses the TNE expected Fisher and then just sums over observations
-  if ( .usePrior == TRUE ) {
-    prior.value = lprior(.sei = .sei,
-                         .Mu = Mu,
-                         .Tt = Tt,
-                         .tcrit = .tcrit)
-  } else {
-    prior.value = 0
-  }
-  
-  # negative log-posterior
-  nlp.value = sum(nll.value) + prior.value
-  
-  if ( is.infinite(nlp.value) | is.na(nlp.value) ) return(.Machine$integer.max)
-  
-  return(nlp.value)
-}
-
 # ESTIMATION METHOD FNS ----------------------------------------------
 
-# ~~ Estimation Methods That ARE Structured for Use Inside run_method_safe --------
-
+# ~ Estimation Methods Structured for Use Inside run_method_safe --------
 
 # Because these fns are run inside run_method_safe, the latter will handle editing rep.res
 #  All of these fns should take get.CIs as an argument and return CIs as c(NA, NA) if not wanted
@@ -263,12 +36,7 @@ nlpost_jeffreys_RTMA = function( .pars,
 #                                   SLo = S.CI[1],
 #                                   SHi = S.CI[2],
 #                                   
-#                                   stan.warned = stan.warned,
-#                                   stan.warning = stan.warning,
-#                                   MhatRhat = postSumm["mu", "Rhat"],
-#                                   ShatRhat = postSumm["tau", "Rhat"],
-#                                   
-#                                   overall.error = error ) ) )
+#  overall.error = error ) ) )
 
 
 # 2021-9-2: MM audited fn by reading
@@ -301,14 +69,14 @@ estimate_jeffreys_RTMA = function( yi,
   # CI.method = "wald"
   
   
-  ### Get MAP by Calling mle() ###
+  # ~~ Get MAP by Calling mle ----
   # IMPORTANT: This fn cannot be moved outside the scope of estimate_jeffreys
   #  because mle() is too dumb to allow extra args (e.g., x) to be passed,
   #  so it's forced to rely on global vars
   #  and that's a problem with a doParallel loop
   #  if this fn is outside estimate_jeffreys, different parallel iterations will use each other's global vars
   
-  ##### Get MLE with Main Optimizer #####
+  # ~~ Get MLE with Main Optimizer ----
   #  expects yi, sei, and tcrit to be global vars (wrt this inner fn)
   # second parameter could be Tt or T2t depending on par2is argument above
   nlpost_simple_RTMA = function(.Mu, .par2) {
@@ -356,7 +124,7 @@ estimate_jeffreys_RTMA = function( yi,
   # optim uses "0" to mean successful convergence
   optim.converged = attr(mle.obj, "details")$convergence == 0 
   
-  ##### Inference #####
+  # ~~ Inference ----
   # in case someone passes a set of params that aren't handled
   SEs = los = his = c(NA, NA)
   
@@ -655,25 +423,6 @@ myMhatCI = as.numeric( c( quantile( rstan::extract(post, "mu")[[1]], 0.025 ),
 expect_equal(M.CI, myMhatCI)
 
 
-
-# n.ests = length(Mhat)
-# # OLD return structure (list)
-# return( list( Mhat = Mhat,
-#               Shat = Shat,
-#               
-#               MhatSE = rep(MhatSE, length(n.ests)),
-#               ShatSE = rep(ShatSE, length(n.ests)),
-#               
-#               M.CI = M.CI,
-#               S.CI = S.CI,
-#               
-#               stan.warned = stan.warned,
-#               stan.warning = stan.warning,
-#               
-#               MhatRhat = postSumm["mu", "Rhat"],
-#               ShatRhat = postSumm["tau", "Rhat"]
-# ) )
-
 # the point estimates are length 2 (post means, then medians),
 #  but the inference is the same for each type of point estimate
 return( list( stats = data.frame( 
@@ -759,7 +508,7 @@ estimate_mle = function( x,
   #@TEMP
   #write.csv( c(mu.start, sigma.start), "inside_mle_start_values.csv")
   
-  ##### Get MLE with Main Optimizer (NM) #####
+  # ~~ Get MLE with Main Optimizer (NM) ----
   # fn needs to be formatted exactly like this (no additional args)
   #  in order for mle() to understand
   nll_simple = function(.mu, .sigma) {
@@ -798,7 +547,7 @@ estimate_mle = function( x,
   optim.converged = attr(myMLE, "details")$convergence == 0
   
   
-  ##### Try Other Optimizers #####
+  # ~~ Try Other Optimizers ----
   w = get_optimx_dataframe(.method = "mle",
                            x = x,
                            p = p,  # scenario parameters
@@ -807,7 +556,7 @@ estimate_mle = function( x,
                            sigma.start = sigma.start)
   
   
-  ##### Inference #####
+  # ~~ Inference ----
   # in case someone passes a set of params that aren't handled
   SEs = los = his = c(NA, NA)
   
@@ -874,7 +623,7 @@ estimate_mle = function( x,
     
   }   
   
-  ##### Organize Results #####
+  # ~~ Organize Results ----
   return( list( Mhat = Mhat, 
                 Vhat = Vhat,
                 Shat = Shat,
@@ -893,6 +642,337 @@ estimate_mle = function( x,
   ) )
 }
 
+
+# HELPERS FOR ABOVE ESTIMATION METHODS ----------------------------
+
+
+# IMPORTANT NOTATION FOR THESE FNS:
+# .Mu: mean of effect sizes, not Z-scores
+# .T2t: total heterogeneity of effect sizes (=T2 + t2w in older notation, or t2a + t2w in newer notation)
+# "T2t" is synonymous with "V" in parameters and results; "Tt" synonymous with "S" in params and results
+
+# ~ Jeffreys prior fns ---------------
+
+# agrees with weightr per "Repurpose TNE code.R"
+# RTMA log-likelihood - now uses TNE version
+# carefully structured for use with Deriv()
+joint_nll_2 = function(.yi,
+                       .sei,
+                       .Mu,
+                       .Tt = NULL,  # allow either parameterization
+                       .T2t = NULL,
+                       .tcrit = rep( qnorm(.975), length(.yi) ) ) {
+  
+  
+  if ( is.null(.T2t) ) .T2t = .Tt^2
+  if ( is.null(.Tt) ) .Tt = sqrt(.T2t)
+  
+  
+  # as in TNE::nll()
+  .dat = data.frame(yi = .yi, sei = .sei, crit = .tcrit)
+  
+  .dat = .dat %>% rowwise() %>%
+    mutate( term1 = dmvnorm(x = as.matrix(yi, nrow = 1),
+                            mean = as.matrix(.Mu, nrow = 1),
+                            # deal with different SEs by just incorporating them into the total variance
+                            sigma = as.matrix(.T2t + sei^2, nrow=1),
+                            log = TRUE),
+            
+            term2 = log( pmvnorm( lower = -99,
+                                  upper = crit * sei,
+                                  mean = .Mu,
+                                  sigma = .T2t + sei^2 ) ),
+            
+            nll.i = -term1 + term2 )
+  
+  
+  nll = sum(.dat$nll.i)
+  
+  # # sanity checks
+  # term1.new = log( dnorm( x = .dat$yi[1],
+  #                         mean = .Mu,
+  #                         sd = sqrt(.T2t + .dat$sei[1]^2) ) )
+  # 
+  # term2.new = log( pnorm( q = .dat$crit[1] * .dat$sei[1],
+  #                         mean = .Mu,
+  #                         sd = sqrt(.T2t + .dat$sei[1]^2) ) ) 
+  # 
+  # expect_equal( as.numeric(.dat$term1[1]), as.numeric(term1.new), tol = 0.001 )
+  # expect_equal( as.numeric(.dat$term2[1]), as.numeric(term2.new), tol = 0.001 )
+  # 
+  # # another sanity check
+  # library(truncnorm)
+  # nll.new = -log( dtruncnorm( x = .dat$yi[1],
+  #                             mean = .Mu,
+  #                             sd = sqrt(.T2t + .dat$sei[1]^2),
+  #                             a = -99,
+  #                             b = .dat$sei[1] * .dat$crit[1] ) )
+  # 
+  # expect_equal( nll.new, as.numeric(.dat$nll.i[1]) , tol = 0.001)
+  
+  # return it
+  return(nll)
+  
+  # from TNE's nll:
+  # term1 = dnorm(x = .x,
+  #               mean = .mu,
+  #               sd = .sigma,  
+  #               log = TRUE)
+  # 
+  # term2 = length(.x) * log( pmvnorm(lower = .a,
+  #                                   upper = .b,
+  #                                   mean = .mu,
+  #                                   # note use of sigma^2 here because of pmvnorm's different parameterization:
+  #                                   sigma = .sigma^2 ) ) 
+}
+
+
+
+# verbatim from TNE
+E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
+  
+  # prevent infinite cutpoints
+  # if either cutpoint is infinite, there are numerical issues because the alpha*Z terms
+  #  below are 0*Inf
+  Za = max( -99, (.a - .mu) / .sigma )
+  Zb = min( 99, (.b - .mu) / .sigma )
+  
+  alpha.a = dnorm(Za) / ( pnorm(Zb) - pnorm(Za) )
+  alpha.b = dnorm(Zb) / ( pnorm(Zb) - pnorm(Za) )
+  
+  k11 = -(.n/.sigma^2) + (.n/.sigma^2)*( (alpha.b - alpha.a)^2 + (alpha.b*Zb - alpha.a*Za) )
+  
+  k12 = -( 2*.n*(alpha.a - alpha.b) / .sigma^2 ) +
+    (.n/.sigma^2)*( alpha.a - alpha.b + alpha.b*Zb^2 - alpha.a*Za^2 +
+                      (alpha.a - alpha.b)*(alpha.a*Za - alpha.b*Zb) )
+  
+  k22 = (.n/.sigma^2) - (3*.n*(1 + alpha.a*Za - alpha.b*Zb) / .sigma^2) +
+    (.n/.sigma^2)*( Zb*alpha.b*(Zb^2 - 2) - Za*alpha.a*(Za^2 - 2) +
+                      (alpha.b*Zb - alpha.a*Za)^2 )
+  
+  return( matrix( c(-k11, -k12, -k12, -k22),
+                  nrow = 2,
+                  byrow = TRUE ) )
+}
+
+
+# important: note that in this fn, critical value is on t/z scale, NOT raw scale
+#  vs. in E_fisher_TNE, .b is on raw scale
+E_fisher_RTMA = function( .sei, .Mu, .Tt, .tcrit = qnorm(0.975) ) {
+  # get expected Fisher info for each observation separately, based on its unique SE
+  # each observation is RTN, so can just use TNE result!!
+  
+  Efish.list = lapply( X = as.list(.sei),
+                       FUN = function(.s) {
+                         E_fisher_TNE( .mu = .Mu,
+                                       .sigma = sqrt(.Tt^2 + .s^2), 
+                                       .n = 1,
+                                       .a = -99,
+                                       .b = .tcrit*.s )
+                       })
+  
+  # add all the matrices entrywise
+  # https://stackoverflow.com/questions/11641701/sum-a-list-of-matrices
+  Efish.all = Reduce('+', Efish.list) 
+  
+  # cat("\nFirst observation Efish:")
+  # print(Efish.list[[1]])
+  
+  return(Efish.all)
+}
+
+# ### Sanity check: Should agree with E_fisher_TNE if all SEs equal
+# n = 10
+# se = 2
+# Mu = 0.1
+# Tt = 2
+# zcrit = 1.96
+# ( Efish1 = E_fisher_RTMA( .sei = rep(se, n),
+#                           .Mu = Mu,
+#                           .Tt = Tt,
+#                           .tcrit = rep(zcrit, n) ) )
+# 
+# ( Efish2 = E_fisher_TNE( .mu = Mu,
+#                          .sigma = sqrt(Tt^2 + se^2),
+#                          .n = n,
+#                          .a = -99,
+#                          .b = zcrit*se ) )
+# expect_equal(Efish1, Efish2)
+# 
+# # c.f.: different SEs but with same mean across studies
+# E_fisher_RTMA( .sei = runif(n = n, min = se - 1, max = se + 1),
+#                .Mu = Mu,
+#                .Tt = Tt,
+#                .tcrit = rep(zcrit, n) )
+
+
+
+lprior = function(.sei, .Mu, .Tt, .tcrit) {
+  Efish = E_fisher_RTMA( .sei = .sei, .Mu = .Mu, .Tt = .Tt, .tcrit = .tcrit )
+  log( sqrt( det(Efish) ) )
+}
+
+
+# with usePrior = FALSE, agrees with weightr per "Repurpose TNE code.R"
+# .pars: (.Mu, .Tt) or (.Mu, .Tt2)
+nlpost_jeffreys_RTMA = function( .pars,
+                                 .par2is = "Tt",  # "Tt" or "T2t"
+                                 .yi,
+                                 .sei,
+                                 .tcrit = qnorm(.975),
+                                 
+                                 # if .usePrior = FALSE, will just be the MLE
+                                 .usePrior = TRUE) {
+  
+  
+  if ( .pars[2] < 0 ) return(.Machine$integer.max)
+  
+  # variance parameterization
+  if (.par2is == "T2t") {
+    Mu = .pars[1]
+    Tt = sqrt(.pars[2])
+  }
+  
+  
+  if (.par2is == "Tt") {
+    Mu = .pars[1]
+    Tt = .pars[2]
+  }
+  
+  
+  
+  # negative log-likelihood
+  # joint_nll_2 uses the TNE version
+  nll.value = joint_nll_2( .yi = .yi,
+                           .sei = .sei,
+                           .Mu = Mu,
+                           .Tt = Tt,
+                           .tcrit = .tcrit )
+  
+  # log-prior
+  # lprior uses the TNE expected Fisher and then just sums over observations
+  if ( .usePrior == TRUE ) {
+    prior.value = lprior(.sei = .sei,
+                         .Mu = Mu,
+                         .Tt = Tt,
+                         .tcrit = .tcrit)
+  } else {
+    prior.value = 0
+  }
+  
+  # negative log-posterior
+  nlp.value = sum(nll.value) + prior.value
+  
+  if ( is.infinite(nlp.value) | is.na(nlp.value) ) return(.Machine$integer.max)
+  
+  return(nlp.value)
+}
+
+
+# ~ Other Helpers ---------------
+
+# taken from TNE 2022-2-26
+get_optimx_dataframe = function( 
+  .method, # "mle" or "jeffreys"
+  x,
+  p,  # scenario parameters
+  par2is,
+  mu.start,
+  sigma.start
+) {
+  
+  
+  
+  
+  
+  ox.methods <- c('Nelder-Mead', 'BFGS', 'CG', 'L-BFGS-B', 'nlm', 'nlminb', 'spg', 'ucminf',
+                  'newuoa', 'bobyqa', 'nmkb', 'hjkb', 'Rcgmin', 'Rvmmin')
+  
+  
+  if ( .method == "mle") {
+    l = optimx( par = c(mu.start, sigma.start),
+                fn = function(..pars) as.numeric( nll( .pars = ..pars,
+                                                       par2is = par2is,
+                                                       .x = x, .a = p$a, .b = p$b ) ),
+                method = ox.methods )
+  }
+  
+  if ( .method == "jeffreys") {
+    l = optimx( par = c(mu.start, sigma.start),
+                fn = function(..pars) as.numeric( nlpost_Jeffreys( .pars = ..pars,
+                                                                   par2is = par2is,
+                                                                   .x = x, .a = p$a, .b = p$b ) ),
+                method = ox.methods )
+  }
+  
+  
+  l$opt.method = row.names(l)
+  
+  # transform second parameter so it's always Shat instead of Vhat
+  if ( par2is == "var" ) { l$p2 = sqrt(l$p2) }
+  
+  l2 = l %>% select(opt.method, p1, p2, convcode, value) 
+  
+  l2 = l2 %>% rename( Mhat = p1, Shat = p2, nll = value )
+  
+  w = pivot_wider(l2, 
+                  names_from = "opt.method",
+                  values_from = c("Mhat", "Shat", "convcode", "nll"),
+                  names_glue = "optimx.{opt.method}.{.value}")
+  
+  
+  if ( length( l$p1[ l$convcode == 0 ] ) > 0 ){
+    
+    # only keep the ones that had values for Mhat, Shat (not ones that didn't even give a value)
+    l = l[ !is.na(l$p1) & !is.na(l$p2), ]
+    
+    #**optimizers that converged AND
+    # had a small gradient (kkt1) AND
+    # had a positive-definite Hessian (kkt2)
+    lc = l[ l$convcode == 0 & l$kkt1 == TRUE & l$kkt2 == TRUE, ]
+    # index of optimizer with the best nll
+    lc.winner.ind = which.min(lc$value)
+    
+    # Mhat.winner is the Mhat of the optimizer with the best nll, OF converged ones
+    Mhat.winner = lc$p1[lc.winner.ind]
+    Shat.winner = lc$p2[lc.winner.ind]
+    
+    # **note that this is the criterion for agreement
+    l$agree.Mhat = abs(l$p1 - Mhat.winner) < 0.01
+    l$agree.Shat = abs(l$p2 - Shat.winner) < 0.01
+    
+    # sanity check: look at differences of non-agreers from Mhat.winner
+    #l$p1[ l$agree.Mhat == FALSE ] - Mhat.winner
+    
+    
+    # get lc again now that we have the agreement indicator
+    lc = l[ l$convcode == 0 & l$kkt1 == TRUE & l$kkt2 == TRUE, ]
+    
+    w$optimx.Mhat.winner = Mhat.winner
+    w$optimx.Pagree.Mhat.winner = sum(l$agree.Mhat)/nrow(l)
+    # proportion of optimizers that converged that agreed with mode:
+    w$optimx.Pagree.of.convergers.Mhat.winner = sum(lc$agree.Mhat)/nrow(lc)
+    w$optimx.Mhat.agreers = paste( l$opt.method[ l$agree.Mhat == TRUE ], collapse = " ")
+    
+    w$optimx.Shat.winner = Shat.winner
+    w$optimx.Pagree.Shat.winner = sum(l$agree.Shat)/nrow(l)
+    w$optimx.Pagree.of.convergers.Shat.winner = sum(lc$agree.Shat)/nrow(lc)
+    w$optimx.Shat.agreers = paste( l$opt.method[ l$agree.Shat == TRUE ], collapse = " ")
+    
+  } else {
+    w$optimx.Mhat.winner = NA
+    w$optimx.Pagree.Mhat.winner = NA
+    w$optimx.Pagree.of.convergers.Mhat.winner = NA
+    w$optimx.Mhat.agreers = NA
+    
+    w$optimx.Shat.winner = NA
+    w$optimx.Pagree.of.convergers.Shat.winner = NA
+    w$optimx.Pagree.Shat.winner = NA
+    w$optimx.Shat.agreers = NA
+  }
+  
+  return(w)
+} 
 
 
 # ANALYSIS FNS ---------------------------------------------------------------
@@ -2446,7 +2526,8 @@ sbatch_skeleton <- function() {
 #SBATCH --cpus-per-task=CPUS_PER_TASK
 #now run normal batch commands
 
-ml load R/4.0.2
+ml load v8
+ml load R/4.1.2
 R -f PATH_TO_R_SCRIPT ARGS_TO_R_SCRIPT")
 }
 
