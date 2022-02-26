@@ -39,27 +39,38 @@ lapply( allPackages,
 # 2. Nmax > 1, k.hacked = 0, rho = 0.9 
 # 3. Nmax > 1, k.hacked = 50, rho = 0 or 0.9 (conservative?)
 
-scen.params = expand_grid( Mu = 0.1,
-                           T2 = c(0, 0.25),
-                           m = 500,
-                           t2w = c(0, 0.25),
-                           se = 0.5,
-                           
-                           Nmax = c(10, 1),
-                           hack = "affirm2",
-                           rho = c(0, 0.9),
-                           
-                           k = 800,
-                           k.hacked = c(0, 800) )
 
-# hold constant the number of UNHACKED studies to 800
-scen.params$k[ scen.params$k.hacked == 800 ] = 800*2
-table(scen.params$k, scen.params$k.hacked)
+scen.params = tidyr::expand_grid( rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var",
+                                      
+                                      # args from sim_meta_2
+                                      Nmax = 10,
+                                      Mu = 0.1,
+                                      t2a = 0.25,
+                                      t2w = 0.25,
+                                      m = 50,
+                                      true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
+                                      hack = "affirm",
+                                      rho = 0,
+                                      k.pub.nonaffirm = 50,
+                                      prob.hacked = 0.2,
+                                      
+                                      # Stan control args
+                                      stan.maxtreedepth = 20,
+                                      stan.adapt_delta = 0.98,
+                                      
+                                      get.CIs = TRUE )
 
-# remove nonsense combinations
-# rho > 0 is pointless if there's only 1 draw
-scen.params = scen.params %>% dplyr::filter( !(rho > 0 & Nmax == 1) )
 
+# # OLD - Do I still need these?
+# # hold constant the number of UNHACKED studies to 800
+# scen.params$k[ scen.params$k.hacked == 800 ] = 800*2
+# table(scen.params$k, scen.params$k.hacked)
+# 
+# # remove nonsense combinations
+# # rho > 0 is pointless if there's only 1 draw
+# scen.params = scen.params %>% dplyr::filter( !(rho > 0 & Nmax == 1) )
+
+# add scen numbers
 scen.params = scen.params %>% add_column( scen = 1:nrow(scen.params),
                                           .before = 1 )
 
@@ -78,8 +89,8 @@ write.csv( scen.params, "scen_params.csv", row.names = FALSE )
 source("helper_SAPH.R")
 
 # number of sbatches to generate (i.e., iterations within each scenario)
-n.reps.per.scen = 500  
-n.reps.in.doParallel = 5  #@update these
+n.reps.per.scen = 1  
+n.reps.in.doParallel = 1  #@update these
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
@@ -92,15 +103,11 @@ errorfile = paste("rm_", 1:n.files, ".err", sep="")
 write_path = paste(path, "/sbatch_files/", 1:n.files, ".sbatch", sep="")
 runfile_path = paste(path, "/testRunFile.R", sep="")
 
-# time with k = 100, reps.in.doParallel = 100:
-# > summary(t$doParallelMin)
-# Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
-# 0.03563  0.06377  0.68358  1.46078  0.99570 78.15405 
 
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "5:00:00",  #@update this
+                            jobtime = "00:15:00",  #@update this
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -123,7 +130,7 @@ n.files
 # max hourly submissions seems to be 300, which is 12 seconds/job
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 11:2400) {
+for (i in 1:1) {
   #system( paste("sbatch -p owners /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
   #Sys.sleep(2)  # delay in seconds
