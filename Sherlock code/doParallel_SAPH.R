@@ -116,9 +116,9 @@ if (run.local == FALSE) {
   # setwd(path)
   # source("helper_SAPH.R")
   # scen.params = data.frame(scen = 1,
-  #                          
+  # 
   #                          rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var",
-  #                          
+  # 
   #                          # args from sim_meta_2
   #                          Nmax = 10,
   #                          Mu = 0.1,
@@ -130,12 +130,13 @@ if (run.local == FALSE) {
   #                          rho = 0,
   #                          k.pub.nonaffirm = 50,
   #                          prob.hacked = 0.2,
-  #                          
+  # 
   #                          # Stan control args
   #                          stan.maxtreedepth = 20,
   #                          stan.adapt_delta = 0.98,
-  #                          
-  #                          get.CIs = TRUE)
+  # 
+  #                          get.CIs = TRUE,
+  #                          run.optimx = TRUE)
   # scen = 1
   
   # locally, with total k = 100, Nmax = 10, and sim.reps = 250, took 93 min total
@@ -143,7 +144,7 @@ if (run.local == FALSE) {
   
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
-  sim.reps = 1  #@update this 
+  sim.reps = 100  #@update this 
   
   
   # set the number of cores
@@ -164,7 +165,7 @@ if ( run.local == TRUE ) {
   
   
   # helper fns
-  code.dir = here()
+  code.dir = here("Sherlock code")
   setwd(code.dir)
   source("helper_SAPH.R")
   
@@ -174,7 +175,8 @@ if ( run.local == TRUE ) {
   # naive ; gold-std ; 2psm ; maon ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
   scen.params = data.frame(scen = 1,
                            
-                           rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-sd ; mle-sd ; mle-var",
+                           rep.methods = "jeffreys-sd ; mle-sd",
+                           #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-sd ; mle-sd ; mle-var",
                            
                            # args from sim_meta_2
                            Nmax = 10,
@@ -192,7 +194,8 @@ if ( run.local == TRUE ) {
                            stan.maxtreedepth = 20,
                            stan.adapt_delta = 0.98,
                            
-                           get.CIs = TRUE)
+                           get.CIs = TRUE,
+                           run.optimx = TRUE)
   
   
   
@@ -215,10 +218,6 @@ if ( run.local == TRUE ) {
 # RUN SIMULATION ------------------------------
 
 if ( exists("rs") ) rm(rs)
-
-#for ( scen in scen.params$scen.name ) {  # can't use this part on the cluster
-
-
 
 # ~~ Beginning of ForEach Loop -----------------------------
 
@@ -444,7 +443,9 @@ doParallel.seconds = system.time({
                                                                               par2.start = Shat.start,
                                                                               usePrior = TRUE,
                                                                               get.CIs = p$get.CIs,
-                                                                              CI.method = "wald"),
+                                                                              CI.method = "wald",
+                                                                              
+                                                                              run.optimx = p$run.optimx),
                                 .rep.res = rep.res )
       
       Mhat.MAP = rep.res$Mhat[ rep.res$method == "jeffreys-sd" ]
@@ -474,7 +475,8 @@ doParallel.seconds = system.time({
                                                                               par2.start = Shat.start,
                                                                               usePrior = FALSE,
                                                                               get.CIs = p$get.CIs,
-                                                                              CI.method = "wald"),
+                                                                              CI.method = "wald",
+                                                                              run.optimx = p$run.optimx),
                                 .rep.res = rep.res )
       
       
@@ -494,7 +496,8 @@ doParallel.seconds = system.time({
                                                                               par2.start = Shat.start^2,
                                                                               usePrior = FALSE,
                                                                               get.CIs = p$get.CIs,
-                                                                              CI.method = "wald"),
+                                                                              CI.method = "wald",
+                                                                              run.optimx = p$run.optimx),
                                 .rep.res = rep.res )
       
       

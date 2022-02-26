@@ -1,3 +1,0 @@
-methName,dp.k,dp.kAffirm,dp.kNonaffirm,MhatAll,MhatCoverAll,MhatNaive,MhatCoverNaive,MhatCorr,MhatCoverCorr,Mhat.UH,T2.UH,meanHackedExp,meanHackedExpTrue,yiMeanAssumedHacked,yiCorrMeanAssumedHacked,yiMeanAssumedUnhacked,viMeanAssumedHacked
-allAffirms,49.03,24.46,24.57,1,0.95,1.59,0.06,0.62,0.14,0.62,0.01,2.51,2.56,2.54,0.65,0.64,0.94
-omniscient,49.03,24.46,24.57,1,0.95,1.59,0.06,0.96,0.81,0.99,0.22,2.56,2.56,2.53,0.96,0.98,0.94

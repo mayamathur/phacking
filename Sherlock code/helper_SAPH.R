@@ -53,7 +53,9 @@ estimate_jeffreys_RTMA = function( yi,
                                    
                                    usePrior = TRUE,
                                    get.CIs,
-                                   CI.method = "wald" ) {
+                                   CI.method = "wald",
+                                   
+                                   run.optimx = FALSE ) {
   
   # #bm
   # #@TEST ONLY
@@ -69,14 +71,14 @@ estimate_jeffreys_RTMA = function( yi,
   # CI.method = "wald"
   
   
-  # ~~ Get MAP by Calling mle ----
+  # ~~ Get MAP or MLE by Calling mle ----
   # IMPORTANT: This fn cannot be moved outside the scope of estimate_jeffreys
   #  because mle() is too dumb to allow extra args (e.g., x) to be passed,
   #  so it's forced to rely on global vars
   #  and that's a problem with a doParallel loop
   #  if this fn is outside estimate_jeffreys, different parallel iterations will use each other's global vars
   
-  # ~~ Get MLE with Main Optimizer ----
+  # ~~ Get MAP or MLE with Main Optimizer ----
   #  expects yi, sei, and tcrit to be global vars (wrt this inner fn)
   # second parameter could be Tt or T2t depending on par2is argument above
   nlpost_simple_RTMA = function(.Mu, .par2) {
@@ -91,9 +93,6 @@ estimate_jeffreys_RTMA = function( yi,
   
   if ( usePrior == FALSE ) main.optimizer = "BFGS" else main.optimizer = "Nelder-Mead"
   
-  #**important: force use of Nelder-Mead optimization, which works better for Jeffreys
-  #  (even though BFGS works better for MLE)
-  # for more on this issue, see "2021-9-23 SD vs. var redux with Jeffreys.R"
   mle.obj = mle( minuslogl = nlpost_simple_RTMA,
                  start = list( .Mu = Mu.start, .par2 = par2.start),
                  method = main.optimizer )
@@ -101,9 +100,6 @@ estimate_jeffreys_RTMA = function( yi,
   
   # not actually MLEs, of course, but rather MAPs
   mles = as.numeric(coef(mle.obj))
-  
-  # here could pull in TNE code to run optimx
-  # see call to get_optimx_dataframe() inside estimate_mle() 
   
   # THIS BEHAVES WELL
   if ( par2is == "Tt" ) {
@@ -122,7 +118,21 @@ estimate_jeffreys_RTMA = function( yi,
   
   # recode convergence more intuitively
   # optim uses "0" to mean successful convergence
+  #@DOESN'T YET HAVE CRITERIA ABOUT KKT, ETC.
   optim.converged = attr(mle.obj, "details")$convergence == 0 
+  
+  # ~~ Try Other Optimizers ----
+  
+  if ( run.optimx == TRUE ) {
+    w = get_optimx_dataframe(.yi = yi,
+                             .sei = sei,
+                             .tcrit = tcrit,
+                             .usePrior = usePrior,
+                             .par2is = par2is,
+                             .Mu.start = Mu.start,
+                             .par2.start = par2.start )
+  }
+
   
   # ~~ Inference ----
   # in case someone passes a set of params that aren't handled
@@ -154,19 +164,24 @@ estimate_jeffreys_RTMA = function( yi,
     warning("That CI.method isn't handled yet")
   }
   
-  return( list( stats = data.frame( Mhat = MuHat, 
-                                    Shat = TtHat,
-                                    
-                                    MhatSE = SEs[1],
-                                    ShatSE = SEs[2],
-                                    
-                                    MLo = as.numeric(los[1]),
-                                    MHi = as.numeric(his[1]),
-                                    
-                                    SLo = as.numeric(los[2]),
-                                    SHi = as.numeric(his[2]),
-                                    
-                                    optim.converged = optim.converged ) ) )
+  stats = data.frame( Mhat = MuHat, 
+                      Shat = TtHat,
+                      
+                      MhatSE = SEs[1],
+                      ShatSE = SEs[2],
+                      
+                      MLo = as.numeric(los[1]),
+                      MHi = as.numeric(his[1]),
+                      
+                      SLo = as.numeric(los[2]),
+                      SHi = as.numeric(his[2]),
+                      
+                      optim.converged = optim.converged )
+  
+
+  if ( run.optimx == TRUE ) stats = bind_cols(stats, w)
+  
+  return( list( stats = stats ) )
 }
 
 
@@ -451,8 +466,8 @@ return( list( stats = data.frame(
 
 # nicely report a metafor or robumeta object with optional suffix to denote which model
 report_meta = function(.mod,
-                      .mod.type = "rma",  # "rma" or "robu"
-                      .suffix = "") {
+                       .mod.type = "rma",  # "rma" or "robu"
+                       .suffix = "") {
   
   if ( !is.null(.mod) ) {
     
@@ -468,9 +483,9 @@ report_meta = function(.mod,
                          tau.CI[2] )
     } 
     
-
+    
     if ( .mod.type == "robu" ) {
-
+      
       .res = data.frame( .mod$b.r,
                          .mod$reg_table$CI.L,
                          .mod$reg_table$CI.U,
@@ -479,7 +494,7 @@ report_meta = function(.mod,
                          NA,
                          NA )
     } 
- 
+    
   } else {
     .res = data.frame( rep(NA, 6) )
   }
@@ -872,44 +887,31 @@ nlpost_jeffreys_RTMA = function( .pars,
 # ~ Other Helpers ---------------
 
 # taken from TNE 2022-2-26
-get_optimx_dataframe = function( 
-  .method, # "mle" or "jeffreys"
-  x,
-  p,  # scenario parameters
-  par2is,
-  mu.start,
-  sigma.start
-) {
-  
-  
-  
+get_optimx_dataframe = function( .yi,
+                                 .sei,
+                                 .tcrit,
+                                 .usePrior,
+                                 .par2is,
+                                 .Mu.start,
+                                 .par2.start ) {
   
   
   ox.methods <- c('Nelder-Mead', 'BFGS', 'CG', 'L-BFGS-B', 'nlm', 'nlminb', 'spg', 'ucminf',
                   'newuoa', 'bobyqa', 'nmkb', 'hjkb', 'Rcgmin', 'Rvmmin')
-  
-  
-  if ( .method == "mle") {
-    l = optimx( par = c(mu.start, sigma.start),
-                fn = function(..pars) as.numeric( nll( .pars = ..pars,
-                                                       par2is = par2is,
-                                                       .x = x, .a = p$a, .b = p$b ) ),
-                method = ox.methods )
-  }
-  
-  if ( .method == "jeffreys") {
-    l = optimx( par = c(mu.start, sigma.start),
-                fn = function(..pars) as.numeric( nlpost_Jeffreys( .pars = ..pars,
-                                                                   par2is = par2is,
-                                                                   .x = x, .a = p$a, .b = p$b ) ),
-                method = ox.methods )
-  }
-  
+
+  l = optimx( par = c(.Mu.start, .par2.start),
+              fn = function(..pars) as.numeric( nlpost_jeffreys_RTMA( .pars = ..pars,
+                                                                      .par2is = .par2is,
+                                                                      .yi = .yi,
+                                                                      .sei = .sei,
+                                                                      .tcrit = .tcrit,
+                                                                      .usePrior = .usePrior ) ),
+              method = ox.methods )
   
   l$opt.method = row.names(l)
   
   # transform second parameter so it's always Shat instead of Vhat
-  if ( par2is == "var" ) { l$p2 = sqrt(l$p2) }
+  if ( .par2is == "T2t" ) { l$p2 = sqrt(l$p2) }
   
   l2 = l %>% select(opt.method, p1, p2, convcode, value) 
   
@@ -2141,7 +2143,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
     d$Di = 0
     d$Di[ length(d$Di) ] = 1
   }
-
+  
   if ( return.only.published == TRUE ) d = d[ d$Di == 1, ]
   
   return(d)

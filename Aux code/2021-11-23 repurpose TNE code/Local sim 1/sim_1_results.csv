@@ -1,6 +1,0 @@
-methName,MhatAll,MhatLoAll,MhatHiAll,MhatCoverAll,MhatPvalAll,MhatNaive,MhatLoNaive,MhatHiNaive,MhatCoverNaive,MhatPvalNaive,MhatCorr,MhatLoCorr,MhatHiCorr,MhatCoverCorr,VhatCorr
-AllNonaffirms,0.1,-0.07,0.27,0.94,0.34,0.1,-0.07,0.27,0.94,0.34,0.11,-0.24,0.46,0.94,0.51
-jeffreys-mode-sd,0.1,-0.07,0.27,0.94,0.34,0.1,-0.07,0.27,0.94,0.34,5.79,,,,6.16
-jeffreys-mode-var,0.1,-0.07,0.27,0.94,0.34,0.1,-0.07,0.27,0.94,0.34,5.8,,,,6.17
-mle-sd,0.1,-0.07,0.27,0.94,0.34,0.1,-0.07,0.27,0.94,0.34,0.11,,,,0.5
-mle-var,0.1,-0.07,0.27,0.94,0.34,0.1,-0.07,0.27,0.94,0.34,0.11,,,,0.5

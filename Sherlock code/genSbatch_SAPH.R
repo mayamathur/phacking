@@ -89,8 +89,8 @@ write.csv( scen.params, "scen_params.csv", row.names = FALSE )
 source("helper_SAPH.R")
 
 # number of sbatches to generate (i.e., iterations within each scenario)
-n.reps.per.scen = 1  
-n.reps.in.doParallel = 1  #@update these
+n.reps.per.scen = 1000  
+n.reps.in.doParallel = 100  #@update these
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
@@ -107,7 +107,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "00:15:00",  #@update this
+                            jobtime = "02:00:00",  #@update this
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -132,14 +132,10 @@ n.files
 # max hourly submissions seems to be 300, which is 12 seconds/job
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:1) {
-  #system( paste("sbatch -p owners /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
+for (i in 1:10) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
-  #Sys.sleep(2)  # delay in seconds
 }
 
-# run just one job in shell
-sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
 
 
