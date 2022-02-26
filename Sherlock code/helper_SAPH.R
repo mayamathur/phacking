@@ -1296,7 +1296,7 @@ run_method_safe = function( method.label,
 # run_method_safe( method = "mle",
 #                  method.fn = function() estimate_mles(x = x, get.CIs = TRUE ) )
 
-# #### Sanity checks ####
+# #### Sanity checks
 # # fake method for estimating the moments, but it breaks if x<0 or x>5
 # crappy_method = function(x) {
 #   if ( x > 0 & x < 5 ) return( list(Mhat = x+1,
