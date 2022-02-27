@@ -175,7 +175,7 @@ if ( run.local == TRUE ) {
   # naive ; gold-std ; 2psm ; maon ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
   scen.params = data.frame(scen = 1,
                            
-                           rep.methods = "jeffreys-sd ; mle-sd",
+                           rep.methods = "jeffreys-sd ; jeffreys-var ; mle-sd",
                            #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-sd ; mle-sd ; mle-var",
                            
                            # args from sim_meta_2
@@ -450,6 +450,33 @@ doParallel.seconds = system.time({
       
       Mhat.MAP = rep.res$Mhat[ rep.res$method == "jeffreys-sd" ]
       Shat.MAP = rep.res$Shat[ rep.res$method == "jeffreys-sd" ]
+    }
+    
+    
+    # ~~ MAP (Var param) ------------------------------
+    
+    if ( "jeffreys-var" %in% all.methods ) {
+      # # temp for refreshing code
+      # path = "/home/groups/manishad/SAPH"
+      # setwd(path)
+      # source("helper_SAPH.R")
+      
+      rep.res = run_method_safe(method.label = c("jeffreys-var"),
+                                method.fn = function() estimate_jeffreys_RTMA(yi = dpn$yi,
+                                                                              sei = sqrt(dpn$vi),
+                                                                              par2is = "T2t",
+                                                                              tcrit = dpn$tcrit, 
+                                                                              Mu.start = Mhat.start,
+                                                                              par2.start = Shat.start^2,
+                                                                              usePrior = TRUE,
+                                                                              get.CIs = p$get.CIs,
+                                                                              CI.method = "wald",
+                                                                              
+                                                                              run.optimx = p$run.optimx),
+                                .rep.res = rep.res )
+      
+      Mhat.MAP = rep.res$Mhat[ rep.res$method == "jeffreys-var" ]
+      Shat.MAP = rep.res$Shat[ rep.res$method == "jeffreys-var" ]
     }
     
     # ~~ Change Starting Values -----

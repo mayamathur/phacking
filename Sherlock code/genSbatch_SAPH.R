@@ -41,7 +41,7 @@ lapply( allPackages,
 
 
 scen.params = tidyr::expand_grid( 
-  rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var",
+  rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var",
                                   
                                   # args from sim_meta_2
                                   Nmax = 10,
