@@ -1,9 +1,12 @@
 
+# PRELIMINARIES ----------------------------------------------------
 
-# PRELIMINARIES --------------------------------------------
+#rm(list=ls())
 
 # data-wrangling packages
+library(here)
 library(dplyr)
+library(tibble)
 library(ggplot2)
 library(data.table)
 library(tidyverse)
@@ -14,107 +17,130 @@ library(robumeta)
 # other
 library(xtable)
 library(testthat)
-
-setwd(here())
-source("analyze_sims_helper_SAPH.R")
-
-setwd(here("*2021-5-17 nonaffirm MLEs with large k and affirm2 hacking"))
-s = fread("stitched.csv")
-
-length(unique(s$scenName))
-
-# check reps run vs. expected
-expect_equal( unique(table(s$scenName)), 500 )
+library(Deriv)
+library(mosaic)
+library(hpa)
+library(pracma)
+library(truncnorm)
+library(tmvtnorm)
+library(RColorBrewer)
 
 
+# ~~ Set global vars needed throughout -------------------------
+# no sci notation
+options(scipen=999)
 
-paramVars = names(s)[ 1 : ( which( names(s) == "MhatAll" ) - 1 ) ]
-( paramVars = paramVars[ !paramVars %in% c("V1", "scenName", "repName") ] )
+# control which results should be redone and/or overwritten
+redo.plots = TRUE
+redo.contour.plot = FALSE
 
-outcomeVars = names(s)[ which( names(s) == "MhatAll") : length(names(s)) ]
-( outcomeVars = outcomeVars[ !outcomeVars %in% c("repSeconds") ] )
-  
-# non-parameter vars to keep only first entry per scenario because static
-firstOnly = "scenName"
+# variables that define the scenarios (though some aren't actually manipulated, like stan.iter)
+param.vars = c("unique.scen",  
+               "method",
+               "boot.reps",
+               "stan.iter",
+               "stan.adapt_delta",
+               "stan.maxtreedepth",
+               "trunc.type",
+               "prop.retained",
+               "mu",
+               "V",
+               "n")
 
-# sanity check:
-# make sure we listed all the param vars
-t = s %>% group_by_at(paramVars) %>%
-  summarise( scenName = scenName[1],
-             reps = n(),
-             .groups = "keep" )
-# 500 such that each scenario is uniquely defined by the param vars
-expect_equal( unique(t$reps), 500 )
+# used later to create plots and tables, but needed to check var types 
+#  upon reading in data
+estNames = c("Mhat", "Shat")
 
-# if some scenarios timed out, might have fewer than 500 reps
-table(t$reps)
+outcomeNames = c("Bias", "RMSE", "EmpSE", "EstFail",
+                 "Cover", "Width", "CIFail", "Rhat")
 
-
-
-
-# AGGREGATE  --------------------------------------------
-
-
-# aggregate by scenario
-agg = s %>% 
-  
-  # take just first entry of non-parameter variables that are static within scenarios
-  group_by_at(paramVars) %>%
-  mutate_at( firstOnly, 
-             function(x) x[1] ) %>%
-  
-  #group_by(calib.method.pretty) %>%
-  group_by_at(paramVars) %>%
-  summarise_at( .vars = outcomeVars,
-                .funs = meanNA )
+# choose methods to show in main text (all others will only be in Supplement) 
+mainTextEstMethods = c("Jeffreys mode", "MLE")  
+mainTextInfMethods = c("Jeffreys posterior quantiles", "MLE Wald", "MLE profile")  
 
 
-# I expect k.hacked scenarios to be unbiased
-# order from smallest to largest corrected estimate
-View( agg[ order(agg$MhatCorr), ] )
+# ~~ Set directories -------------------------
+code.dir = here("Sherlock code")
 
-agg %>% group_by( k.hacked, T2, t2w ) %>%
-  summarise( MhatAll = meanNA(MhatAll),
-             MhatCorr = meanNA(MhatCorr),
-             MhatCoverCorr = meanNA(MhatCoverCorr) )
+# SAVE: general data and results directories
+# data.dir and results.dir need to be saved outside what here() considers the top-level dir
+#  because too big for git
+# data.dir = paste( str_remove( string = here(),
+#                               pattern = "Git/Code" ),
+#                   "Sherlock simulation results/Stitched data",
+#                   sep = "" )
+# results.dir = paste( str_remove( string = here(),
+#                                  pattern = "Git/Code" ),
+#                      "Sherlock simulation results/Analysis output",
+#                      sep = "" )
 
-#@ONLY FOR CERTAIN SIMS:
-# remove MhatAll and MhatNaive because they were too computationally costly
-if ( all( is.na(s$MhatAll) ) ) agg = agg[ , !grepl( pattern = "All", names(agg) ) ]
-if ( all( is.na(s$MhatNaive) ) ) agg = agg[ , !grepl( pattern = "Naive", names(agg) ) ]
+# directories specific to this simulation run
+#@ PREVIOUS FULL SIMS:
+# data.dir = paste( str_remove( string = here(),
+#                               pattern = "Git/Code" ),
+#                   "Sherlock simulation results/All simulations in manuscript/*2021-10-10 full sims (5K) with all scens/Data/Prepped data",
+#                   sep = "" )
+# results.dir = paste( str_remove( string = here(),
+#                                  pattern = "Git/Code" ),
+#                      "Sherlock simulation results/All simulations in manuscript/*2021-10-10 full sims (5K) with all scens/Results",
+#                      sep = "" )
 
-fwrite(agg, "agg.csv")
+# NEW FULL SIMS:
+data.dir = paste( str_remove( string = here(),
+                              pattern = "Git/Code" ),
+                  "Sherlock simulation results/All simulations in manuscript/2021-11-11 full sims with all scens/Data/Prepped data",
+                  sep = "" )
+results.dir = paste( str_remove( string = here(),
+                                 pattern = "Git/Code" ),
+                     "Sherlock simulation results/All simulations in manuscript/2021-11-11 full sims with all scens/Results",
+                     sep = "" )
 
-# rounded version
-aggRounded = agg %>% mutate_at( .vars = outcomeVars,
-                                .fun = function(x) round(x,2) )
-fwrite(aggRounded, "agg_rounded.csv")
+#@CHANGED TO TEMP DIR TO PRESERVE THE EXISTING STATS_FOR_PAPER.CSV
+overleaf.dir.general = "/Users/mmathur/Dropbox/Apps/Overleaf/TNE (truncated normal estimation)/R_objects"
+overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/TNE (truncated normal estimation)/R_objects/figures"
+
+setwd(code.dir)
+source("helper_TNE.R")
 
 
-# reminder from genSbatch:
-#
-# main scenarios of interest:
-# 1. Nmax = 1, k.hacked = 0, rho = 0 (basically a sanity check)
-# 2. Nmax > 1, k.hacked = 0, rho = 0.9 
-# 3. Nmax > 1, k.hacked = 50, rho = 0 or 0.9 (conservative?)
-# 
-# scen.params = expand_grid( Mu = 0.1,
-#                            T2 = c(0, 0.25),
-#                            m = 500,
-#                            t2w = c(0, 0.25),
-#                            se = 0.5,
-#                            
-#                            Nmax = c(1, 10),
-#                            hack = "affirm",
-#                            rho = c(0, 0.9),
-#                            
-#                            k = 100,
-#                            k.hacked = c(0, 50) )
-# 
-# # remove nonsense combinations
-# # rho > 0 is pointless if there's only 1 draw
-# scen.params = scen.params %>% dplyr::filter( !(rho > 0 & Nmax == 1) )
-# 
-# scen.params = scen.params %>% add_column( scen = 1:nrow(scen.params),
-#                                           .before = 1 )
+# ~~ Get aggregated data -------------------------
+setwd(data.dir)
+agg = fread("agg_dataset_clean.csv")
+# check when the dataset was last modified to make sure we're working with correct version
+file.info("agg_dataset_clean.csv")$mtime
 
+# sanity checks
+expect_equal( nuni(agg$scen.name), 437 )
+
+
+##@check for var type problems for all variables in estNames, outcomeNames
+
+# temporary fixes for columns with values that are outside machine precision:
+#  https://stackoverflow.com/questions/21752121/fread-from-data-table-package-cant-read-small-numbers
+agg$ShatRMSE = as.numeric(agg$ShatRMSE)
+agg$MhatRMSE = as.numeric(agg$MhatRMSE)
+
+# # if combining separate Sherlock runs
+# agg = bind_rows( fread("*2021-7-28 agg_dataset.csv"),  # mle and boot-mle
+#                  fread("*2021-8-1 agg_dataset.csv"), # trunc-SP
+#                  fread("*2021-8-8 agg_dataset.csv"), )  # jeffreys, boot-jeffreys, mle again
+
+
+
+# ~~ Get iterate-level data -------------------------
+
+# use the small iterate-level data (fewer unique n and prop.retained) to 
+#  make local manipulations computationally feasible
+
+# this retains 14% of all iterates as follows (from stitch_on_sherlock.R):
+# s.small = s %>% filter( prop.retained %in% c(0.1, 0.3, 0.5, 0.9) &
+#                             n %in% c(10, 50, 80, 500, 1000) )
+
+
+setwd(data.dir)
+# check when the dataset was last modified to make sure we're working with correct version
+s.small = fread( "stitched_small_subset.csv")
+file.info("stitched_small_subset.csv")$mtime
+
+# based on its dimensions on 2021-11-11
+expect_equal(nrow(s.small), 2194986)

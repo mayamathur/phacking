@@ -92,7 +92,7 @@ source("helper_SAPH.R")
 
 # number of sbatches to generate (i.e., iterations within each scenario)
 n.reps.per.scen = 1000  
-n.reps.in.doParallel = 100  #@update these
+n.reps.in.doParallel = 10  #@update these
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
@@ -106,10 +106,11 @@ write_path = paste(path, "/sbatch_files/", 1:n.files, ".sbatch", sep="")
 runfile_path = paste(path, "/testRunFile.R", sep="")
 
 
+# 2022-2-27: timing benchmark: with all methods and sim.reps = 1, took 2.5 min
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "02:00:00",  #@update this
+                            jobtime = "01:00:00",  #@update this
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
