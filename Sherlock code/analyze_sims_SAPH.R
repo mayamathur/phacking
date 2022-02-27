@@ -62,7 +62,7 @@ code.dir = here("Sherlock code")
 data.dir = str_replace( string = here(),
                         pattern = "Code \\(git\\)",
                         replacement = "Sherlock simulation results/Pilot simulations/2022-2-27 one scen" )
-                  
+
 results.dir = str_replace( string = here(),
                            pattern = "Code \\(git\\)",
                            replacement = "Sherlock simulation results/Pilot simulations/2022-2-27 one scen" )
@@ -123,14 +123,27 @@ s %>% group_by(method) %>%
 
 agg = make_agg_data(s)
 
+
+# ~~ Main results -------------------------
+
 # look at just certain cols
 t = agg %>% select(method, 
-               all_of(names_with(agg, "Mhat")) ) %>%
+                   sim.reps.actual,
+                   all_of(names_with(agg, "Mhat")) ) %>%
   mutate_if(is.numeric, function(x) round(x,2))
 
 View(t)
 
 
+# ~~ Look at sanity checks -------------------------
+
+# scenario diagnostics for scenario
+agg.checks = agg %>% select( 
+  all_of(names_with(agg, "sancheck.")) ) %>%
+  mutate_if(is.numeric, function(x) round(x,2))
+
+
+t(agg.checks)
 
 
 

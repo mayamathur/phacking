@@ -134,7 +134,6 @@ make_agg_data = function( .s,
   toDrop = c("rep.methods",
              "get.CIs",
              "error",
-             "sim.reps",  # this is the INTENDED sim.reps, so confusing to retain it
              "rep.name",
              "doParallel.seconds",
              "optim.converged",
@@ -173,7 +172,7 @@ make_agg_data = function( .s,
     #   for the ones that are already static within scenario
     group_by_at(param.vars) %>%
     
-    mutate( sim.reps = n(),
+    mutate( sim.reps.actual = n(),
             
             # varies within scenario
             MhatBias = Mhat - Mu,
