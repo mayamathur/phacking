@@ -652,12 +652,19 @@ doParallel.seconds = system.time({
     # under worst-case hacking, should be 0
     ( sancheck.prob.published.nonaffirm.is.hacked = mean( dp$hack[ dp$affirm == 0 ] != "no" ) )
     
+    # average yi's 
+    
     rep.res = rep.res %>% add_column(   sancheck.dp.k = nrow(dp),
                                         sancheck.dp.k.affirm = sum(dp$affirm == TRUE),
                                         sancheck.dp.k.nonaffirm = sum(dp$affirm == FALSE),
                                         
                                         # means draws per HACKED, published study
-                                        dp.meanN.hacked = mean( dp$N[dp$hack == "affirm"] ),
+                                        sancheck.dp.meanN.hacked = mean( dp$N[dp$hack != "no"] ),
+                                        
+                                        # average yi's of published draws from each study type
+                                        sancheck.prob.hacked.pub.study.affirm = mean( dp$affirm[ dp$hack != "no"] ),
+                                        sancheck.prob.unhacked.pub.study.affirm = mean( dp$affirm[ dp$hack == "no"] ),
+                                        
                                         
                                         sancheck.prob.ustudies.published = sancheck.prob.ustudies.published,
                                         sancheck.prob.unhacked.ustudies.published = sancheck.prob.unhacked.ustudies.published,

@@ -2027,10 +2027,10 @@ sim_meta = function(Nmax,  # max draws to try
 
 # hack options:
 #  - "no": no hacking (report all Nmax results)
-#  - "affirm": hack until you get an affirmative result or you reach Nmax,
+#  - "affirm": (worst-case hacking): hack until you get an affirmative result or you reach Nmax,
 #    but if you reach Nmax, do NOT report any result at all
 #  - "signif": similar to "affirm", but hack to significance
-#  - "affirm2": similar to "affirm", but you always report the last draw, even
+#  - "affirm2": (NOT worst-case hacking): similar to "affirm", but you always report the last draw, even
 #    if it was nonaffirm (no file drawer)
 
 # NOTE: If you add args here, need to update quick_sim as well
