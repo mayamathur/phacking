@@ -1265,7 +1265,14 @@ run_method_safe = function( method.label,
   
   tryCatch({
     
-    new.rows = method.fn()$stats
+    method.output = method.fn()
+    new.rows = method.output$stats
+    
+    if ( !exists("new.rows") ) {
+      cat("\n\n**** Object new.rows didn't exist for method", method.label)
+      cat("\nHere is method.output:\n")
+      print(method.output)
+    }
     
     cat( paste("\n run_method_safe flag 2: done calling method.fn() for", method.label) )
     
@@ -1277,7 +1284,7 @@ run_method_safe = function( method.label,
     
     # only need one variable in the blank dataframe since bind_rows below
     #  will fill in the rest
-    new.rows = data.frame( method = method.label )
+    new.rows <<- data.frame( method = method.label )
     
   })
   

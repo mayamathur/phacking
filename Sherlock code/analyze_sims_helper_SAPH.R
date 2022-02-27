@@ -13,6 +13,12 @@ make_agg_data = function( .s,
                           badCoverageCutoff = 0.85,
                           expected.sim.reps = NA ){
   
+  # # TEST ONLY
+  # .s = s
+  # .averagefn = "median",
+  # badCoverageCutoff = 0.85,
+  # expected.sim.reps = NA
+  
   
   # make unique scenario variable, defined as scen.name AND method
   if ( !"unique.scen" %in% names(.s) ) .s$unique.scen = paste(.s$scen.name, .s$method)
@@ -21,14 +27,10 @@ make_agg_data = function( .s,
   # "outcome" variables used in analysis
   analysis.vars = c( 
     "Mhat",
-    "Vhat",
     "Shat",
     
     "MLo",
     "MHi",
-    
-    "VLo",
-    "VHi",
     
     "SLo",
     "SHi",
@@ -37,30 +39,24 @@ make_agg_data = function( .s,
     ##### variables to be created in mutate below:
     
     "MhatBias",
-    "VhatBias",
     "ShatBias",
     
     # "MhatRelBias",
     # "VhatRelBias",
     
     "MhatCover",
-    "VhatCover",
     "ShatCover",
     
     "MhatWidth",
-    "VhatWidth",
     "ShatWidth",
     
     "MhatRMSE",
-    "VhatRMSE",
     "ShatRMSE",
     
     "MhatEstSE",
-    "VhatEstSE",
     "ShatEstSE",
     
     "MhatEmpSE",
-    "VhatEmpSE",
     "ShatEmpSE",
     
     # diagnostics regarding point estimation and CIs
@@ -68,12 +64,6 @@ make_agg_data = function( .s,
     "MhatCIFail",
     "ShatEstFail",
     "ShatCIFail",
-    
-    # diagnostics regarding bootstraps
-    "BtPropResamplesFail",
-    "BtMhatCIFail",
-    "BtVhatCIFail",
-    "BtShatCIFail",
     
     # diagnostics for main Mhat optimizer
     "OptimConverged",
@@ -106,15 +96,19 @@ make_agg_data = function( .s,
   # variables that define the scenarios
   param.vars = c("unique.scen",  
                  "method",
-                 "boot.reps",
-                 "stan.iter",
+                 
+                 "Nmax",
+                 "Mu",
+                 "t2a",
+                 "t2w",
+                 "m",
+                 "true.sei.expr",
+                 "hack",
+                 "rho",
+                 "k.pub.nonaffirm",
+                 "prob.hacked",
                  "stan.adapt_delta",
-                 "stan.maxtreedepth",
-                 "trunc.type",
-                 "prop.retained",
-                 "mu",
-                 "V",
-                 "n")
+                 "stan.maxtreedepth")
   
   
   # sanity check to make sure we've listed all param vars
@@ -129,31 +123,30 @@ make_agg_data = function( .s,
   # - param.vars: parameter variables for grouping
   # - toDrop: variables to drop completely
   # - firstOnly: variables that are static within a scenario, for which we
-  #   should just take the first one
+  #   should just take the first one (but not param variables)
   # - takeMean: variables for which we should take the mean within scenarios
   
-  names(.s)[ !names(.s) %in% param.vars ]  # look at names of vars that need categorizing
+  #names(.s)[ !names(.s) %in% param.vars ]  # look at names of vars that need categorizing
+  
+  s$V = s$t2a + s$t2w
+  s$S = sqrt(s$t2a + s$t2w)
+  
   toDrop = c("rep.methods",
              "get.CIs",
              "error",
-             "bt.prop.resamples.failed",
              "sim.reps",  # this is the INTENDED sim.reps, so confusing to retain it
              "rep.name",
              "doParallel.seconds",
              "optim.converged",
              "stan.warned",
              names_with(.dat = .s, .pattern = "optimx") )
-  
+
   firstOnly = c("scen.name",
                 "unique.scen",
-                "Za",  # calculated from theory, so fixed within scen params
-                "Zb"
-  )
+                "V",  # calculated from scen params
+                "S")
   
   ##### Add New Variables Calculated at Scenario Level #####
-  
-  # prevent errors for non-bootstrap methods
-  if ( ! "bt.prop.resamples.failed" %in% names(.s) ) .s$bt.prop.resamples.failed = NA
   
   # if you have 10K iterates, script breaks from here forward if running locally
   # "vector memory limits"
@@ -162,7 +155,6 @@ make_agg_data = function( .s,
       # static within scenario
       # just renaming for clarity
       MhatEstSE = MhatSE,
-      VhatEstSE = VhatSE,
       ShatEstSE = ShatSE ) %>%
     
     # take just first entry of non-parameter variables that are static within scenarios
@@ -184,24 +176,20 @@ make_agg_data = function( .s,
     mutate( sim.reps = n(),
             
             # varies within scenario
-            MhatBias = Mhat - mu,
-            VhatBias = Vhat - V,
-            ShatBias = Shat - sqrt(V),
+            MhatBias = Mhat - Mu,
+            ShatBias = Shat - S,
             
             # varies within scenario
-            MhatCover = covers(truth = mu, lo = MLo, hi = MHi),
-            VhatCover = covers(truth = V, lo = VLo, hi = VHi),
-            ShatCover = covers(truth = sqrt(V), lo = SLo, hi = SHi),
+            MhatCover = covers(truth = Mu, lo = MLo, hi = MHi),
+            ShatCover = covers(truth = S, lo = SLo, hi = SHi),
             
             # varies within scenario
             MhatWidth = MHi - MLo,
-            VhatWidth = VHi - VLo,
             ShatWidth = SHi - SLo,
             
             # static within scenario
-            MhatRMSE = sqrt( meanNA( (Mhat - mu)^2 ) ),
-            VhatRMSE = sqrt( meanNA( (Vhat - V)^2 ) ),
-            ShatRMSE = sqrt( meanNA( ( Shat - sqrt(V) )^2 ) ),
+            MhatRMSE = sqrt( meanNA( (Mhat - Mu)^2 ) ),
+            ShatRMSE = sqrt( meanNA( ( Shat - S )^2 ) ),
             
             # static within scenario
             MhatEstFail = mean(is.na(Mhat)),
@@ -210,31 +198,20 @@ make_agg_data = function( .s,
             ShatCIFail = mean(is.na(SLo)),
             
             # static within scenario
-            BtPropResamplesFail = mean(bt.prop.resamples.failed),
-            BtMhatCIFail = mean( is.na(MLo) ),
-            BtVhatCIFail = mean( is.na(VLo) ),
-            BtShatCIFail = mean( is.na(SLo) ),
-            
-            # static within scenario
             MhatEmpSE = sd(Mhat, na.rm = TRUE),
-            VhatEmpSE = sd(Vhat, na.rm = TRUE),
             ShatEmpSE = sd(Shat, na.rm = TRUE),
             
-            
-            
+    
             # varies within scenario
             # how much smaller is estimated SE compared to empirical one?
             MhatSEBias = MhatEstSE - MhatEmpSE,
-            VhatSEBias = VhatEstSE - VhatEmpSE,
             ShatSEBias = ShatEstSE - ShatEmpSE,
             
             # varies within scenario
             MhatSERelBias = (MhatEstSE - MhatEmpSE) / MhatEmpSE, 
-            VhatSERelBias = (VhatEstSE - VhatEmpSE) / VhatEmpSE,
             ShatSERelBias = (ShatEstSE - ShatEmpSE) / ShatEmpSE,
             
             # static within scenario
-            #bm
             OptimConverged = meanNA(optim.converged),
             
             OptimxMhatWinner = meanNA(optimx.Mhat.winner),
@@ -326,32 +303,31 @@ make_agg_data = function( .s,
   ##### Make New Variables At Scenario Level ##### 
   # label methods more intelligently for use in plots
   agg$method.pretty.est = NA
-  agg$method.pretty.est[ agg$method %in% c("mle-wald", "mle-profile") ] = "MLE"
-  agg$method.pretty.est[ agg$method %in% c("boot-mle-wald") ] = "MLE + boot"
-  agg$method.pretty.est[ agg$method %in% c("jeffreys-wald-map", "jeffreys-profile-map") ] = "Jeffreys mode"
-  agg$method.pretty.est[ agg$method %in% c("boot-jeffreys-wald-map") ] = "Jeffreys mode + boot"
+  agg$method.pretty.est[ agg$method == c("naive") ] = "Naive"
+  agg$method.pretty.est[ agg$method == c("gold-std") ] = "Gold standard"
+  agg$method.pretty.est[ agg$method == c("maon") ] = "MAON"
+  agg$method.pretty.est[ agg$method == c("2PSM") ] = "2PSM"
+  agg$method.pretty.est[ agg$method %in% c("jeffreys-sd") ] = "Jeffreys mode"
   agg$method.pretty.est[ agg$method %in% c("jeffreys-mcmc-pmed") ] = "Jeffreys median"
   agg$method.pretty.est[ agg$method %in% c("jeffreys-mcmc-pmean") ] = "Jeffreys mean"
+  agg$method.pretty.est[ agg$method %in% c("jeffreys-mcmc-max-lp-iterate") ] = "Jeffreys maxLP"
+  agg$method.pretty.est[ agg$method == c("mle-sd") ] = "MLE-sd"
+  agg$method.pretty.est[ agg$method == c("mle-var") ] = "MLE-var"
   table(agg$method, agg$method.pretty.est)
   
+  
   agg$method.pretty.inf = NA
-  agg$method.pretty.inf[ agg$method %in% c("mle-wald") ] = "MLE Wald"
-  agg$method.pretty.inf[ agg$method %in% c("mle-profile") ] = "MLE profile"
-  agg$method.pretty.inf[ agg$method %in% c("boot-mle-wald") ] = "MLE BCa"
-  agg$method.pretty.inf[ agg$method %in% c("jeffreys-wald-map") ] = "Jeffreys mode Wald"
-  agg$method.pretty.inf[ agg$method %in% c("jeffreys-profile-map") ] = "Jeffreys profile"
-  agg$method.pretty.inf[ agg$method %in% c("boot-jeffreys-wald-map") ] = "Jeffreys mode BCa"
-  agg$method.pretty.inf[ agg$method %in% c("jeffreys-mcmc-pmed", "jeffreys-mcmc-pmean") ] = "Jeffreys posterior quantiles"
+  agg$method.pretty.inf[ agg$method == c("naive") ] = "Naive"
+  agg$method.pretty.inf[ agg$method == c("gold-std") ] = "Gold standard"
+  agg$method.pretty.inf[ agg$method == c("maon") ] = "MAON"
+  agg$method.pretty.inf[ agg$method == c("2PSM") ] = "2PSM"
+  agg$method.pretty.inf[ agg$method %in% c("jeffreys-sd") ] = "Jeffreys mode Wald"
+  agg$method.pretty.inf[ agg$method %in% c("jeffreys-mcmc-pmed", "jeffreys-mcmc-pmean", "jeffreys-mcmc-max-lp-iterate") ] = "Jeffreys posterior quantiles"
+  agg$method.pretty.inf[ agg$method == c("mle-sd") ] = "MLE-sd Wald"
+  agg$method.pretty.inf[ agg$method == c("mle-var") ] = "MLE-var Wald"
+
   table(agg$method, agg$method.pretty.inf)
-  
-  agg$`Truncation type` = agg$trunc.type
-  agg$`Truncation type`[ agg$`Truncation type` == "single" ] = "Single"
-  agg$`Truncation type`[ agg$`Truncation type` == "double-symm" ] = "Symmetric double"
-  agg$`Truncation type`[ agg$`Truncation type` == "double-asymm" ] = "Asymmetric double"
-  
-  agg$MethodUsesBoot = grepl( "boot", agg$method )
-  
-  
+
   return(agg %>% ungroup() )
 }
 
@@ -379,6 +355,12 @@ medNA_pctiles = function(x){
          round( quantile(x, probs = 0.90, na.rm = TRUE), 2 ),
          ")",
          sep = "" )
+}
+
+
+
+names_with = function(.dat, .pattern) {
+  names(.dat)[ grepl(pattern = .pattern, x = names(.dat) ) ]
 }
 
 
