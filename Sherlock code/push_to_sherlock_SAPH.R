@@ -85,9 +85,13 @@ rsync -a --delete /home/groups/manishad/SAPH/empty_dir/ /home/groups/manishad/SA
   
   # DELETE ALL LONG RESULTS
   mkdir /home/groups/manishad/SAPH/empty_dir
-rsync -a --delete /home/groups/manishad/SAPH/empty_dir/ /home/groups/manishad/SAPH/sim_results/long/
+rsync -a --delete /home/groups/manishad/SAPH/empty_dir/ /home/groups/manishad/SAPH/long_results/
   
-  # clean up the directory
-  rm /home/groups/manishad/TNE/sim_results/overall_stitched/*
+  # delete stitched results
+  rm /home/groups/manishad/SAPH/overall_stitched/*
+  
+  # delete "rm" files
   rm /home/users/mmathur/rm_*
+  rm /home/groups/manishad/SAPH/sbatch_files/rm_*
+  
   

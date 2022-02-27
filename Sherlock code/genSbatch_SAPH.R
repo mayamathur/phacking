@@ -40,25 +40,27 @@ lapply( allPackages,
 # 3. Nmax > 1, k.hacked = 50, rho = 0 or 0.9 (conservative?)
 
 
-scen.params = tidyr::expand_grid( rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var",
-                                      
-                                      # args from sim_meta_2
-                                      Nmax = 10,
-                                      Mu = 0.1,
-                                      t2a = 0.25,
-                                      t2w = 0.25,
-                                      m = 50,
-                                      true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
-                                      hack = "affirm",
-                                      rho = 0,
-                                      k.pub.nonaffirm = 50,
-                                      prob.hacked = 0.2,
-                                      
-                                      # Stan control args
-                                      stan.maxtreedepth = 20,
-                                      stan.adapt_delta = 0.98,
-                                      
-                                      get.CIs = TRUE )
+scen.params = tidyr::expand_grid( 
+  rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var",
+                                  
+                                  # args from sim_meta_2
+                                  Nmax = 10,
+                                  Mu = 0.1,
+                                  t2a = 0.25,
+                                  t2w = 0.25,
+                                  m = 50,
+                                  true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
+                                  hack = "affirm",
+                                  rho = 0,
+                                  k.pub.nonaffirm = 50,
+                                  prob.hacked = 0.2,
+                                  
+                                  # Stan control args
+                                  stan.maxtreedepth = 20,
+                                  stan.adapt_delta = 0.98,
+                                  
+                                  get.CIs = TRUE,
+                                  run.optimx = TRUE )
 
 
 # # OLD - Do I still need these?

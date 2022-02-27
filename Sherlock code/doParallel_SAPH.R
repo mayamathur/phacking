@@ -26,8 +26,8 @@
 # for interactive Sherlock:
 # ml load v8
 # ml load R/4.1.2
-# srun --mem=32G --time=4:00:00 --pty bash
-
+# srun --mem=32G --time=2:00:00 --pty bash
+# R
 
 
 # because Sherlock 2.0 restores previous workspace
@@ -144,7 +144,7 @@ if (run.local == FALSE) {
   
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
-  sim.reps = 100  #@update this 
+  sim.reps = 1  #@update this 
   
   
   # set the number of cores
@@ -582,7 +582,7 @@ doParallel.seconds = system.time({
     # cat("\nSURVIVED MAKING REPRES:")
     # print(repRes)
     
-    # ~ Write Results ------------------------------
+    # ~ Add Scen Params and Sanity Checks ------------------------------
     
     # add in scenario parameters
     # do NOT use rbind here; bind_cols accommodates possibility that some methods' rep.res
@@ -593,6 +593,10 @@ doParallel.seconds = system.time({
     rep.res = rep.res %>% add_column( rep.name = i, .before = 1 )
     rep.res = rep.res %>% add_column( scen.name = scen, .before = 1 )
     rep.res = rep.res %>% add_column( job.name = jobname, .before = 1 )
+    
+    
+    cat("\ndoParallel flag: Before adding sanity checks to rep.res")
+    
     
     # add info about simulated datasets
     # "ustudies"/"udraws" refers to underlying studies/draws prior to hacking or publication bias
@@ -607,6 +611,7 @@ doParallel.seconds = system.time({
     ( sancheck.prob.unhacked.udraws.published =  mean( d$study.draw[ d$hack == "no" ] %in% unique( dp$study.draw[ dp$hack == "no" ] ) ) )
     ( sancheck.prob.hacked.udraws.published =  mean( d$study.draw[ d$hack != "no" ] %in% unique( dp$study.draw[ dp$hack != "no" ] ) ) )
     
+  
     
     #*this one is especially important: under worst-case hacking, it's analogous to prop.retained  in
     #  TNE since it's the proportion of the underlying distribution that's nonaffirmative
