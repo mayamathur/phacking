@@ -662,8 +662,8 @@ doParallel.seconds = system.time({
                                         sancheck.dp.meanN.hacked = mean( dp$N[dp$hack != "no"] ),
                                         
                                         # average yi's of published draws from each study type
-                                        sancheck.prob.hacked.pub.study.affirm = mean( dp$affirm[ dp$hack != "no"] ),
-                                        sancheck.prob.unhacked.pub.study.affirm = mean( dp$affirm[ dp$hack == "no"] ),
+                                        sancheck.mean.yi.hacked.pub.study = mean( dp$yi[ dp$hack != "no"] ),
+                                        sancheck.mean.yi.unhacked.pub.study = mean( dp$yi[ dp$hack == "no"] ),
                                         
                                         
                                         sancheck.prob.ustudies.published = sancheck.prob.ustudies.published,
