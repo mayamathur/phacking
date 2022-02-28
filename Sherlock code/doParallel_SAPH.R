@@ -1,10 +1,6 @@
 
 # IMPORTANT NOTES -----------------------------
  
-# MUST USE ml load R/4.0.2!!!!
-
-# Before running, search "#@"
-
 # Important things to remember: 
 #
 # - The returned Vhat is an estimate of T2 + t2w, *not* T2 itself
@@ -77,7 +73,7 @@ if (run.local == FALSE) {
   jobname = args[1]
   scen = args[2]  # this will be a number
   
-  # install packages with informative messages if one can't be installed
+  # load packages with informative messages if one can't be installed
   # **Common reason to get the "could not library" error: You did ml load R/XXX using an old version
   any.failed = FALSE
   for (pkg in toLoad) {
@@ -112,12 +108,14 @@ if (run.local == FALSE) {
   # # FOR INTERACTIVE CLUSTER RUN
   # # alternatively, generate a simple scen.params in order to run doParallel manually in
   # # Sherlock as a test
+  # stop("You forgot to comment out 'For Interactive Cluster Run' in doParallel!")
   # path = "/home/groups/manishad/SAPH"
   # setwd(path)
   # source("helper_SAPH.R")
   # scen.params = data.frame(scen = 1,
   # 
-  #                          rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var",
+  #                          #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var",
+  #                          rep.methods = "jeffreys-mcmc",
   # 
   #                          # args from sim_meta_2
   #                          Nmax = 10,
@@ -138,6 +136,7 @@ if (run.local == FALSE) {
   #                          get.CIs = TRUE,
   #                          run.optimx = TRUE)
   # scen = 1
+  # # END OF PART FOR INTERACTIVE CLUSTER RUN
   
   # locally, with total k = 100, Nmax = 10, and sim.reps = 250, took 93 min total
   # for that I did sim.reps = 100 per doParallel
@@ -175,7 +174,7 @@ if ( run.local == TRUE ) {
   # naive ; gold-std ; 2psm ; maon ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
   scen.params = data.frame(scen = 1,
                            
-                           rep.methods = "jeffreys-sd ; jeffreys-var ; mle-sd",
+                           rep.methods = "naive ; mle-sd",
                            #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-sd ; mle-sd ; mle-var",
                            
                            # args from sim_meta_2
@@ -662,8 +661,15 @@ doParallel.seconds = system.time({
                                         sancheck.dp.meanN.hacked = mean( dp$N[dp$hack != "no"] ),
                                         
                                         # average yi's of published draws from each study type
-                                        sancheck.mean.yi.hacked.pub.study = mean( dp$yi[ dp$hack != "no"] ),
+                                        #bm
                                         sancheck.mean.yi.unhacked.pub.study = mean( dp$yi[ dp$hack == "no"] ),
+                                        sancheck.mean.yi.hacked.pub.study = mean( dp$yi[ dp$hack != "no"] ),
+
+                                        sancheck.mean.yi.unhacked.pub.nonaffirm = mean( dp$yi[ dp$hack == "no" & dp$affirm == FALSE ] ),
+                                        sancheck.mean.yi.unhacked.pub.affirm = mean( dp$yi[ dp$hack == "no" & dp$affirm == TRUE ] ),
+                                      
+                                        sancheck.mean.yi.hacked.pub.nonaffirm = mean( dp$yi[ dp$hack != "no" & dp$affirm == FALSE ] ),
+                                        sancheck.mean.yi.hacked.pub.affirm = mean( dp$yi[ dp$hack != "no" & dp$affirm == TRUE ] ),
                                         
                                         
                                         sancheck.prob.ustudies.published = sancheck.prob.ustudies.published,
@@ -690,6 +696,19 @@ doParallel.seconds = system.time({
 
 
 table(rs$method)
+
+
+# # LOCAL
+# # how badly biased are the hacked studies?
+# temp = rs %>% filter(method == "naive")
+# mean(temp$sancheck.mean.yi.hacked.pub.study)
+# mean(temp$sancheck.mean.yi.unhacked.pub.study)
+# 
+# mean(temp$sancheck.mean.yi.unhacked.pub.affirm)
+# mean(temp$sancheck.mean.yi.hacked.pub.affirm)
+# 
+# mean(temp$sancheck.mean.yi.unhacked.pub.nonaffirm)
+# mean(temp$sancheck.mean.yi.hacked.pub.nonaffirm)
 
 
 names(rs)

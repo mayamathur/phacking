@@ -104,19 +104,26 @@ setwd(data.dir)
 # check when the dataset was last modified to make sure we're working with correct version
 s = fread( "stitched.csv")
 
+#@TEMP
+s = fread("long_results_job_1_.csv")
+
 file.info("stitched.csv")$mtime
 
 dim(s)
 
 
-s = fread("long_results_job_8_.csv")
-
-
 s %>% filter(method == "jeffreys-mcmc-max-lp-iterate") %>% 
   select(Mhat, optimx.Mhat.winner, overall.error, MhatRhat)
 
+
+#**Important: getting a lot of weird errors for MCMC
 s %>% group_by(method) %>%
   summarise( meanNA(is.na(Mhat)))
+#@@a lot of those cryptic cluster errors
+s$overall.error[ s$method == "jeffreys-mcmc-pmean"]
+
+# 2022-2-28: every single MCMC had this error:
+# ReadItem: unknown type 0, perhaps written by later version of R
 
 
 # ~~ Aggregate locally -------------------------
@@ -144,6 +151,8 @@ agg.checks = agg %>% select(
 
 
 t(agg.checks)
+
+
 
 
 

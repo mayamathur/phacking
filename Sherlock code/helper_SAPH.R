@@ -402,7 +402,7 @@ postSumm = summary(post)$summary
 
 
 # pull out best iterate to pass to MAP optimization later
-ext = extract(post) # a vector of all post-WU iterates across all chains
+ext = rstan::extract(post) # a vector of all post-WU iterates across all chains
 best.ind = which.max(ext$lp__)  # single iterate with best log-posterior should be very close to MAP
 
 
@@ -2486,6 +2486,34 @@ nuni = function(x) {
   length(unique(x))
 }
 
+# (re-)install package AND its dependencies
+# useful for stupid rstan issues in which rstan itself it UTD but not its dependencies
+# https://stackoverflow.com/questions/21010705/update-a-specific-r-package-and-its-dependencies
+instPkgPlusDeps <- function(pkg, install = FALSE,
+                            which = c("Depends", "Imports", "LinkingTo"),
+                            inc.pkg = TRUE) {
+  stopifnot(require("tools")) ## load tools
+  ap <- available.packages() ## takes a minute on first use
+  ## get dependencies for pkg recursively through all dependencies
+  deps <- package_dependencies(pkg, db = ap, which = which, recursive = TRUE)
+  ## the next line can generate warnings; I think these are harmless
+  ## returns the Priority field. `NA` indicates not Base or Recommended
+  pri <- sapply(deps[[1]], packageDescription, fields = "Priority")
+  ## filter out Base & Recommended pkgs - we want the `NA` entries
+  deps <- deps[[1]][is.na(pri)]
+  ## install pkg too?
+  if (inc.pkg) {
+    deps = c(pkg, deps)
+  }
+  ## are we installing?
+  if (install) {
+    install.packages(deps)
+  }
+  deps ## return dependencies
+}
+
+# example
+# instPkgPlusDeps("fields")
 
 
 # 2021-5-8 CLUSTER FNS ---------------------------------------------------------------

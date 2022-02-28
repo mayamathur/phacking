@@ -41,8 +41,8 @@ lapply( allPackages,
 
 
 scen.params = tidyr::expand_grid( 
-  rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var",
-                                  
+  #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var",
+  rep.methods = "jeffreys-mcmc ; jeffreys-sd ; jeffreys-var",
                                   # args from sim_meta_2
                                   Nmax = 10,
                                   Mu = 0.1,
@@ -82,6 +82,7 @@ scen.params = scen.params %>% add_column( scen = 1:nrow(scen.params),
 head( as.data.frame(scen.params) )
 
 # write the csv file of params (to Sherlock)
+setwd(path)
 write.csv( scen.params, "scen_params.csv", row.names = FALSE )
 
 
