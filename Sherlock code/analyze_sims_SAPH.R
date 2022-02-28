@@ -105,7 +105,7 @@ setwd(data.dir)
 s = fread( "stitched.csv")
 
 #@TEMP
-s = fread("long_results_job_1_.csv")
+#s = fread("long_results_job_1_.csv")
 
 file.info("stitched.csv")$mtime
 
@@ -122,7 +122,7 @@ s %>% group_by(method) %>%
 #@@a lot of those cryptic cluster errors
 s$overall.error[ s$method == "jeffreys-mcmc-pmean"]
 
-# 2022-2-28: every single MCMC had this error:
+# 2022-2-28: many of the MCMC had this error:
 # ReadItem: unknown type 0, perhaps written by later version of R
 
 

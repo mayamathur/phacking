@@ -430,7 +430,6 @@ expect_equal( MhatSE,
 
 # CI limits
 S.CI = c( postSumm["tau", "2.5%"], postSumm["tau", "97.5%"] )
-V.CI = S.CI^2
 M.CI = c( postSumm["mu", "2.5%"], postSumm["mu", "97.5%"] )
 # sanity check:
 myMhatCI = as.numeric( c( quantile( rstan::extract(post, "mu")[[1]], 0.025 ),
@@ -458,7 +457,11 @@ return( list( stats = data.frame(
   stan.warned = stan.warned,
   stan.warning = stan.warning,
   MhatRhat = postSumm["mu", "Rhat"],
-  ShatRhat = postSumm["tau", "Rhat"] ) ) )
+  ShatRhat = postSumm["tau", "Rhat"] ),
+  
+  #@NEW
+  post = post,
+  postSumm = postSumm ) )
 
 }
 

@@ -41,8 +41,8 @@ lapply( allPackages,
 
 
 scen.params = tidyr::expand_grid( 
-  #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var",
-  rep.methods = "jeffreys-mcmc ; jeffreys-sd ; jeffreys-var",
+  rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var",
+  #rep.methods = "jeffreys-mcmc ; jeffreys-sd ; jeffreys-var",
                                   # args from sim_meta_2
                                   Nmax = 10,
                                   Mu = 0.1,
@@ -132,7 +132,6 @@ n.files
 # run just the first one
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
-# max hourly submissions seems to be 300, which is 12 seconds/job
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
 for (i in 1:100) {
