@@ -919,13 +919,13 @@ get_optimx_dataframe = function( .yi,
   # transform second parameter so it's always Shat instead of Vhat
   if ( .par2is == "T2t" ) { l$p2 = sqrt(l$p2) }
   
-  l2 = l %>% select(opt.method, p1, p2, convcode, value) 
+  l2 = l %>% select(opt.method, p1, p2, convcode, value, kkt1, kkt2) 
   
   l2 = l2 %>% rename( Mhat = p1, Shat = p2, nll = value )
   
   w = pivot_wider(l2, 
                   names_from = "opt.method",
-                  values_from = c("Mhat", "Shat", "convcode", "nll"),
+                  values_from = c("Mhat", "Shat", "convcode", "nll", "kkt1", "kkt2"),
                   names_glue = "optimx.{opt.method}.{.value}")
   
   
@@ -934,6 +934,7 @@ get_optimx_dataframe = function( .yi,
     # only keep the ones that had values for Mhat, Shat (not ones that didn't even give a value)
     l = l[ !is.na(l$p1) & !is.na(l$p2), ]
     
+
     #**optimizers that converged AND
     # had a small gradient (kkt1) AND
     # had a positive-definite Hessian (kkt2)
@@ -955,8 +956,8 @@ get_optimx_dataframe = function( .yi,
     
     # get lc again now that we have the agreement indicator
     lc = l[ l$convcode == 0 & l$kkt1 == TRUE & l$kkt2 == TRUE, ]
-    
     w$optimx.Nconvergers = nrow(lc)
+    w$optimx.convergers = paste( lc$opt.method, collapse = " ")
     
     w$optimx.Mhat.winner = Mhat.winner
     w$optimx.Pagree.Mhat.winner = sum(l$agree.Mhat)/nrow(l)
@@ -964,26 +965,31 @@ get_optimx_dataframe = function( .yi,
     w$optimx.Nagree.of.convergers.Mhat.winner = sum(lc$agree.Mhat)
     w$optimx.Pagree.of.convergers.Mhat.winner = sum(lc$agree.Mhat)/nrow(lc)
     w$optimx.Mhat.agreers = paste( l$opt.method[ l$agree.Mhat == TRUE ], collapse = " ")
+    w$optimx.Mhat.convergers.agreers = paste( lc$opt.method[ lc$agree.Mhat == TRUE ], collapse = " ")
     
     w$optimx.Shat.winner = Shat.winner
     w$optimx.Pagree.Shat.winner = sum(l$agree.Shat)/nrow(l)
     w$optimx.Nagree.of.convergers.Shat.winner = sum(lc$agree.Shat)
     w$optimx.Pagree.of.convergers.Shat.winner = sum(lc$agree.Shat)/nrow(lc)
     w$optimx.Shat.agreers = paste( l$opt.method[ l$agree.Shat == TRUE ], collapse = " ")
+    w$optimx.Shat.convergers.agreers = paste( lc$opt.method[ lc$agree.Shat == TRUE ], collapse = " ")
     
   } else {
     w$optimx.Nconvergers = NA
+    w$optimx.convergers = NA
     w$optimx.Mhat.winner = NA
     w$optimx.Pagree.Mhat.winner = NA
     w$optimx.Nagree.of.convergers.Mhat.winner = NA
     w$optimx.Pagree.of.convergers.Mhat.winner = NA
     w$optimx.Mhat.agreers = NA
+    w$optimx.Mhat.convergers.agreers = NA
     
     w$optimx.Shat.winner = NA
     w$optimx.Nagree.of.convergers.Shat.winner = NA
     w$optimx.Pagree.of.convergers.Shat.winner = NA
     w$optimx.Pagree.Shat.winner = NA
     w$optimx.Shat.agreers = NA
+    w$optimx.Shat.convergers.agreers = NA
   }
   
   return(w)

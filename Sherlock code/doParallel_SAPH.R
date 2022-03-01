@@ -143,7 +143,7 @@ if (run.local == FALSE) {
   
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
-  sim.reps = 20  #@update this 
+  sim.reps = 10  #@update this 
   
   
   # set the number of cores
@@ -174,7 +174,7 @@ if ( run.local == TRUE ) {
   # naive ; gold-std ; 2psm ; maon ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
   scen.params = data.frame(scen = 1,
                            
-                           rep.methods = "naive ; mle-sd",
+                           rep.methods = "mle-sd",
                            #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-sd ; mle-sd ; mle-var",
                            
                            # args from sim_meta_2
