@@ -407,12 +407,6 @@ doParallel.seconds = system.time({
                                 .rep.res = rep.res )
       
       
-      # #@TEMP TO AVOID SLOW MCMC PROCESS
-      # # example of rep.res at this point (to avoid having to re-run the method; it's slow):
-      # new.rows = structure(list(method = c("jeffreys-mcmc-pmean", "jeffreys-mcmc-pmed","jeffreys-mcmc-max-lp-iterate"), Mhat = c(0.196768652710757,0.19216059632037, 0.178221722070505), Shat = c(0.791416690654329, 0.790397445863146, 0.77856755485064), MhatSE = c(0.00266867786965314, 0.00266867786965314, 0.00266867786965314), ShatSE = c(0.00190121931174173, 0.00190121931174173, 0.00190121931174173), MLo = c(0.0368586243904465, 0.0368586243904465, 0.0368586243904465), MHi = c(0.384655875223785, 0.384655875223785, 0.384655875223785), SLo = c(0.672480635939751, 0.672480635939751, 0.672480635939751), SHi = c(0.921641744315143, 0.921641744315143, 0.921641744315143), stan.warned = c(0, 0, 0), stan.warning = c(NA, NA, NA), MhatRhat = c(1.00428369239268, 1.00428369239268, 1.00428369239268), ShatRhat = c(1.00170913954403, 1.00170913954403, 1.00170913954403), overall.error = c(NA,NA,NA)), row.names = 2:4, class = "data.frame")
-      # rep.res = bind_rows(rep.res, new.rows)
-      # # END TEMP
-      
       Mhat.MaxLP = rep.res$Mhat[ rep.res$method == "jeffreys-mcmc-max-lp-iterate" ]
       Shat.MaxLP = rep.res$Shat[ rep.res$method == "jeffreys-mcmc-max-lp-iterate" ]
       
