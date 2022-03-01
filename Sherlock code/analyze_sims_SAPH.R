@@ -157,10 +157,75 @@ t(agg.checks)
 
 # EXPLORE BAD ITERATES -------------------------
 
+# add info that will later be collected by helper
+#@but note this DOESN'T include kkt criteria
+keepers = names_with(s, "convcode")
+
+temp = s %>% select(keepers)
+s$optimx.Nconvcode0 = rowSums(temp == 0)
+
+
+# sanity check
+keepers = names_with(s, "convcode")
+
+temp = s %>% filter(Mhat > 9 & method == "jeffreys-sd") %>%
+  select(keepers)
+data.frame(temp)
+
+
+
 
 keepers = c("Mhat", "Shat", names_with(s, "optimx."))
 
-s %>% filter(Mhat > 9 & method == "jeffreys-sd") %>%
+temp = s %>% filter(Mhat > 9 & method == "jeffreys-sd") %>%
   select(keepers)
+
+data.frame(temp)
+
+
+
+# look at results among only iterates that 
+N.optimizers = length( names_with(s, "nll") )
+summary(s$optimx.Nconvcode0)
+summary(s$optimx.Pagree.of.convergers.Mhat.winner)
+
+meanNA( s$Mhat[ s$method == "jeffreys-sd"] > 4 )
+
+
+
+
+# *very informative plots:
+ggplot( s %>% filter( method == "jeffreys-sd" &
+                       !is.na(Mhat) ),
+        aes(x = as.factor(optimx.Nconvcode0),
+            y = Mhat) ) +
+  geom_violin() +
+  theme_classic()
+
+
+ggplot( s %>% filter( method == "jeffreys-sd" &
+                        !is.na(Mhat) ),
+        aes(x = as.factor(optimx.Pagree.of.convergers.Mhat.winner == 1 & optimx.Nconvcode0 > 3),
+            y = Mhat) ) +
+  geom_violin() +
+  theme_classic()
+
+
+# ~~ Restrict to iterates with better convergence properties ---------------------
+
+thresh = 7
+meanNA(s$optimx.Nconvcode0 > thresh & s$optimx.Pagree.of.convergers.Mhat.winner == 1)
+agg2 = make_agg_data(s %>%
+                       filter( optimx.Nconvcode0 > thresh &
+                                 optimx.Pagree.of.convergers.Mhat.winner == 1) )
+
+# look at just certain cols
+t2 = agg2 %>% select(method, 
+                   sim.reps.actual,
+                   all_of(names_with(agg2, "Mhat")) ) %>%
+  mutate_if(is.numeric, function(x) round(x,2))
+
+data.frame(t2)
+View(t2)
 
 
