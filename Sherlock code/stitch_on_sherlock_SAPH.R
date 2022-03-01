@@ -136,5 +136,5 @@ mean(s$DiffBtMn, na.rm=TRUE); bias  # hope this is equal to the bias
 # sacct --jobs=49474291 --format=User,JobID,account,Timelimit,elapsed,ReqMem,MaxRss,ExitCode
 
 # # move it to Desktop
-# scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/sim_results/overall_stitched/stitched.csv ~/Desktop
-# s.Cyril18
+# scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/stitched_results/stitched.csv ~/Desktop
+

@@ -956,24 +956,31 @@ get_optimx_dataframe = function( .yi,
     # get lc again now that we have the agreement indicator
     lc = l[ l$convcode == 0 & l$kkt1 == TRUE & l$kkt2 == TRUE, ]
     
+    w$optimx.Nconvergers = nrow(lc)
+    
     w$optimx.Mhat.winner = Mhat.winner
     w$optimx.Pagree.Mhat.winner = sum(l$agree.Mhat)/nrow(l)
-    # proportion of optimizers that converged that agreed with mode:
+    # number and proportion of optimizers that converged that agreed with mode:
+    w$optimx.Nagree.of.convergers.Mhat.winner = sum(lc$agree.Mhat)
     w$optimx.Pagree.of.convergers.Mhat.winner = sum(lc$agree.Mhat)/nrow(lc)
     w$optimx.Mhat.agreers = paste( l$opt.method[ l$agree.Mhat == TRUE ], collapse = " ")
     
     w$optimx.Shat.winner = Shat.winner
     w$optimx.Pagree.Shat.winner = sum(l$agree.Shat)/nrow(l)
+    w$optimx.Nagree.of.convergers.Shat.winner = sum(lc$agree.Shat)
     w$optimx.Pagree.of.convergers.Shat.winner = sum(lc$agree.Shat)/nrow(lc)
     w$optimx.Shat.agreers = paste( l$opt.method[ l$agree.Shat == TRUE ], collapse = " ")
     
   } else {
+    w$optimx.Nconvergers = NA
     w$optimx.Mhat.winner = NA
     w$optimx.Pagree.Mhat.winner = NA
+    w$optimx.Nagree.of.convergers.Mhat.winner = NA
     w$optimx.Pagree.of.convergers.Mhat.winner = NA
     w$optimx.Mhat.agreers = NA
     
     w$optimx.Shat.winner = NA
+    w$optimx.Nagree.of.convergers.Shat.winner = NA
     w$optimx.Pagree.of.convergers.Shat.winner = NA
     w$optimx.Pagree.Shat.winner = NA
     w$optimx.Shat.agreers = NA

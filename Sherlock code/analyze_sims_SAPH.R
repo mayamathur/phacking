@@ -119,6 +119,7 @@ s %>% filter(method == "jeffreys-mcmc-max-lp-iterate") %>%
 #**Important: getting a lot of weird errors for MCMC
 s %>% group_by(method) %>%
   summarise( meanNA(is.na(Mhat)))
+
 #@@a lot of those cryptic cluster errors
 s$overall.error[ s$method == "jeffreys-mcmc-pmean"]
 
@@ -139,6 +140,7 @@ t = agg %>% select(method,
                    all_of(names_with(agg, "Mhat")) ) %>%
   mutate_if(is.numeric, function(x) round(x,2))
 
+data.frame(t)
 View(t)
 
 
@@ -153,8 +155,12 @@ agg.checks = agg %>% select(
 t(agg.checks)
 
 
+# EXPLORE BAD ITERATES -------------------------
 
 
+keepers = c("Mhat", "Shat", names_with(s, "optimx."))
 
+s %>% filter(Mhat > 9 & method == "jeffreys-sd") %>%
+  select(keepers)
 
 
