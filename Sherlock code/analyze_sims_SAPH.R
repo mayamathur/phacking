@@ -213,7 +213,9 @@ ggplot( s %>% filter( method == "jeffreys-sd" &
 
 # ~~ Restrict to iterates with better convergence properties ---------------------
 
-thresh = 7
+# with this threshold, we retain 92% of iterates; MLE-sd is unbiased with coverage 92%
+#  both jeffreys have Mhat = 0.22 and coverage 96%
+thresh = 6
 meanNA(s$optimx.Nconvcode0 > thresh & s$optimx.Pagree.of.convergers.Mhat.winner == 1)
 agg2 = make_agg_data(s %>%
                        filter( optimx.Nconvcode0 > thresh &
