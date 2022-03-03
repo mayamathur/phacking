@@ -315,7 +315,9 @@ parameters{
 
 
 model{
-	target += log( jeffreys_prior(mu, tau, k, sei, tcrit) );
+  //@TEMP: REMOVE PRIOR AS A SANITY CHECK
+	// target += log( jeffreys_prior(mu, tau, k, sei, tcrit) );
+	target += 0;
 	for(i in 1:k)
 	      y[i] ~ normal( mu, sqrt(tau^2 + sei[i]^2) ) T[ , tcrit[i] * sei[i] ];
 }
