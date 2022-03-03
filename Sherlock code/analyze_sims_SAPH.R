@@ -123,9 +123,7 @@ s %>% group_by(method) %>%
 #@@a lot of those cryptic cluster errors
 s$overall.error[ s$method == "jeffreys-mcmc-pmean"]
 
-# 2022-2-28: many of the MCMC had this error:
-# ReadItem: unknown type 0, perhaps written by later version of R
-
+table(s$method, s$overall.error)
 
 # ~~ Aggregate locally -------------------------
 
@@ -143,6 +141,9 @@ t = agg %>% select(method,
 data.frame(t)
 View(t)
 
+setwd(results.dir)
+fwrite(t, "results_all_iterates.csv")
+
 
 # ~~ Look at sanity checks -------------------------
 
@@ -151,28 +152,15 @@ agg.checks = agg %>% select(
   all_of(names_with(agg, "sancheck.")) ) %>%
   mutate_if(is.numeric, function(x) round(x,2))
 
+# transpose it
+t = tibble( t(agg.checks[1,]) )
+t = t %>% add_column( variable = names(agg.checks), .before = 1 )
 
-t(agg.checks)
+setwd(results.dir)
+fwrite(t, "sanity_check_stats.csv")
 
 
 # EXPLORE BAD ITERATES -------------------------
-
-# add info that will later be collected by helper
-#@but note this DOESN'T include kkt criteria
-keepers = names_with(s, "convcode")
-
-temp = s %>% select(keepers)
-s$optimx.Nconvcode0 = rowSums(temp == 0)
-
-
-# sanity check
-keepers = names_with(s, "convcode")
-
-temp = s %>% filter(Mhat > 9 & method == "jeffreys-sd") %>%
-  select(keepers)
-data.frame(temp)
-
-
 
 
 keepers = c("Mhat", "Shat", names_with(s, "optimx."))
@@ -193,33 +181,91 @@ meanNA( s$Mhat[ s$method == "jeffreys-sd"] > 4 )
 
 
 
-
 # *very informative plots:
 ggplot( s %>% filter( method == "jeffreys-sd" &
                        !is.na(Mhat) ),
-        aes(x = as.factor(optimx.Nconvcode0),
+        aes(x = as.factor(optimx.Nconvergers),
             y = Mhat) ) +
-  geom_violin() +
-  theme_classic()
+  geom_hline(yintercept = scen.params$Mu) +
+  geom_violin(draw_quantiles = TRUE) +
+  theme_classic() +
+  scale_y_continuous( limits = c(-2, 5))
 
 
 ggplot( s %>% filter( method == "jeffreys-sd" &
                         !is.na(Mhat) ),
-        aes(x = as.factor(optimx.Pagree.of.convergers.Mhat.winner == 1 & optimx.Nconvcode0 > 3),
+        aes(x = as.factor(optimx.Nagree.of.convergers.Mhat.winner),
             y = Mhat) ) +
-  geom_violin() +
-  theme_classic()
+  geom_hline(yintercept = scen.params$Mu) +
+  geom_violin(draw_quantiles = TRUE) +
+  theme_classic() +
+  scale_y_continuous( limits = c(-2, 5))
 
 
-# ~~ Restrict to iterates with better convergence properties ---------------------
+ggplot( s %>% filter( method == "jeffreys-sd" &
+                        !is.na(Mhat) ),
+        aes(x = as.factor(optimx.Pagree.of.convergers.Mhat.winner == 1 & optimx.Nconvergers > 4),
+            y = Mhat) ) +
+  geom_violin(draw_quantiles = TRUE) +
+  theme_classic() +
+  scale_y_continuous( limits = c(-2, 5))
 
-# with this threshold, we retain 92% of iterates; MLE-sd is unbiased with coverage 92%
-#  both jeffreys have Mhat = 0.22 and coverage 96%
+
+# ~~ **Restrict to iterates with better convergence properties ---------------------
+
+### Explore possible optimx agreement thresholds ###
+
+# note that these look at each method separately, rather than keeping entire sim iterates
+prop.table( table(s$optimx.Nagree.of.convergers.Mhat.winner) )
+meanNA(s$optimx.Nagree.of.convergers.Mhat.winner > 5)
+
 thresh = 6
-meanNA(s$optimx.Nconvcode0 > thresh & s$optimx.Pagree.of.convergers.Mhat.winner == 1)
-agg2 = make_agg_data(s %>%
-                       filter( optimx.Nconvcode0 > thresh &
-                                 optimx.Pagree.of.convergers.Mhat.winner == 1) )
+meanNA(s$optimx.Nagree.of.convergers.Mhat.winner > thresh &
+         s$optimx.Pagree.of.convergers.Mhat.winner == 1)
+
+
+
+### Mark iterates with good optimx properties for ALL methods ###
+non.optimx.methods = c("naive", "gold-std", "maon", "2psm", "jeffreys-mcmc-pmean", 
+            "jeffreys-mcmc-pmed", "jeffreys-mcmc-max-lp-iterate")
+
+
+s$job.rep.name = paste( s$job.name, s$rep.name, sep = "_" )
+
+# for the optimx methods, mark whether the iterate should be retained for ALL methods
+#  "min" below is to consider performance across all methods that used optimx
+s = s %>% group_by(job.rep.name) %>%
+  mutate( keep.iterate = min(optimx.Nagree.of.convergers.Mhat.winner, na.rm = TRUE) > thresh &
+                            min(optimx.Pagree.of.convergers.Mhat.winner, na.rm = TRUE) == 1 )
+
+table(s$keep.iterate)
+
+good.iterates = unique( s$job.rep.name[ s$keep.iterate == TRUE ] )
+length(good.iterates) / nuni(s$job.rep.name)  # percent of iterates that were "good"
+
+# sanity check
+View( s %>% select(job.rep.name, method, keep.iterate, optimx.Nagree.of.convergers.Mhat.winner,
+             optimx.Pagree.of.convergers.Mhat.winner) )
+
+
+# should be the same for all methods
+table(s$keep.iterate, s$method)
+
+# sanity check
+# within each job.rep.name, the decision to keep the iterate or not should be the same
+#  for all methods and should never be NA
+t = s %>% group_by(job.rep.name) %>%
+  summarise( SD = sd(keep.iterate) )
+expect_equal( TRUE, all(t$SD == 0) )
+
+
+
+### Performance among iterates with good optimx properties for ALL methods ###
+
+s2 = s %>% filter(keep.iterate == TRUE)
+dim(s2)
+
+agg2 = make_agg_data(s2)
 
 # look at just certain cols
 t2 = agg2 %>% select(method, 
@@ -229,5 +275,20 @@ t2 = agg2 %>% select(method,
 
 data.frame(t2)
 View(t2)
+
+setwd(results.dir)
+fwrite(t2, "results_optimx_thresh_iterates.csv")
+
+
+# ~~ Sanity checks ---------------------
+
+# maxLPiterate should be close to MAP
+# it's not...hmmm
+# the discrepancy is NOT due to just a few crazy iterates because this is considering
+#  only the thresholded dataset AND we can see that even the median discrepancy is 0.14
+summary( abs( s2$Mhat[s2$method == "jeffreys-mcmc-max-lp-iterate"] - 
+                s2$Mhat[s2$method == "jeffreys-sd"] ) )
+
+
 
 
