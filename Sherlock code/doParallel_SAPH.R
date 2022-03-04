@@ -315,9 +315,9 @@ parameters{
 
 
 model{
-  //@TEMP: REMOVE PRIOR AS A SANITY CHECK
-	// target += log( jeffreys_prior(mu, tau, k, sei, tcrit) );
-	target += 0;
+  // this is to remove prior as a sanity check:
+  // target += 0;
+	target += log( jeffreys_prior(mu, tau, k, sei, tcrit) );
 	for(i in 1:k)
 	      y[i] ~ normal( mu, sqrt(tau^2 + sei[i]^2) ) T[ , tcrit[i] * sei[i] ];
 }
@@ -343,7 +343,6 @@ generated quantities{
         else
           log_lik += -1 * normal_lcdf(UU | mu, sqrt(tau^2 + sei[i]^2) ); 
   }
-  // easy way to see what is essentially MLE: just remove prior from this
   log_post = log_prior + log_lik;
 }
 "

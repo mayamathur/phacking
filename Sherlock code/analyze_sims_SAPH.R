@@ -58,14 +58,17 @@ outcomeNames = c("Bias", "RMSE", "EmpSE", "EstFail",
 # ~~ Set directories -------------------------
 code.dir = here("Sherlock code")
 
+# # save
+# data.dir = str_replace( string = here(),
+#                         pattern = "Code \\(git\\)",
+#                         replacement = "Sherlock simulation results/Pilot simulations/2022-2-27 one scen" )
 
 data.dir = str_replace( string = here(),
                         pattern = "Code \\(git\\)",
-                        replacement = "Sherlock simulation results/Pilot simulations/2022-2-27 one scen" )
+                        replacement = "Sherlock simulation results/Pilot simulations/2022-3-2 same scen; rm prior from mcmc" )
 
-results.dir = str_replace( string = here(),
-                           pattern = "Code \\(git\\)",
-                           replacement = "Sherlock simulation results/Pilot simulations/2022-2-27 one scen" )
+
+results.dir = data.dir
 
 # overleaf.dir.general = "/Users/mmathur/Dropbox/Apps/Overleaf/TNE (truncated normal estimation)/R_objects"
 # overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/TNE (truncated normal estimation)/R_objects/figures"
@@ -116,7 +119,7 @@ s %>% filter(method == "jeffreys-mcmc-max-lp-iterate") %>%
   select(Mhat, optimx.Mhat.winner, overall.error, MhatRhat)
 
 
-#**Important: getting a lot of weird errors for MCMC
+#**Check for MCMC errors and similar
 s %>% group_by(method) %>%
   summarise( meanNA(is.na(Mhat)))
 
@@ -216,12 +219,12 @@ ggplot( s %>% filter( method == "jeffreys-sd" &
 ### Explore possible optimx agreement thresholds ###
 
 # note that these look at each method separately, rather than keeping entire sim iterates
-prop.table( table(s$optimx.Nagree.of.convergers.Mhat.winner) )
-meanNA(s$optimx.Nagree.of.convergers.Mhat.winner > 5)
-
-thresh = 6
-meanNA(s$optimx.Nagree.of.convergers.Mhat.winner > thresh &
-         s$optimx.Pagree.of.convergers.Mhat.winner == 1)
+# prop.table( table(s$optimx.Nagree.of.convergers.Mhat.winner) )
+# meanNA(s$optimx.Nagree.of.convergers.Mhat.winner > 5)
+# 
+# thresh = 6
+# meanNA(s$optimx.Nagree.of.convergers.Mhat.winner > thresh &
+#          s$optimx.Pagree.of.convergers.Mhat.winner == 1)
 
 
 
@@ -265,6 +268,10 @@ expect_equal( TRUE, all(t$SD == 0) )
 s2 = s %>% filter(keep.iterate == TRUE)
 dim(s2)
 
+# look at individual iterates
+View( s2 %>% select(job.rep.name, method, Mhat, keep.iterate, optimx.Nagree.of.convergers.Mhat.winner,
+                   optimx.Pagree.of.convergers.Mhat.winner) )
+
 agg2 = make_agg_data(s2)
 
 # look at just certain cols
@@ -289,6 +296,8 @@ fwrite(t2, "results_optimx_thresh_iterates.csv")
 summary( abs( s2$Mhat[s2$method == "jeffreys-mcmc-max-lp-iterate"] - 
                 s2$Mhat[s2$method == "jeffreys-sd"] ) )
 
-
-
+# for the case where prior is commented out, instead it should agree with MLE
+summary( abs( s2$Mhat[s2$method == "jeffreys-mcmc-max-lp-iterate"] - 
+                s2$Mhat[s2$method == "mle-sd"] ) )
+# it does NOT agree very closely
 
