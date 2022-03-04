@@ -33,6 +33,9 @@ rm( list = ls() )
 # are we running locally?
 run.local = FALSE
 
+# should we set scen params interactively on cluster?
+interactive.cluster.run = TRUE
+
 # ~~ Packages -----------------------------------------------
 toLoad = c("crayon",
            "dplyr",
@@ -92,51 +95,52 @@ if (run.local == FALSE) {
   }
   if ( any.failed == TRUE ) stop("Some packages couldn't be installed. See outfile for details of which ones.")
   
-  
-  # FOR AUTOMATIC CLUSTER RUN
-  # get scen parameters (made by genSbatch.R)
-  path = "/home/groups/manishad/SAPH"
-  setwd(path)
-  scen.params = read.csv( "scen_params.csv" )
-  p <<- scen.params[ scen.params$scen == scen, ]
-  print(p)
-
   # helper code
+  path = "/home/groups/manishad/SAPH"
   setwd(path)
   source("helper_SAPH.R")
   
-  # # FOR INTERACTIVE CLUSTER RUN
-  # # alternatively, generate a simple scen.params in order to run doParallel manually in
-  # # Sherlock as a test
-  # stop("You forgot to comment out 'For Interactive Cluster Run' in doParallel!")
-  # path = "/home/groups/manishad/SAPH"
-  # setwd(path)
-  # source("helper_SAPH.R")
-  # scen.params = data.frame(scen = 1,
-  # 
-  #                          #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var",
-  #                          rep.methods = "jeffreys-mcmc",
-  # 
-  #                          # args from sim_meta_2
-  #                          Nmax = 10,
-  #                          Mu = 0.1,
-  #                          t2a = 0.25,
-  #                          t2w = 0.25,
-  #                          m = 50,
-  #                          true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
-  #                          hack = "affirm",
-  #                          rho = 0,
-  #                          k.pub.nonaffirm = 50,
-  #                          prob.hacked = 0.2,
-  # 
-  #                          # Stan control args
-  #                          stan.maxtreedepth = 20,
-  #                          stan.adapt_delta = 0.98,
-  # 
-  #                          get.CIs = TRUE,
-  #                          run.optimx = TRUE)
-  # scen = 1
-  # # END OF PART FOR INTERACTIVE CLUSTER RUN
+  
+  if ( interactive.cluster.run == FALSE ) {
+    # get scen parameters (made by genSbatch.R)
+    setwd(path)
+    scen.params = read.csv( "scen_params.csv" )
+    p <<- scen.params[ scen.params$scen == scen, ]
+    print(p)
+  }
+  
+  # alternatively, generate a simple scen.params in order to run doParallel manually in
+  # Sherlock as a test
+  if ( interactive.cluster.run == TRUE ) {
+    path = "/home/groups/manishad/SAPH"
+    setwd(path)
+    source("helper_SAPH.R")
+    scen.params = data.frame(scen = 1,
+                             
+                             #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var",
+                             rep.methods = "jeffreys-mcmc ; jeffreys-sd",
+                             
+                             # args from sim_meta_2
+                             Nmax = 10,
+                             Mu = 0.1,
+                             t2a = 0.25,
+                             t2w = 0.25,
+                             m = 50,
+                             true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
+                             hack = "affirm",
+                             rho = 0,
+                             k.pub.nonaffirm = 50,
+                             prob.hacked = 0.2,
+                             
+                             # Stan control args
+                             stan.maxtreedepth = 20,
+                             stan.adapt_delta = 0.98,
+                             
+                             get.CIs = TRUE,
+                             run.optimx = TRUE)
+    scen = 1
+  }  # end "if ( interactive.cluster.run == TRUE )"
+ 
   
   # locally, with total k = 100, Nmax = 10, and sim.reps = 250, took 93 min total
   # for that I did sim.reps = 100 per doParallel
@@ -548,7 +552,24 @@ doParallel.seconds = system.time({
     log.prior.sanity.R = lprior( .sei = sqrt(dpn$vi),
                                  .Mu = 2,
                                  .Tt = 2,
-                                 .tcrit = .tcrit )
+                                 .tcrit = dpn$tcrit )
+    
+    #@wastefully re-run MCMC in order to capture its full output (which isn't preserved
+    #  when it's run inside run_method_safe)
+    temp = estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
+                                .sei = sqrt(dpn$vi),
+                                .tcrit = dpn$tcrit,
+                                .Mu.start = Mhat.start,
+                                .Tt.start = Shat.start,
+                                .stan.adapt_delta = p$stan.adapt_delta,
+                                .stan.maxtreedepth = p$stan.maxtreedepth)
+    ext = extract(temp$post)
+    # "unique" because these have a fixed value across all iterates
+    log.lkl.sanity.stan = unique(ext$log_lik_sanity)
+    log.prior.sanity.stan = unique(ext$log_prior_sanity)
+
+    expect_equal( log.lkl.sanity.R, log.lkl.sanity.stan )
+    expect_equal( log.prior.sanity.R, log.prior.sanity.stan )
     
     # # SAVE 
     # # methods from earlier simulations where I was bias-correcting the affirmatives

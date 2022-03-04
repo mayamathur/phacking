@@ -130,12 +130,13 @@ generated quantities{
       // https://mc-stan.org/docs/2_20/reference-manual/sampling-statements-section.html
       // see 'Truncation with upper bounds in Stan' section
       //bm
-	      if ( y[i] > UU )
+	      if ( y[i] > UU ) {
           log_lik += negative_infinity();
           log_lik_sanity += negative_infinity();
-        else
+	      } else {
           log_lik += -1 * normal_lcdf(UU | mu, sqrt(tau^2 + sei[i]^2) ); 
           log_lik_sanity += -1 * normal_lcdf(UU | 2, sqrt(2^2 + sei[i]^2) );
+	      }
   }
   log_post = log_prior + log_lik;
 }
