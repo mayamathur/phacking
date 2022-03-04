@@ -322,8 +322,10 @@ model{
 	      y[i] ~ normal( mu, sqrt(tau^2 + sei[i]^2) ) T[ , tcrit[i] * sei[i] ];
 }
 
-// this chunk doesn't actually affect the model that's being fit to the data
-//  (I think); it's just re-calculating the prior, lkl, and post to return to user
+// this chunk doesn't actually affect the model that's being fit to the data;
+//  it's just re-calculating the prior, lkl, and post to return to user
+// Stan docs: 'Nothing in the generated quantities block affects the sampled parameter values. The block is executed only after a sample has been generated'
+
 generated quantities{
   real log_lik = 0;
   real log_prior = log( jeffreys_prior(mu, tau, k, sei, tcrit) );
@@ -337,7 +339,8 @@ generated quantities{
       UU = tcrit[i] * sei[i];
       
       // https://mc-stan.org/docs/2_20/reference-manual/sampling-statements-section.html
-      // see Truncation with upper bounds in Stan
+      // see 'Truncation with upper bounds in Stan' section
+      //bm
 	      if ( y[i] > UU )
           log_lik += negative_infinity();
         else
