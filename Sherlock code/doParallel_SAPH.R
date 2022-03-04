@@ -540,36 +540,96 @@ doParallel.seconds = system.time({
     
     # ~~ Sanity checks: Prior and NLL Agreement Between Stan and R ------------------------------
     
-    # these are calculated for a FIXED (mu=2, tau=2) to match the sanity checks embedded in 
-    #  stan.model above (see "generated quantities")
-    # these calls are as in nlpost_jeffreys_RTMA
-    log.lkl.sanity.R = -1 * joint_nll_2( .yi = dpn$yi,
+    if ( FALSE ) {
+      
+      ### Sanity Check #1: Agreement at Fixed Params ###
+      # these are calculated for a FIXED (mu=2, tau=2) to match the sanity checks embedded in 
+      #  stan.model above (see "generated quantities")
+      # these calls are as in nlpost_jeffreys_RTMA
+      log.lkl.sanity.R = -1 * joint_nll_2( .yi = dpn$yi,
+                                           .sei = sqrt(dpn$vi),
+                                           .tcrit = dpn$tcrit,
+                                           .Mu = 2,
+                                           .Tt = 2 )
+      
+      log.prior.sanity.R = lprior( .sei = sqrt(dpn$vi),
+                                   .Mu = 2,
+                                   .Tt = 2,
+                                   .tcrit = dpn$tcrit )
+      
+      #@wastefully re-run MCMC in order to capture its full output (which isn't preserved
+      #  when it's run inside run_method_safe)
+      temp = estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
                                          .sei = sqrt(dpn$vi),
                                          .tcrit = dpn$tcrit,
-                                         .Mu = 2,
-                                         .Tt = 2 )
-    
-    log.prior.sanity.R = lprior( .sei = sqrt(dpn$vi),
-                                 .Mu = 2,
-                                 .Tt = 2,
-                                 .tcrit = dpn$tcrit )
-    
-    #@wastefully re-run MCMC in order to capture its full output (which isn't preserved
-    #  when it's run inside run_method_safe)
-    temp = estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
-                                .sei = sqrt(dpn$vi),
-                                .tcrit = dpn$tcrit,
-                                .Mu.start = Mhat.start,
-                                .Tt.start = Shat.start,
-                                .stan.adapt_delta = p$stan.adapt_delta,
-                                .stan.maxtreedepth = p$stan.maxtreedepth)
-    ext = extract(temp$post)
-    # "unique" because these have a fixed value across all iterates
-    log.lkl.sanity.stan = unique(ext$log_lik_sanity)
-    log.prior.sanity.stan = unique(ext$log_prior_sanity)
+                                         .Mu.start = Mhat.start,
+                                         .Tt.start = Shat.start,
+                                         .stan.adapt_delta = p$stan.adapt_delta,
+                                         .stan.maxtreedepth = p$stan.maxtreedepth)
+      ext = rstan::extract(temp$post)
+      # "unique" because these have a fixed value across all iterates
+      log.lkl.sanity.stan = unique(ext$log_lik_sanity)
+      log.prior.sanity.stan = unique(ext$log_prior_sanity)
+      
+      expect_equal( as.numeric(log.lkl.sanity.R),
+                    as.numeric(log.lkl.sanity.stan),
+                    tolerance = 0.001 )
+      expect_equal( as.numeric(log.prior.sanity.R),
+                    as.numeric(log.prior.sanity.stan),
+                    tolerance = 0.001 )
+      
+      
+      ### Sanity Check #2: Agreement at MaxLPIterate Params ###
+      # look at nlpost at the maxLPiterate vs. the MAP
+      best.ind = which.max(ext$lp__)
+      ( log.lkl.stan = ext$log_lik[best.ind] )
+      ( log.prior.stan = ext$log_prior[best.ind] )
+      
+      ( log.lkl.R = -1 * joint_nll_2( .yi = dpn$yi,
+                                           .sei = sqrt(dpn$vi),
+                                           .tcrit = dpn$tcrit,
+                                           .Mu = ext$mu[best.ind],
+                                           .Tt = ext$tau[best.ind] ) )
+      
+      ( log.prior.R = lprior( .sei = sqrt(dpn$vi),
+                                   .Mu = ext$mu[best.ind],
+                                   .Tt = ext$tau[best.ind],
+                                   .tcrit = dpn$tcrit ) )
+      
+      # THESE AGREE!
+      expect_equal( as.numeric(log.lkl.R),
+                    as.numeric(log.lkl.stan),
+                    tolerance = 0.001 )
+      expect_equal( as.numeric(log.prior.R),
+                    as.numeric(log.prior.stan),
+                    tolerance = 0.001 )
+      
+      
+      # BUT THESE 3 ALL DISAGREE! THIS IS THE PROBLEM!!
+      ( log.post.R = -1 * nlpost_jeffreys_RTMA(.pars = c(ext$mu[best.ind],
+                                                         ext$tau[best.ind]),
+                                               .par2is = "Tt",
+                                               .yi = dpn$yi,
+                                               .sei = sqrt(dpn$vi),
+                                               .tcrit = dpn$tcrit,
+                                               .usePrior = TRUE) )
+      
+      ( log.post.stan = ext$log_post[best.ind] )
+      ext$lp__[best.ind]
+      
+      # max LP iterate values
+      # BUT NOTE THIS IS USING MAX LP__
+      ext$mu[best.ind]
+      ext$tau[best.ind]
+      
+      
+      
+      log.post.stan = ext$log_post[best.ind]
+      #@WHY DIFFERENT FROM LP__??
+      
 
-    expect_equal( log.lkl.sanity.R, log.lkl.sanity.stan )
-    expect_equal( log.prior.sanity.R, log.prior.sanity.stan )
+      
+    }
     
     # # SAVE 
     # # methods from earlier simulations where I was bias-correcting the affirmatives

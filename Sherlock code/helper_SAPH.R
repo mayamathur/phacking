@@ -727,7 +727,7 @@ nlpost_jeffreys_RTMA = function( .pars,
   }
   
   # negative log-posterior
-  nlp.value = sum(nll.value) + prior.value
+  nlp.value = sum(nll.value) - prior.value
   
   if ( is.infinite(nlp.value) | is.na(nlp.value) ) return(.Machine$integer.max)
   
