@@ -65,7 +65,7 @@ code.dir = here("Sherlock code")
 
 data.dir = str_replace( string = here(),
                         pattern = "Code \\(git\\)",
-                        replacement = "Sherlock simulation results/Pilot simulations/2022-3-2 same scen; rm prior from mcmc" )
+                        replacement = "Sherlock simulation results/Pilot simulations" )
 
 
 results.dir = data.dir
@@ -113,10 +113,6 @@ s = fread( "stitched.csv")
 file.info("stitched.csv")$mtime
 
 dim(s)
-
-
-s %>% filter(method == "jeffreys-mcmc-max-lp-iterate") %>% 
-  select(Mhat, optimx.Mhat.winner, overall.error, MhatRhat)
 
 
 #**Check for MCMC errors and similar
@@ -222,9 +218,9 @@ ggplot( s %>% filter( method == "jeffreys-sd" &
 # prop.table( table(s$optimx.Nagree.of.convergers.Mhat.winner) )
 # meanNA(s$optimx.Nagree.of.convergers.Mhat.winner > 5)
 # 
-# thresh = 6
-# meanNA(s$optimx.Nagree.of.convergers.Mhat.winner > thresh &
-#          s$optimx.Pagree.of.convergers.Mhat.winner == 1)
+thresh = 6
+meanNA(s$optimx.Nagree.of.convergers.Mhat.winner > thresh &
+         s$optimx.Pagree.of.convergers.Mhat.winner == 1)
 
 
 
@@ -235,13 +231,15 @@ non.optimx.methods = c("naive", "gold-std", "maon", "2psm", "jeffreys-mcmc-pmean
 
 s$job.rep.name = paste( s$job.name, s$rep.name, sep = "_" )
 
+
+
 # for the optimx methods, mark whether the iterate should be retained for ALL methods
 #  "min" below is to consider performance across all methods that used optimx
 s = s %>% group_by(job.rep.name) %>%
   mutate( keep.iterate = min(optimx.Nagree.of.convergers.Mhat.winner, na.rm = TRUE) > thresh &
                             min(optimx.Pagree.of.convergers.Mhat.winner, na.rm = TRUE) == 1 )
 
-table(s$keep.iterate)
+mean(s$keep.iterate)
 
 good.iterates = unique( s$job.rep.name[ s$keep.iterate == TRUE ] )
 length(good.iterates) / nuni(s$job.rep.name)  # percent of iterates that were "good"

@@ -34,7 +34,7 @@ rm( list = ls() )
 run.local = FALSE
 
 # should we set scen params interactively on cluster?
-interactive.cluster.run = TRUE
+interactive.cluster.run = FALSE
 
 # ~~ Packages -----------------------------------------------
 toLoad = c("crayon",

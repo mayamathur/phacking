@@ -100,6 +100,8 @@ parameters{
 model{
   // this is to remove prior as a sanity check:
   // target += 0;
+  //@RETURN TO WHAT TARGET MEANS HERE
+  //see 'foundational ideas' here: https://vasishth.github.io/bayescogsci/book/sec-firststan.html
 	target += log( jeffreys_prior(mu, tau, k, sei, tcrit) );
 	for(i in 1:k)
 	      y[i] ~ normal( mu, sqrt(tau^2 + sei[i]^2) ) T[ , tcrit[i] * sei[i] ];
