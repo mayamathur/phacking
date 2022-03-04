@@ -614,18 +614,23 @@ doParallel.seconds = system.time({
                                                .tcrit = dpn$tcrit,
                                                .usePrior = TRUE) )
       
+      #@WHY DIFFERENT FROM LP__??
       ( log.post.stan = ext$log_post[best.ind] )
       ext$lp__[best.ind]
+      # lp__ matches NEITHER log_post NOR log_prior
+      #  so what is it??????
+      
       
       # max LP iterate values
       # BUT NOTE THIS IS USING MAX LP__
       ext$mu[best.ind]
       ext$tau[best.ind]
       
-      
-      
-      log.post.stan = ext$log_post[best.ind]
-      #@WHY DIFFERENT FROM LP__??
+  
+      # if needed to refresh code
+      path = "/home/groups/manishad/SAPH"
+      setwd(path)
+      source("helper_SAPH.R")
       
 
       
