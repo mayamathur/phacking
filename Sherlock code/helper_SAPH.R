@@ -248,10 +248,11 @@ withCallingHandlers({
 cat( paste("\n estimate_jeffreys_mcmc flag 3: about to call postSumm") )
 postSumm = summary(post)$summary
 
-
+#@ 2022-3-4: CHANGED FROM LP__ TO LOG_POST; THIS WILL ALSO AFFECT TNE
 # pull out best iterate to pass to MAP optimization later
 ext = rstan::extract(post) # a vector of all post-WU iterates across all chains
-best.ind = which.max(ext$lp__)  # single iterate with best log-posterior should be very close to MAP
+#best.ind = which.max(ext$lp__)  # single iterate with best log-posterior should be very close to MAP
+best.ind = which.max(ext$log_post)  # single iterate with best log-posterior should be very close to MAP
 
 
 # posterior means, posterior medians, and max-LP iterate
