@@ -754,6 +754,8 @@ doParallel.seconds = system.time({
     # probability that a published, nonaffirmative draw is from a hacked study
     # under worst-case hacking, should be 0
     ( sancheck.prob.published.nonaffirm.is.hacked = mean( dp$hack[ dp$affirm == 0 ] != "no" ) )
+    # this will be >0
+    ( sancheck.prob.published.affirm.is.hacked = mean( dp$hack[ dp$affirm == 1 ] != "no" ) )
     
     # average yi's 
     

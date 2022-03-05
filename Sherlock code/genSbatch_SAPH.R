@@ -43,24 +43,28 @@ lapply( allPackages,
 scen.params = tidyr::expand_grid(
   rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var",
   #rep.methods = "jeffreys-mcmc ; jeffreys-sd ; jeffreys-var",
-                                  # args from sim_meta_2
-                                  Nmax = 10,
-                                  Mu = 0.1,
-                                  t2a = 0.25,
-                                  t2w = 0.25,
-                                  m = 50,
-                                  true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
-                                  hack = "affirm",
-                                  rho = 0,
-                                  k.pub.nonaffirm = 50,
-                                  prob.hacked = 0.2,
-
-                                  # Stan control args
-                                  stan.maxtreedepth = 20,
-                                  stan.adapt_delta = 0.98,
-
-                                  get.CIs = TRUE,
-                                  run.optimx = TRUE )
+  # args from sim_meta_2
+  Nmax = 10,
+  Mu = 0.1,
+  t2a = 0.25,
+  t2w = 0.25,
+  m = 50,
+  # original one: 
+  #true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
+  true.sei.expr = c( "runif(n = 1, min = 0.1, max = 1)",  # mean=0.55
+                     "runif(n = 1, min = 0.50, max = 0.60)", # mean=0.55 also
+                     "runif(n = 1, min = 0.51, max = 1.5)" ),  # same range as first one, but higher mean
+  hack = "affirm",
+  rho = c(0, 0.5),
+  k.pub.nonaffirm = c(10, 20, 50),
+  prob.hacked = 0.5,
+  
+  # Stan control args
+  stan.maxtreedepth = 20,
+  stan.adapt_delta = 0.98,
+  
+  get.CIs = TRUE,
+  run.optimx = TRUE )
 
 # # just for testing MCMC issues
 # scen.params = tidyr::expand_grid(
@@ -155,9 +159,10 @@ n.files
 # run just the first one
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
+# 1800
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:100) {
+for (i in 1001:1800) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 

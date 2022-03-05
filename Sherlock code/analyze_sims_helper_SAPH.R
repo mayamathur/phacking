@@ -139,7 +139,7 @@ make_agg_data = function( .s,
              "optim.converged",
              "stan.warned",
              names_with(.dat = .s, .pattern = "optimx") )
-
+  
   firstOnly = c("scen.name",
                 "unique.scen",
                 "V",  # calculated from scen params
@@ -200,7 +200,7 @@ make_agg_data = function( .s,
             MhatEmpSE = sd(Mhat, na.rm = TRUE),
             ShatEmpSE = sd(Shat, na.rm = TRUE),
             
-    
+            
             # varies within scenario
             # how much smaller is estimated SE compared to empirical one?
             MhatSEBias = MhatEstSE - MhatEmpSE,
@@ -326,12 +326,120 @@ make_agg_data = function( .s,
   agg$method.pretty.inf[ agg$method %in% c("jeffreys-mcmc-pmed", "jeffreys-mcmc-pmean", "jeffreys-mcmc-max-lp-iterate") ] = "Jeffreys posterior quantiles"
   agg$method.pretty.inf[ agg$method == c("mle-sd") ] = "MLE-sd Wald"
   agg$method.pretty.inf[ agg$method == c("mle-var") ] = "MLE-var Wald"
-
+  
   table(agg$method, agg$method.pretty.inf)
-
+  
+  message("You probably need to edit the recoding after this point")
+  agg$true.sei.expr.pretty = NA
+  agg$true.sei.expr.pretty[ agg$true.sei.expr == "runif(n = 1, min = 0.1, max = 1)" ] = "sei ~ U[0.1, 1]"
+  agg$true.sei.expr.pretty[ agg$true.sei.expr == "runif(n = 1, min = 0.50, max = 0.60)" ] = "sei ~ U[0.5, 0.6]"
+  agg$true.sei.expr.pretty[ agg$true.sei.expr == "runif(n = 1, min = 0.51, max = 1.5)" ] = "sei ~ U[0.51, 1.5]"
+  
+  
+  
+  agg$rho.pretty = paste("rho = ", agg$rho, sep = "")
+  
   return(agg %>% ungroup() )
 }
 
+
+
+
+# PLOTTING FNS -------------------------------------------------------------
+
+# make a plot with 3 variables: x-axis, y-axis, facets, and colors
+# facet vars allowed be null
+quick_5var_agg_plot = function(.Xname,
+                           .Yname,
+                           .colorVarName,
+                           .facetVar1Name = NULL,
+                           .facetVar2Name = NULL,
+                           
+                           .dat,
+                           .ggtitle = "",
+                           
+                           .writePlot = FALSE,
+                           .results.dir = NULL) {
+  
+  
+  # TEST
+  # agg$facetVar = paste( "rho=", agg$rho, "; ", agg$true.sei.expr.pretty, sep="")
+  # table(agg$facetVar)
+  # agg$rho.pretty = paste("rho = ", agg$rho, sep = "")
+  # 
+  # .Xname = "k.pub.nonaffirm"
+  # .Yname = "MhatBias"
+  # .colorVarName = "method"
+  # .facetVar1Name = "rho.pretty"
+  # .facetVar2Name = "true.sei.expr.pretty"
+  # .dat = agg
+  # .ggtitle = ""
+  # .writePlot = FALSE
+  # #.results.dir
+  
+
+  .dat$Y = .dat[[.Yname]]
+  .dat$X = .dat[[.Xname]]
+  .dat$colorVar = .dat[[.colorVarName]]
+  # don't try to move these inside conditional statement below
+  #  about facet_wrap b/c then .dat won't contain the facet vars
+  .dat$facetVar1 = .dat[[.facetVar1Name]]
+  .dat$facetVar2 = .dat[[.facetVar2Name]]
+
+  p = ggplot( data = .dat,
+              aes( x = X,
+                   y = Y,
+                   color = as.factor(colorVar) ) ) +
+    
+    geom_point() +
+    geom_line() +
+    
+    # use all values of
+    #scale_x_log10( breaks = unique(.dp$n) )
+    # use only some values
+    #scale_x_log10( breaks = c(500, 1000) ) +
+    
+    xlab(.Xname) +
+    ylab(.Yname) +
+    guides( color = guide_legend(title = .colorVarName) ) +
+    ggtitle(.ggtitle) +
+    theme_bw() 
+  
+  
+  if ( str_contains(x = .Yname, pattern = "Cover") ) {
+    p = p + geom_hline( yintercept = 0.95,
+                        lty = 2,
+                        color = "black" ) 
+    
+  }
+  
+  if ( str_contains(x = .Yname, pattern = "Bias") ) {
+    p = p + geom_hline( yintercept = 0,
+                        lty = 2,
+                        color = "black" ) 
+    
+  }
+  
+  # this block needs to be after adding geom_hlines so that the lines obey the facetting
+  if ( !is.null(.facetVar1Name) & !is.null(.facetVar2Name) ) {
+    p = p + facet_wrap(facetVar1 ~ facetVar2) 
+  }
+  
+  if ( .writePlot == TRUE ) {
+    my_ggsave( name = paste(.Y, "_plot.pdf", sep=""),
+               .width = 10,
+               .height = 10,
+               .results.dir = .results.dir,
+               .overleaf.dir.general = NA )
+  }
+  
+  p
+  
+  # want to be able to easily specify groups of colorVar that should have the same plot char
+  #  or linetype (e.g., groups of related methods)
+  # could do it by passing custom color scale as argument
+  # see helper_TNE::plot_by_n for how to specify the custom color scale
+}
 
 
 # GENERIC SMALL HELPERS -------------------------------------------------------------
@@ -362,6 +470,28 @@ medNA_pctiles = function(x){
 
 names_with = function(.dat, .pattern) {
   names(.dat)[ grepl(pattern = .pattern, x = names(.dat) ) ]
+}
+
+
+# one or both dirs can be NA
+my_ggsave = function(name,
+                     .width,
+                     .height,
+                     .results.dir = results.dir,
+                     .overleaf.dir.general = overleaf.dir) {
+  
+  dirs = c(.results.dir, .overleaf.dir.general)
+  dirIsNA = sapply(dirs, is.na)
+  validDirs = dirs[ !dirIsNA ]
+  
+  
+  for ( dir in validDirs ) {
+    setwd(dir)
+    ggsave( name,
+            width = .width,
+            height = .height,
+            device = "pdf" )
+  }
 }
 
 
@@ -434,5 +564,5 @@ names_with = function(.dat, .pattern) {
 #   return(tab)
 # }
 
- 
+
 

@@ -30,30 +30,6 @@ library(RColorBrewer)
 # no sci notation
 options(scipen=999)
 
-# control which results should be redone and/or overwritten
-redo.plots = TRUE
-
-
-# variables that define the scenarios (though some aren't actually manipulated, like stan.iter)
-param.vars = c("unique.scen",  
-               "method",
-               "boot.reps",
-               "stan.iter",
-               "stan.adapt_delta",
-               "stan.maxtreedepth",
-               "trunc.type",
-               "prop.retained",
-               "mu",
-               "V",
-               "n")
-
-# used later to create plots and tables, but needed to check var types 
-#  upon reading in data
-estNames = c("Mhat", "Shat")
-
-outcomeNames = c("Bias", "RMSE", "EmpSE", "EstFail",
-                 "Cover", "Width", "CIFail", "Rhat")
-
 
 # ~~ Set directories -------------------------
 code.dir = here("Sherlock code")
