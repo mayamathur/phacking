@@ -132,7 +132,7 @@ estimate_jeffreys_RTMA = function( yi,
                              .Mu.start = Mu.start,
                              .par2.start = par2.start )
   }
-
+  
   
   # ~~ Inference ----
   # in case someone passes a set of params that aren't handled
@@ -178,7 +178,7 @@ estimate_jeffreys_RTMA = function( yi,
                       
                       optim.converged = optim.converged )
   
-
+  
   if ( run.optimx == TRUE ) stats = bind_cols(stats, w)
   
   return( list( stats = stats ) )
@@ -200,118 +200,118 @@ estimate_jeffreys_mcmc_RTMA = function(.yi,
                                        .Tt.start,
                                        .stan.adapt_delta = 0.8,
                                        .stan.maxtreedepth = 10 ) {
- 
-# stan.model (used later) is compiled OUTSIDE this fn in doParallel to avoid 
+  
+  # stan.model (used later) is compiled OUTSIDE this fn in doParallel to avoid 
   #  issues with nodes competing with one another
-
-# handle scalar tcrit
-if ( length(.tcrit) < length(.yi) ) .tcrit = rep( .tcrit, length(.yi) )
-
-# prepare to capture warnings from Stan
-stan.warned = 0
-stan.warning = NA
-
-# set start values for sampler
-init.fcn <- function(o){ list(mu = .Mu.start,
-                              tau = .Tt.start ) }
-
-# like tryCatch, but captures warnings without stopping the function from
-#  returning its results
-withCallingHandlers({
   
-  # necessary to prevent ReadRDS errors in which cores try to work with other cores' intermediate results
-  # https://groups.google.com/g/stan-users/c/8snqQTTfWVs?pli=1
-  options(mc.cores = parallel::detectCores())
-
-  cat( paste("\n estimate_jeffreys_mcmc flag 2: about to call sampling") )
+  # handle scalar tcrit
+  if ( length(.tcrit) < length(.yi) ) .tcrit = rep( .tcrit, length(.yi) )
   
-  post = sampling(stan.model,
-                  cores = 1,
-                  refresh = 0,
-                  data = list( k = length(.yi),
-                               sei = .sei,
-                               tcrit = .tcrit,
-                               y = .yi ),
-                  
-                  #iter = p$stan.iter,   
-                  control = list(max_treedepth = p$stan.maxtreedepth,
-                                 adapt_delta = p$stan.adapt_delta),
-                  
-                  init = init.fcn)
+  # prepare to capture warnings from Stan
+  stan.warned = 0
+  stan.warning = NA
+  
+  # set start values for sampler
+  init.fcn <- function(o){ list(mu = .Mu.start,
+                                tau = .Tt.start ) }
+  
+  # like tryCatch, but captures warnings without stopping the function from
+  #  returning its results
+  withCallingHandlers({
+    
+    # necessary to prevent ReadRDS errors in which cores try to work with other cores' intermediate results
+    # https://groups.google.com/g/stan-users/c/8snqQTTfWVs?pli=1
+    options(mc.cores = parallel::detectCores())
+    
+    cat( paste("\n estimate_jeffreys_mcmc flag 2: about to call sampling") )
+    
+    post = sampling(stan.model,
+                    cores = 1,
+                    refresh = 0,
+                    data = list( k = length(.yi),
+                                 sei = .sei,
+                                 tcrit = .tcrit,
+                                 y = .yi ),
+                    
+                    #iter = p$stan.iter,   
+                    control = list(max_treedepth = p$stan.maxtreedepth,
+                                   adapt_delta = p$stan.adapt_delta),
+                    
+                    init = init.fcn)
+    
+    
+  }, warning = function(condition){
+    stan.warned <<- 1
+    stan.warning <<- condition$message
+  } )
+  
+  cat( paste("\n estimate_jeffreys_mcmc flag 3: about to call postSumm") )
+  postSumm = summary(post)$summary
+  
+  #@ 2022-3-4: CHANGED FROM LP__ TO LOG_POST; THIS WILL ALSO AFFECT TNE
+  # pull out best iterate to pass to MAP optimization later
+  ext = rstan::extract(post) # a vector of all post-WU iterates across all chains
+  #best.ind = which.max(ext$lp__)  # single iterate with best log-posterior should be very close to MAP
+  best.ind = which.max(ext$log_post)  # single iterate with best log-posterior should be very close to MAP
   
   
-}, warning = function(condition){
-  stan.warned <<- 1
-  stan.warning <<- condition$message
-} )
-
-cat( paste("\n estimate_jeffreys_mcmc flag 3: about to call postSumm") )
-postSumm = summary(post)$summary
-
-#@ 2022-3-4: CHANGED FROM LP__ TO LOG_POST; THIS WILL ALSO AFFECT TNE
-# pull out best iterate to pass to MAP optimization later
-ext = rstan::extract(post) # a vector of all post-WU iterates across all chains
-#best.ind = which.max(ext$lp__)  # single iterate with best log-posterior should be very close to MAP
-best.ind = which.max(ext$log_post)  # single iterate with best log-posterior should be very close to MAP
-
-
-# posterior means, posterior medians, and max-LP iterate
-Mhat = c( postSumm["mu", "mean"],
-          median( rstan::extract(post, "mu")[[1]] ),
-          ext$mu[best.ind] )
-
-Shat = c( postSumm["tau", "mean"],
-          median( rstan::extract(post, "tau")[[1]] ),
-          ext$tau[best.ind] )
-
-# sanity check
-expect_equal( Mhat[1], mean( rstan::extract(post, "mu")[[1]] ) )
-
-
-# SEs
-MhatSE = postSumm["mu", "se_mean"]
-ShatSE = postSumm["tau", "se_mean"]
-# how Stan estimates the SE: https://discourse.mc-stan.org/t/se-mean-in-print-stanfit/2869
-expect_equal( postSumm["mu", "sd"],
-              sd( rstan::extract(post, "mu")[[1]] ) )
-expect_equal( MhatSE,
-              postSumm["mu", "sd"] / sqrt( postSumm["mu", "n_eff"] ) )
-
-# CI limits
-S.CI = c( postSumm["tau", "2.5%"], postSumm["tau", "97.5%"] )
-M.CI = c( postSumm["mu", "2.5%"], postSumm["mu", "97.5%"] )
-# sanity check:
-myMhatCI = as.numeric( c( quantile( rstan::extract(post, "mu")[[1]], 0.025 ),
-                          quantile( rstan::extract(post, "mu")[[1]], 0.975 ) ) )
-expect_equal(M.CI, myMhatCI)
-
-
-# the point estimates are length 2 (post means, then medians),
-#  but the inference is the same for each type of point estimate
-return( list( stats = data.frame( 
+  # posterior means, posterior medians, and max-LP iterate
+  Mhat = c( postSumm["mu", "mean"],
+            median( rstan::extract(post, "mu")[[1]] ),
+            ext$mu[best.ind] )
   
-  Mhat = Mhat,
-  Shat = Shat,
+  Shat = c( postSumm["tau", "mean"],
+            median( rstan::extract(post, "tau")[[1]] ),
+            ext$tau[best.ind] )
   
-  MhatSE = MhatSE,
-  ShatSE = ShatSE,
+  # sanity check
+  expect_equal( Mhat[1], mean( rstan::extract(post, "mu")[[1]] ) )
   
-  # this will use same CI limits for all 3 pt estimates
-  MLo = M.CI[1],
-  MHi = M.CI[2],
   
-  SLo = S.CI[1],
-  SHi = S.CI[2],
+  # SEs
+  MhatSE = postSumm["mu", "se_mean"]
+  ShatSE = postSumm["tau", "se_mean"]
+  # how Stan estimates the SE: https://discourse.mc-stan.org/t/se-mean-in-print-stanfit/2869
+  expect_equal( postSumm["mu", "sd"],
+                sd( rstan::extract(post, "mu")[[1]] ) )
+  expect_equal( MhatSE,
+                postSumm["mu", "sd"] / sqrt( postSumm["mu", "n_eff"] ) )
   
-  stan.warned = stan.warned,
-  stan.warning = stan.warning,
-  MhatRhat = postSumm["mu", "Rhat"],
-  ShatRhat = postSumm["tau", "Rhat"] ),
+  # CI limits
+  S.CI = c( postSumm["tau", "2.5%"], postSumm["tau", "97.5%"] )
+  M.CI = c( postSumm["mu", "2.5%"], postSumm["mu", "97.5%"] )
+  # sanity check:
+  myMhatCI = as.numeric( c( quantile( rstan::extract(post, "mu")[[1]], 0.025 ),
+                            quantile( rstan::extract(post, "mu")[[1]], 0.975 ) ) )
+  expect_equal(M.CI, myMhatCI)
   
-  #@NEW
-  post = post,
-  postSumm = postSumm ) )
-
+  
+  # the point estimates are length 2 (post means, then medians),
+  #  but the inference is the same for each type of point estimate
+  return( list( stats = data.frame( 
+    
+    Mhat = Mhat,
+    Shat = Shat,
+    
+    MhatSE = MhatSE,
+    ShatSE = ShatSE,
+    
+    # this will use same CI limits for all 3 pt estimates
+    MLo = M.CI[1],
+    MHi = M.CI[2],
+    
+    SLo = S.CI[1],
+    SHi = S.CI[2],
+    
+    stan.warned = stan.warned,
+    stan.warning = stan.warning,
+    MhatRhat = postSumm["mu", "Rhat"],
+    ShatRhat = postSumm["tau", "Rhat"] ),
+    
+    #@NEW
+    post = post,
+    postSumm = postSumm ) )
+  
 }
 
 
@@ -750,7 +750,7 @@ get_optimx_dataframe = function( .yi,
   
   ox.methods <- c('Nelder-Mead', 'BFGS', 'CG', 'L-BFGS-B', 'nlm', 'nlminb', 'spg', 'ucminf',
                   'newuoa', 'bobyqa', 'nmkb', 'hjkb', 'Rcgmin', 'Rvmmin')
-
+  
   l = optimx( par = c(.Mu.start, .par2.start),
               fn = function(..pars) as.numeric( nlpost_jeffreys_RTMA( .pars = ..pars,
                                                                       .par2is = .par2is,
@@ -780,7 +780,7 @@ get_optimx_dataframe = function( .yi,
     # only keep the ones that had values for Mhat, Shat (not ones that didn't even give a value)
     l = l[ !is.na(l$p1) & !is.na(l$p2), ]
     
-
+    
     #**optimizers that converged AND
     # had a small gradient (kkt1) AND
     # had a positive-definite Hessian (kkt2)
@@ -1368,25 +1368,39 @@ correct_meta_phack2 = function( yi,
 }
 
 
-# plot empirical data
 
-# .obj: object returned by correct_meta_phack2
-# showAffirms: should it show all studies, even affirms?
-# black line = LOESS density of nonaffirms
-# red line = MLE from RTMA (parametric counterpart to the above)
-# blue line = LOESS density of all tstats (including affirms)
-plot_trunc_densities = function(.obj,
-                                showAffirms = FALSE) {
+# Args:
+#  - d: dataset with var names "yi", "vi", "affirm"
+#  - Mhat: RTMA estimate of underlying mean effect size
+#  - Shat: Same for heterogeneity
+#  - showAffirms: should it show all studies, even affirms?
+
+# Returned plot:
+#  - black line = LOESS density of nonaffirms
+#  - red line = MLE from RTMA (parametric counterpart to the above)
+#  - blue line = LOESS density of all tstats (including affirms)
+plot_trunc_densities_RTMA = function(d,
+                                     Mhat,
+                                     Shat,
+                                     showAffirms = FALSE) {
+  
+  # #@TEST ONLY
+  # d = dp
+  # showAffirms = FALSE
+  # Mhat = 0.45  # FAKE for now
+  # Shat = 0.10
+  
+  # add Z-scores
+  # these are standardized ACROSS studies using the ESTIMATED mean and heterogeneity
+  # so they should look truncated N(0,1)
+  d$Zi.tilde = (d$yi - Mhat) / sqrt(Shat^2 + d$vi)
   
   # already has affirmative indicator
-  d = .obj$data
   dn = d[d$affirm == FALSE,]
   
-  tstatMeanMLE = .obj$sanityChecks$tstatMeanMLE
-  tstatVarMLE = .obj$sanityChecks$tstatVarMLE
   
-  xmin = floor(min(dn$tstat))
-  xmax = ceiling(max(dn$tstat))
+  xmin = floor(min(dn$Zi.tilde))
+  xmax = ceiling(max(dn$Zi.tilde))
   
   p = ggplot(data = data.frame(x = c(xmin, 3)),
              aes(x)) +
@@ -1395,26 +1409,18 @@ plot_trunc_densities = function(.obj,
                lwd = 1,
                color = "gray") +
     
-    # geom_vline(xintercept = tstatMeanMLE,
-    #            lty = 2,
-    #            lwd = 1,
-    #            color = "red") +
-    
-    
     # estimated density of estimates
     geom_density( data = dn,
-                  aes(x = tstat),
-                  adjust = .3 ) + 
-    
-    
+                  aes(x = Zi.tilde),
+                  adjust = .3 ) +
     
     # estimated density from meta-analysis
     stat_function( fun = dtrunc,
                    n = 101,
                    args = list( spec = "norm",
-                                mean = tstatMeanMLE,
-                                sd = sqrt(tstatVarMLE),
-                                b = .obj$crit),
+                                mean = 0,
+                                sd = 1,
+                                b = qnorm(.975) ),
                    #aes(y = .25 * ..count..),  # doesn't work
                    lwd = 1.2,
                    color = "red") +
@@ -1424,7 +1430,7 @@ plot_trunc_densities = function(.obj,
     
     ylab("") +
     #scale_x_continuous( breaks = seq(xmin, 3, 0.5)) +
-    xlab("t-stat") +
+    xlab("Across-study Z-score using (Mhat, Shat)") +
     theme_minimal() +
     scale_y_continuous(breaks = NULL) +
     theme(text = element_text(size=16),
@@ -1433,8 +1439,9 @@ plot_trunc_densities = function(.obj,
   
   # also show density of all t-stats, not just the nonaffirms
   if ( showAffirms == TRUE ) {
+    warning("This part currently doesn't work. I haven't tried to fix it.")
     p = p + geom_density( data = d,
-                          aes(x = tstat),
+                          aes(x = Zi.tilde),
                           color = "blue",
                           adjust = .3 )
   }
@@ -1443,6 +1450,84 @@ plot_trunc_densities = function(.obj,
   return(p)
   
 }
+
+
+# # OLDER VERSION - MAYBE SAVE?
+# # plot empirical data
+# 
+# # .obj: object returned by correct_meta_phack2
+# # showAffirms: should it show all studies, even affirms?
+# # black line = LOESS density of nonaffirms
+# # red line = MLE from RTMA (parametric counterpart to the above)
+# # blue line = LOESS density of all tstats (including affirms)
+# plot_trunc_densities = function(.obj,
+#                                 showAffirms = FALSE) {
+#   
+#   # already has affirmative indicator
+#   d = .obj$data
+#   dn = d[d$affirm == FALSE,]
+#   
+#   tstatMeanMLE = .obj$sanityChecks$tstatMeanMLE
+#   tstatVarMLE = .obj$sanityChecks$tstatVarMLE
+#   
+#   xmin = floor(min(dn$tstat))
+#   xmax = ceiling(max(dn$tstat))
+#   
+#   p = ggplot(data = data.frame(x = c(xmin, 3)),
+#              aes(x)) +
+#     
+#     geom_vline(xintercept = 0,
+#                lwd = 1,
+#                color = "gray") +
+#     
+#     # geom_vline(xintercept = tstatMeanMLE,
+#     #            lty = 2,
+#     #            lwd = 1,
+#     #            color = "red") +
+#     
+#     
+#     # estimated density of estimates
+#     geom_density( data = dn,
+#                   aes(x = tstat),
+#                   adjust = .3 ) + 
+#     
+#     
+#     
+#     # estimated density from meta-analysis
+#     stat_function( fun = dtrunc,
+#                    n = 101,
+#                    args = list( spec = "norm",
+#                                 mean = tstatMeanMLE,
+#                                 sd = sqrt(tstatVarMLE),
+#                                 b = .obj$crit),
+#                    #aes(y = .25 * ..count..),  # doesn't work
+#                    lwd = 1.2,
+#                    color = "red") +
+#     
+#     #bm: got histogram to work with density in terms of scaling, but not yet the stat_function
+#     
+#     
+#     ylab("") +
+#     #scale_x_continuous( breaks = seq(xmin, 3, 0.5)) +
+#     xlab("t-stat") +
+#     theme_minimal() +
+#     scale_y_continuous(breaks = NULL) +
+#     theme(text = element_text(size=16),
+#           axis.text.x = element_text(size=16))
+#   
+#   
+#   # also show density of all t-stats, not just the nonaffirms
+#   if ( showAffirms == TRUE ) {
+#     p = p + geom_density( data = d,
+#                           aes(x = tstat),
+#                           color = "blue",
+#                           adjust = .3 )
+#   }
+#   
+#   
+#   return(p)
+#   
+# }
 
 
 
