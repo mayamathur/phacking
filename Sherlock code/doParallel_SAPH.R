@@ -72,7 +72,10 @@ if ( run.local == TRUE ) toLoad = c(toLoad, "here")
 if (run.local == FALSE) {
   
   # load command line arguments
-  args = commandArgs(trailingOnly = TRUE); print(args)
+  args = commandArgs(trailingOnly = TRUE)
+  
+  cat("\n\n args received from sbatch file:", args)
+
   jobname = args[1]
   scen = args[2]  # this will be a number
   

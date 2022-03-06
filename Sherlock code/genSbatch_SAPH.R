@@ -42,12 +42,12 @@ lapply( allPackages,
 # "full version"
 scen.params = tidyr::expand_grid(
   rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var",
-  #rep.methods = "jeffreys-mcmc ; jeffreys-sd ; jeffreys-var",
+
   # args from sim_meta_2
-  Nmax = 10,
+  Nmax = 30,  # 2022-3-5: CHANGED
   Mu = 0.1,
   t2a = 0.25,
-  t2w = 0.25,
+  t2w = 0.05,  # 2022-3-5: CHANGED
   m = 50,
   # original one: 
   #true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
@@ -64,7 +64,7 @@ scen.params = tidyr::expand_grid(
   stan.adapt_delta = 0.98,
   
   get.CIs = TRUE,
-  run.optimx = TRUE )
+  run.optimx = TRUE )  
 
 # # just for testing MCMC issues
 # scen.params = tidyr::expand_grid(
@@ -162,7 +162,7 @@ n.files
 # 1800
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1001:1800) {
+for (i in 1:900) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 

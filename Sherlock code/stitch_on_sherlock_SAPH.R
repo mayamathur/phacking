@@ -7,6 +7,8 @@ args = commandArgs(trailingOnly = TRUE)
 start.num = as.numeric( args[1] )  # starting results number to stitch
 stop.num = as.numeric( args[2] )  # stopping results number to stitch
 
+
+
 path = "/home/groups/manishad/SAPH"
 setwd(path)
 source("helper_SAPH.R")
@@ -56,11 +58,23 @@ s <- do.call(bind_rows, tables)
 names(s) = names( read.csv(keepers[1], header= TRUE) )
 
 if( is.na(s[1,1]) ) s = s[-1,]  # delete annoying NA row
-write.csv(s, paste(.results.stitched.write.path, .stitch.file.name, sep="/") )
+# write.csv(s, paste(.results.stitched.write.path, .stitch.file.name, sep="/") )
+
+setwd(.results.stitched.write.path)
+fwrite(s, .stitch.file.name)
 
 # # are we there yet?
 # nrow(s) / (1600*500)  # main sims: 1600*500, bias correction sims: 32*3*500
 # length(unique(s$scen.name))  # main sims: 1600; bias correction sims: 26
+
+
+
+##### Make Agg Data #####
+
+agg = make_agg_data(s)
+setwd(.results.stitched.write.path)
+fwrite(agg, "overall_stitched.csv")
+
 
 ##### Look for Missed Jobs #####
 # look for missed jobs
