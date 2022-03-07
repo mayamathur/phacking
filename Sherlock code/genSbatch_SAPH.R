@@ -44,9 +44,9 @@ scen.params = tidyr::expand_grid(
   rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var",
 
   # args from sim_meta_2
-  Nmax = 30,  # 2022-3-5: CHANGED
+  Nmax = 30,  
   Mu = 0.1,
-  t2a = 0.25,
+  t2a = 1, # 2022-3-7: CHANGED
   t2w = 0.05,  # 2022-3-5: CHANGED
   m = 50,
   # original one: 
