@@ -353,16 +353,18 @@ make_agg_data = function( .s,
 # make a plot with 3 variables: x-axis, y-axis, facets, and colors
 # facet vars allowed be null
 quick_5var_agg_plot = function(.Xname,
-                           .Yname,
-                           .colorVarName,
-                           .facetVar1Name = NULL,
-                           .facetVar2Name = NULL,
-                           
-                           .dat,
-                           .ggtitle = "",
-                           
-                           .writePlot = FALSE,
-                           .results.dir = NULL) {
+                               .Yname,
+                               .colorVarName,
+                               .facetVar1Name = NULL,
+                               .facetVar2Name = NULL,
+                               
+                               .dat,
+                               .ggtitle = "",
+                               
+                               .y.breaks = NULL,
+                               
+                               .writePlot = FALSE,
+                               .results.dir = NULL) {
   
   
   # TEST
@@ -380,7 +382,7 @@ quick_5var_agg_plot = function(.Xname,
   # .writePlot = FALSE
   # #.results.dir
   
-
+  
   .dat$Y = .dat[[.Yname]]
   .dat$X = .dat[[.Xname]]
   .dat$colorVar = .dat[[.colorVarName]]
@@ -388,7 +390,8 @@ quick_5var_agg_plot = function(.Xname,
   #  about facet_wrap b/c then .dat won't contain the facet vars
   .dat$facetVar1 = .dat[[.facetVar1Name]]
   .dat$facetVar2 = .dat[[.facetVar2Name]]
-
+  
+  # ~ Make base plot ----------
   p = ggplot( data = .dat,
               aes( x = X,
                    y = Y,
@@ -408,7 +411,7 @@ quick_5var_agg_plot = function(.Xname,
     ggtitle(.ggtitle) +
     theme_bw() 
   
-  
+  # ~ Add reference lines ----------
   if ( str_contains(x = .Yname, pattern = "Cover") ) {
     p = p + geom_hline( yintercept = 0.95,
                         lty = 2,
@@ -423,10 +426,38 @@ quick_5var_agg_plot = function(.Xname,
     
   }
   
+  # ~ Add facetting ----------
   # this block needs to be after adding geom_hlines so that the lines obey the facetting
   if ( !is.null(.facetVar1Name) & !is.null(.facetVar2Name) ) {
     p = p + facet_wrap(facetVar1 ~ facetVar2) 
   }
+  
+
+  # ~ Set Y-axis breaks ----------
+  # other outcomes follow rules or can just use default axis breaks
+  # y.breaks are only still null if none of the above applied
+  if ( is.null(.y.breaks) ) {
+    # set default breaks
+    if ( grepl(pattern = "Cover", Yname) ){
+      y.breaks = seq(0, 1, .1)
+      
+    } else {
+      # otherwise keep the default limits from ggplot
+      y.breaks = ggplot_build(p)$layout$panel_params[[1]]$y$breaks
+    }
+  }
+  
+  
+  # if user provided their own y.breaks
+  if ( !is.null(.y.breaks) ) {
+    y.breaks = .y.breaks
+  }
+  
+  
+  # use coord_cartesian so that lines/points that go outside limits look cut off
+  #  rather than completely omitted
+  p = p + coord_cartesian( ylim = c( min(y.breaks), max(y.breaks) ) ) +
+    scale_y_continuous( breaks = y.breaks )
   
   if ( .writePlot == TRUE ) {
     my_ggsave( name = paste(.Y, "_plot.pdf", sep=""),

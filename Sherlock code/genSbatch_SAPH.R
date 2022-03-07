@@ -164,11 +164,11 @@ n.files
 # 1200
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:1200) {
+for (i in 1000:1200) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
-
+# YOU'LL DEFINITELY WANT TO CHECK FOR MISSING JOBS :)
 
 
 ######## If Running Only Some Jobs To Fill Gaps ########
@@ -178,10 +178,10 @@ path = "/home/groups/manishad/SAPH"
 setwd(path)
 source("functions_SAPH.R")
 
-missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/sim_results/long",
+missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
                               "/home/groups/manishad/SAPH/sim_results",
                               .name.prefix = "long_results",
-                              .max.sbatch.num = 1440 )
+                              .max.sbatch.num = 1200 )
 
 
 

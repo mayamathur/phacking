@@ -2653,6 +2653,42 @@ generateSbatch <- function(sbatch_params,
 }
 
 
+# looks at results files to identify sbatches that didn't write a file
+# .max.sbatch.num: If not passed, defaults to largest number in actually run jobs.
+
+sbatch_not_run = function(.results.singles.path,
+                          .results.write.path,
+                          .name.prefix,
+                          .max.sbatch.num = NA ) {
+  
+  # get list of all files in folder
+  all.files = list.files(.results.singles.path, full.names=TRUE)
+  
+  # we only want the ones whose name includes .name.prefix
+  keepers = all.files[ grep( .name.prefix, all.files ) ]
+  
+  # extract job numbers
+  sbatch.nums = as.numeric( unlist( lapply( strsplit( keepers, split = "_"), FUN = function(x) x[5] ) ) )
+  
+  # check for missed jobs before the max one
+  if ( is.na(.max.sbatch.num) ) .max.sbatch.num = max(sbatch.nums)
+  all.nums = 1 : .max.sbatch.num
+  missed.nums = all.nums[ !all.nums %in% sbatch.nums ]
+  
+  # give info
+  print( paste("The max job number is: ", max(sbatch.nums) ) )
+  print( paste( "Number of jobs that weren't run: ",
+                ifelse( length(missed.nums) > 0, length(missed.nums), "none" ) ) )
+  
+  if( length(missed.nums) > 0 ) {
+    setwd(.results.write.path)
+    write.csv(missed.nums, "missed_job_nums.csv")
+  }
+  
+  return(missed.nums)
+  
+}
+
 ########################### FN: STITCH RESULTS FILES ###########################
 
 # given a folder path for results and a common beginning of file name of results files

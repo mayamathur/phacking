@@ -11,6 +11,7 @@ library(ggplot2)
 library(data.table)
 library(tidyverse)
 library(fastDummies)
+library(xlsx)
 # meta-analysis packages
 library(metafor)
 library(robumeta)
@@ -151,7 +152,8 @@ dim(agg)
 # **this is great
 Ynames = rev( c("MhatBias", "MhatRMSE", "MhatCover", "MhatWidth",
                 "MhatEstFail", "MhatCIFail",
-                "MhatRhatGt1.01", "OptimxPropAgreeConvergersMhatWinner") )
+                "MhatRhatGt1.01", "MhatRhatGt1.05",
+                "OptimxPropAgreeConvergersMhatWinner", "OptimxNAgreeOfConvergersMhatWinner") )
 
 for ( Yname in Ynames) {
   
@@ -182,7 +184,7 @@ for ( Yname in Ynames) {
 
 
 
-# 2022-3-5: INVESTIGATE 2PSM RESULTS -------------------------
+# 2022-3-7: EFFECT OF SCEN PARAMS ON DATASETS -------------------------
 
 # look at discrepancy in yi published affirms from hacked vs. unhacked studies
 #  to help understand 2PSM results
@@ -202,21 +204,24 @@ t = s %>% group_by( k.pub.nonaffirm, true.sei.expr, rho ) %>%
 
 View(t)
 setwd(results.dir)
-fwrite(t, "table_hacked_vs_unhacked_pub_affirms.csv")
+write.xlsx( as.data.frame(t), "table_hacked_vs_unhacked_pub_affirms.xlsx")
 
-# effect of true.sei.expr on power
+#**effect of true.sei.expr on power
 t = s %>% group_by( true.sei.expr, rho ) %>%
   summarise_at( all_of( c("sancheck.dp.meanN.hacked",
+                          #"sancheck.dp.q90N.hacked",  #@add after next round of sims
                           "sancheck.prob.hacked.udraws.affirm",
                           "sancheck.prob.unhacked.udraws.affirm",
-                          "sancheck.prob.hacked.ustudies.published") ),
+                          "sancheck.prob.hacked.ustudies.published"
+                          #"sancheck.prob.published.affirm.is.hacked"
+                          ) ),
                 function(x) meanNA(x) ) %>%
   mutate_if( is.numeric, function(x) round(x, 2) )
 
 View(t)
 setwd(results.dir)
-fwrite(t, "table_underlying_draw_power.csv")
-#**save this after re-running
+write.xlsx( as.data.frame(t), "table_underlying_draw_power.xlsx")
+
 
 # questions:
 # - why is sancheck.prob.hacked.udraws.affirm != sancheck.prob.unhacked.udraws.affirm even when rho = 0? It's because hacked studies make more draws when they have smaller mui, so small-mui hacked studies are overrepresented.
