@@ -12,11 +12,13 @@ stop.num = as.numeric( args[2] )  # stopping results number to stitch
 path = "/home/groups/manishad/SAPH"
 setwd(path)
 source("helper_SAPH.R")
+source("analyze_sims_helper_SAPH.R")
 
 ######## STITCH LONG FILES ########
 
 library(data.table)
 library(dplyr)
+library(testthat)
 # s = stitch_files(.results.singles.path = "/home/groups/manishad/SAPH/sim_results/long",
 #                  .results.stitched.write.path = "/home/groups/manishad/SAPH/sim_results/overall_stitched",
 #                  .name.prefix = "long_results",
@@ -73,7 +75,7 @@ fwrite(s, .stitch.file.name)
 
 agg = make_agg_data(s)
 setwd(.results.stitched.write.path)
-fwrite(agg, "overall_stitched.csv")
+fwrite(agg, "agg.csv")
 
 
 ##### Look for Missed Jobs #####
@@ -92,8 +94,10 @@ for (i in missed.nums) {
 
 ##### Move to Desktop #####
 # Sherlock -> Desktop
-scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/sim_results/overall_stitched/stitched.csv ~/Desktop
+#scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/sim_results/overall_stitched/stitched.csv ~/Desktop
 
+# stitched and agg -> local directory
+scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/stitched_results/* /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Sherlock\ simulation\ results/Pilot\ simulations
 
 
 

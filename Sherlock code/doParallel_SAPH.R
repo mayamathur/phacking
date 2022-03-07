@@ -768,6 +768,7 @@ doParallel.seconds = system.time({
                                         
                                         # means draws per HACKED, published study
                                         sancheck.dp.meanN.hacked = mean( dp$N[dp$hack != "no"] ),
+                                        sancheck.dp.q90N.hacked = quantile( dp$N[dp$hack != "no"], 0.90 ),
                                         
                                         # average yi's of published draws from each study type
                                         #bm

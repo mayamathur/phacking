@@ -32,6 +32,9 @@ all.methods = "naive ; maon ; 2psm ; jeffreys-sd ; mle-sd ; mle-var"
 run.optimx = TRUE
 stan.adapt_delta = 0.98
 stan.maxtreedepth = 20
+# hacky because estimate_jeffreys_mcmc_RTMA looks for p as global var
+p = data.frame( stan.adapt_delta = 0.98,
+                stan.maxtreedepth = 20 )
 
 
 # for labelling the results file
@@ -145,7 +148,7 @@ if ( "jeffreys-mcmc" %in% all.methods ) {
   source("init_stan_model_applied_SAPH.R")
 }
 
-#@BM: this step breaks
+#BM: this step breaks
 
 
 # RUN ANALYSIS ------------------------------

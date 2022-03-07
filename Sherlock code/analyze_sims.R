@@ -53,11 +53,6 @@ outcomeNames = c("Bias", "RMSE", "EmpSE", "EstFail",
 code.dir = here("Sherlock code")
 
 
-# # save
-# data.dir = str_replace( string = here(),
-#                         pattern = "Code \\(git\\)",
-#                         replacement = "Sherlock simulation results/Pilot simulations/2022-2-27 one scen" )
-
 data.dir = str_replace( string = here(),
                         pattern = "Code \\(git\\)",
                         replacement = "Sherlock simulation results/Pilot simulations" )
@@ -70,7 +65,7 @@ results.dir = data.dir
 
 setwd(code.dir)
 source("helper_SAPH.R")
-
+source("analyze_sims_helper_SAPH.R")
 
 
 
@@ -80,15 +75,13 @@ setwd(data.dir)
 # check when the dataset was last modified to make sure we're working with correct version
 s = fread( "stitched.csv")
 
-#@TEMP
-#s = fread("long_results_job_1_.csv")
-
 file.info("stitched.csv")$mtime
 
 dim(s)
 
 
 #**Check for MCMC errors and similar
+#*# frequent errors for both jeffreys-var and mle-var, but not the corresponding SD param'zations
 s %>% group_by(method) %>%
   summarise( meanNA(is.na(Mhat)))
 
@@ -98,9 +91,17 @@ unique( s$overall.error[ s$method == "jeffreys-var"] )
 table(s$method, s$overall.error)
 
 
-# ~~ Aggregate locally -------------------------
+# ~~ Aggregate locally or read in aggregated data -------------------------
 
-agg = make_agg_data(s)
+#agg = make_agg_data(s)
+
+
+setwd(data.dir)
+agg = fread( "agg.csv")
+# check when the dataset was last modified to make sure we're working with correct version
+file.info("agg.csv")$mtime
+
+dim(agg)
 
 
 
@@ -148,7 +149,9 @@ agg = make_agg_data(s)
 # 2022-3-5: SIMPLE PLOTS -------------------------
 
 # **this is great
-Ynames = c("MhatBias", "MhatRMSE", "MhatCover", "MhatWidth", "MhatRhat")
+Ynames = rev( c("MhatBias", "MhatRMSE", "MhatCover", "MhatWidth",
+                "MhatEstFail", "MhatCIFail",
+                "MhatRhatGt1.01", "OptimxPropAgreeConvergersMhatWinner") )
 
 for ( Yname in Ynames) {
   
@@ -190,9 +193,11 @@ for ( Yname in Ynames) {
 
 # hacked vs. unhacked yi for published affirmatives
 t = s %>% group_by( k.pub.nonaffirm, true.sei.expr, rho ) %>%
-  summarise( Mean.yi.hacked = meanNA(sancheck.mean.yi.hacked.pub.affirm),
-             Mean.yi.unhacked = meanNA(sancheck.mean.yi.unhacked.pub.affirm),
-             Discrep = Mean.yi.hacked - Mean.yi.unhacked) %>%
+  summarise(              Power = meanNA(sancheck.prob.unhacked.udraws.affirm),
+                          Mean.yi.hacked = meanNA(sancheck.mean.yi.hacked.pub.affirm),
+                          Mean.yi.unhacked = meanNA(sancheck.mean.yi.unhacked.pub.affirm),
+                          Discrep = Mean.yi.hacked - Mean.yi.unhacked,
+                          Discrep.ratio = (Mean.yi.hacked - Mean.yi.unhacked) / abs(Mean.yi.unhacked) ) %>%
   mutate_if( is.numeric, function(x) round(x, 2) )
 
 View(t)
@@ -217,6 +222,20 @@ fwrite(t, "table_underlying_draw_power.csv")
 # - why is sancheck.prob.hacked.udraws.affirm != sancheck.prob.unhacked.udraws.affirm even when rho = 0? It's because hacked studies make more draws when they have smaller mui, so small-mui hacked studies are overrepresented.
 # - with these settings, first draws have 13-17% power 
 # - rho has little effect on anything because it hardly changes how many draws the hacked studies make
+
+# 2022-3-6: EXPLORE NMAX -------------------------
+
+# how hard is it to get affirmative result?
+t = s %>% filter()
+group_by( true.sei.expr, rho ) %>%
+  summarise_at( all_of( c("sancheck.dp.meanN.hacked",
+                          "sancheck.prob.hacked.udraws.affirm",
+                          "sancheck.prob.unhacked.udraws.affirm",
+                          "sancheck.prob.hacked.ustudies.published") ),
+                function(x) meanNA(x) ) %>%
+  mutate_if( is.numeric, function(x) round(x, 2) )
+
+View(t)
 
 
 
