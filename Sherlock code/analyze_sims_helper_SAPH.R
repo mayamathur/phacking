@@ -335,9 +335,12 @@ make_agg_data = function( .s,
   agg$true.sei.expr.pretty[ agg$true.sei.expr == "runif(n = 1, min = 0.50, max = 0.60)" ] = "sei ~ U[0.5, 0.6]"
   agg$true.sei.expr.pretty[ agg$true.sei.expr == "runif(n = 1, min = 0.51, max = 1.5)" ] = "sei ~ U[0.51, 1.5]"
   
-  
+  #new one
+  # runif(n = 1, min = 0.1, max = 3)
   
   agg$rho.pretty = paste("rho = ", agg$rho, sep = "")
+  
+  
   
   return(agg %>% ungroup() )
 }

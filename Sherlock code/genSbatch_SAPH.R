@@ -41,21 +41,23 @@ lapply( allPackages,
 
 # "full version"
 scen.params = tidyr::expand_grid(
-  rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var",
+  #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var",
+  rep.methods = "2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd",
 
   # args from sim_meta_2
   Nmax = 30,  
   Mu = 0.1,
   t2a = 1, # 2022-3-7: CHANGED
-  t2w = 0.05,  # 2022-3-5: CHANGED
+  t2w = 0.05,  
   m = 50,
-  # original one: 
-  #true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
+
   true.sei.expr = c( "runif(n = 1, min = 0.1, max = 1)",  # mean=0.55
                      "runif(n = 1, min = 0.50, max = 0.60)", # mean=0.55 also
-                     "runif(n = 1, min = 0.51, max = 1.5)" ),  # same range as first one, but higher mean
+                     "runif(n = 1, min = 0.51, max = 1.5)", # same range as first one, but higher mean
+                     "runif(n = 1, min = 0.1, max = 3)" # 2022-3-7: ADDED WIDER RANGE
+                     ),  
   hack = "affirm",
-  rho = c(0, 0.5),
+  rho = c(0),  # 2022-3-7: CHANGED
   k.pub.nonaffirm = c(10, 20, 50),
   prob.hacked = 0.5,
   
@@ -159,10 +161,10 @@ n.files
 # run just the first one
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
-# 1800
+# 1200
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 901:1800) {
+for (i in 1:1200) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
