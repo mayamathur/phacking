@@ -83,7 +83,7 @@ fwrite(agg, "agg.csv")
 missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
                               "/home/groups/manishad/SAPH/long_results",
                               .name.prefix = "long",
-                              .max.sbatch.num = 100)
+                              .max.sbatch.num = 1620)
 
 path = "/home/groups/manishad/SAPH"
 

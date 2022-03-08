@@ -46,20 +46,22 @@ scen.params = tidyr::expand_grid(
 
   # args from sim_meta_2
   Nmax = 30,  
-  Mu = 0.1,
-  t2a = 1, # 2022-3-7: CHANGED
+  Mu = c(0.1, 0.5, 1),
+  t2a = c(0.2, 1, 1.5), # 2022-3-7-b: CHANGED
   t2w = 0.05,  
   m = 50,
 
-  true.sei.expr = c( "runif(n = 1, min = 0.1, max = 1)",  # mean=0.55
-                     "runif(n = 1, min = 0.50, max = 0.60)", # mean=0.55 also
-                     "runif(n = 1, min = 0.51, max = 1.5)", # same range as first one, but higher mean
-                     "runif(n = 1, min = 0.1, max = 3)" # 2022-3-7: ADDED WIDER RANGE
+  true.sei.expr = c( #"runif(n = 1, min = 0.1, max = 1)",  # mean=0.55
+                     #"runif(n = 1, min = 0.50, max = 0.60)", # mean=0.55 also
+                     #"runif(n = 1, min = 0.51, max = 1.5)", # same range as first one, but higher mean
+                     "runif(n = 1, min = 0.1, max = 3)",
+                     "runif(n = 1, min = 1, max = 3)",  # generally larger SEs; mean is 2
+                     "0.1 + rexp(n = 1, rate = 1.5)"  # 2022-3-7-b: ADDED
                      ),  
   hack = "affirm",
-  rho = c(0),  # 2022-3-7: CHANGED
+  rho = c(0),  
   k.pub.nonaffirm = c(10, 20, 50),
-  prob.hacked = 0.5,
+  prob.hacked = c(0.5, 0.8), # 2022-3-7-b: ADDED
   
   # Stan control args
   stan.maxtreedepth = 20,
@@ -122,7 +124,7 @@ source("helper_SAPH.R")
 
 # number of sbatches to generate (i.e., iterations within each scenario)
 n.reps.per.scen = 1000  
-n.reps.in.doParallel = 10  #@update these
+n.reps.in.doParallel = 100  #@update these
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
@@ -140,7 +142,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "01:00:00",  #@update this; was 1:00:00 with all methods and sim.reps = 10
+                            jobtime = "05:00:00",  #@update this; was 1:00:00 with all methods and sim.reps = 10
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -161,14 +163,13 @@ n.files
 # run just the first one
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
-# 1200
+# 1620
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1000:1200) {
+for (i in 1001:1620) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
-# YOU'LL DEFINITELY WANT TO CHECK FOR MISSING JOBS :)
 
 
 ######## If Running Only Some Jobs To Fill Gaps ########
@@ -181,7 +182,7 @@ source("functions_SAPH.R")
 missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
                               "/home/groups/manishad/SAPH/sim_results",
                               .name.prefix = "long_results",
-                              .max.sbatch.num = 1200 )
+                              .max.sbatch.num = 1620 )
 
 
 

@@ -28,7 +28,7 @@ library(RColorBrewer)
 library(sjmisc)
 library(plotly)
 
-# ~~ Set global vars needed throughout -------------------------
+# ~~ User-specified global vars -------------------------
 # no sci notation
 options(scipen=999)
 
@@ -36,18 +36,47 @@ options(scipen=999)
 redo.plots = TRUE
 
 
+# ~~ List variable names -------------------------
+
+
+### Names of statistical metrics ###
+# used later to create plots and tables, but needed to check var types 
+#  upon reading in data
+estNames = c("Mhat", "Shat")
+
+mainYNames = c("Bias", "RMSE", "Cover", "Width", "EmpSE")
+                
+otherYNames = c("EstFail", "CIFail", "RhatGt1.01", "RhatGt1.05")
+
+# these ones don't fit in nicely because the "Mhat" is in the middle of string
+#"OptimxPropAgreeConvergersMhatWinner", "OptimxNAgreeOfConvergersMhatWinner"
+MhatMainYNames = paste( "Mhat", c(mainYNames), sep = "" )
+MhatYNames = c( paste( "Mhat", c(mainYNames, otherYNames), sep = "" ),
+                "OptimxPropAgreeConvergersMhatWinner", "OptimxNAgreeOfConvergersMhatWinner" )
+
+
+### Names of parameter variables ###
+# figure out which scen params were actually manipulated
+#@this assumes that "Nmax" is always the first param var and "method" is always the last
+param.vars = names(agg)[ which( names(agg) == "Nmax" ) : which( names(agg) == "method" ) ]
+
+# how many levels does each param var have in dataset?
+n.levels = agg %>% select(param.vars) %>%
+  summarise_all( function(x) nuni(x) )
+
+( param.vars.manip = names(n.levels)[ n.levels > 1 ] )
+
+
+# sanity check: SDs of all analysis variables should be 0 within unique scenarios
+t = data.frame( s3 %>% group_by(unique.scen) %>%
+                  summarise_at( analysis.vars, sd ) )
+
 # variables that define the scenarios (though some aren't actually manipulated, like stan.iter)
 #@THIS IS ONLY THE ONES THAT I CHOSE TO VARY
 param.vars.manipulated = c("k.pub.nonaffirm",
                            "rho",
                            "true.sei.expr")
 
-# used later to create plots and tables, but needed to check var types 
-#  upon reading in data
-estNames = c("Mhat", "Shat")
-
-outcomeNames = c("Bias", "RMSE", "EmpSE", "EstFail",
-                 "Cover", "Width", "CIFail", "Rhat")
 
 
 # ~~ Set directories -------------------------
@@ -86,10 +115,9 @@ dim(s)
 s %>% group_by(method) %>%
   summarise( meanNA(is.na(Mhat)))
 
-#@@a lot of those cryptic cluster errors
-unique( s$overall.error[ s$method == "jeffreys-var"] )
-
-table(s$method, s$overall.error)
+# # look at errors
+# unique( s$overall.error[ s$method == "jeffreys-var"] )
+# table(s$method, s$overall.error)
 
 
 # ~~ Aggregate locally or read in aggregated data -------------------------
@@ -146,14 +174,20 @@ dim(agg)
 # fwrite(t, "sanity_check_stats.csv")
 
 
+# 2022-3-8: SORT SCENS BY PERFORMANCE OF A GIVEN METHOD -------------------------
+
+t = sort_agg(MhatCover, desc = FALSE)
+
+View(t)
+
+
 
 # 2022-3-5: SIMPLE PLOTS -------------------------
 
 # **this is great
-Ynames = rev( c("MhatBias", "MhatRMSE", "MhatCover", "MhatWidth",
-                "MhatEstFail", "MhatCIFail",
-                "MhatRhatGt1.01", "MhatRhatGt1.05",
-                "OptimxPropAgreeConvergersMhatWinner", "OptimxNAgreeOfConvergersMhatWinner") )
+
+Ynames = rev(MhatYNames)
+
 
 for ( Yname in Ynames) {
   

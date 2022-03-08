@@ -529,6 +529,25 @@ my_ggsave = function(name,
 }
 
 
+# sort.Yname: UNQUOTED name of performance variable to sort on
+# keepers: vars to retain in the dataset
+sort_agg = function( sort.Yname,
+                     desc = TRUE,
+                     keepers = c("scen.name", param.vars.manip, MhatMainYNames) ) {
+  
+  if ( desc == TRUE ) {
+    agg %>% select(keepers) %>%
+      arrange( desc( {{sort.Yname}} ) ) %>%
+      mutate_if( is.numeric, function(x) round(x, 2) )
+  } else {
+    agg %>% select(keepers) %>%
+      arrange( {{sort.Yname}} ) %>%
+      mutate_if( is.numeric, function(x) round(x, 2) )
+  }
+  
+}
+
+
 # # STRAIGHT FROM MRM:
 # # summarize performance metrics given a dataset (dat) that is already scenario-aggregated
 # #  looks for all variables with "Bias" or "Cover" in their names and takes their means
