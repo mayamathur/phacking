@@ -332,13 +332,22 @@ make_agg_data = function( .s,
   table(agg$method, agg$method.pretty.inf)
   
   message("You probably need to edit the recoding after this point")
-  agg$true.sei.expr.pretty = NA
-  agg$true.sei.expr.pretty[ agg$true.sei.expr == "runif(n = 1, min = 0.1, max = 1)" ] = "sei ~ U[0.1, 1]"
-  agg$true.sei.expr.pretty[ agg$true.sei.expr == "runif(n = 1, min = 0.50, max = 0.60)" ] = "sei ~ U[0.5, 0.6]"
-  agg$true.sei.expr.pretty[ agg$true.sei.expr == "runif(n = 1, min = 0.51, max = 1.5)" ] = "sei ~ U[0.51, 1.5]"
-  agg$true.sei.expr.pretty[ agg$true.sei.expr == "runif(n = 1, min = 0.1, max = 3)" ] = "sei ~ U[0.1, 3]"
   
-  agg$rho.pretty = paste("rho = ", agg$rho, sep = "")
+  agg$true.sei.expr = as.factor(agg$true.sei.expr)
+  
+  agg$true.sei.expr.pretty = dplyr::recode( agg$true.sei.expr,
+                  `0.1 + rexp(n = 1, rate = 1.5)` = "sei ~ Exp(1.5)",
+                  `runif(n = 1, min = 0.1, max = 1)` = "sei ~ U(0.1, 1)",
+                  `runif(n = 1, min = 0.50, max = 0.60)` = "sei ~ U(0.5, 0.6)",
+                  `runif(n = 1, min = 0.51, max = 1.5)` = "sei ~ U(0.51, 1.5)",
+                  `runif(n = 1, min = 0.1, max = 3)` = "sei ~ U(0.1, 3)",
+                  `runif(n = 1, min = 1, max = 3)` = "sei ~ U(1, 3)",
+                  # by default, retain original factor level
+                  .default = levels(agg$true.sei.expr) )
+  #table(agg$true.sei.expr, x)
+
+  
+    agg$rho.pretty = paste("rho = ", agg$rho, sep = "")
   
   
   
@@ -526,6 +535,12 @@ my_ggsave = function(name,
             height = .height,
             device = "pdf" )
   }
+}
+
+# drop elements from vector by their values
+drop_vec_elements = function(x, 
+                             values.to.drop) {
+  x[ !(x %in% values.to.drop)]
 }
 
 

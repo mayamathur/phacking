@@ -66,6 +66,8 @@ n.levels = agg %>% select(param.vars) %>%
 
 ( param.vars.manip = names(n.levels)[ n.levels > 1 ] )
 
+# eliminate redundant ones
+if ( "t2a" %in% param.vars.manip ) param.vars.manip = drop_vec_elements( param.vars.manip, c("S", "V") )
 
 # sanity check: SDs of all analysis variables should be 0 within unique scenarios
 t = data.frame( s3 %>% group_by(unique.scen) %>%
@@ -185,24 +187,44 @@ View(t)
 # 2022-3-5: SIMPLE PLOTS -------------------------
 
 # **this is great
-
 Ynames = rev(MhatYNames)
 
+# to help decide which vars to include in plot:
+param.vars.manip
+
+# for 2022-3-8 sims
+agg$tempFacetVar = paste( "prob.hacked = ", agg$prob.hacked,
+                          "; Mu = ", agg$Mu,
+                          "; t2a = ", agg$t2a,
+                          sep = "")
+table(agg$tempFacetVar)
 
 for ( Yname in Ynames) {
   
   # to run "manually"
   #Yname = "MhatBias"
   
+  # for 2022-3-8 sims
   p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
                           .Yname = Yname,
                           .colorVarName = "method",
-                          .facetVar1Name = "rho.pretty",
+                          .facetVar1Name = "tempFacetVar",
                           .facetVar2Name = "true.sei.expr.pretty",
                           .dat = agg,
                           .ggtitle = "",
                           .writePlot = FALSE,
                           .results.dir = NULL)
+  
+  # # SAVE: this was for the 2022-3-7 and earlier sims (based on what they manipulated)
+  # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
+  #                         .Yname = Yname,
+  #                         .colorVarName = "method",
+  #                         .facetVar1Name = "rho.pretty",
+  #                         .facetVar2Name = "true.sei.expr.pretty",
+  #                         .dat = agg,
+  #                         .ggtitle = "",
+  #                         .writePlot = FALSE,
+  #                         .results.dir = NULL)
   
   # this is a great way to view plots!!
   pl = ggplotly(p)
@@ -227,20 +249,57 @@ for ( Yname in Ynames) {
 # - rho has little effect on discrepancy (unexpected)
 # - but true.sei.expr matters: when seis are tightly clustered around 0.55, the discrepancy is in the unexpected direction (i.e., hacked affirms are smaller)!
 
-# hacked vs. unhacked yi for published affirmatives
-t = s %>% group_by( k.pub.nonaffirm, true.sei.expr, rho ) %>%
-  summarise(              Power = meanNA(sancheck.prob.unhacked.udraws.affirm),
-                          Mean.yi.hacked = meanNA(sancheck.mean.yi.hacked.pub.affirm),
-                          Mean.yi.unhacked = meanNA(sancheck.mean.yi.unhacked.pub.affirm),
-                          Discrep = Mean.yi.hacked - Mean.yi.unhacked,
-                          Discrep.ratio = (Mean.yi.hacked - Mean.yi.unhacked) / abs(Mean.yi.unhacked) ) %>%
+### Published affirmatives: hacked vs. unhacked yi ###
+param.vars.manip2 = drop_vec_elements(param.vars.manip, "method")
+
+t.affirm = s %>% group_by_at( param.vars.manip2 ) %>%
+  
+  summarise( scen.name = as.numeric( paste( unique(scen.name) ) ),  # should only be 1 scen
+             Power = meanNA(sancheck.prob.unhacked.udraws.affirm),
+             Mean.yi.hacked = meanNA(sancheck.mean.yi.hacked.pub.affirm),
+             Mean.yi.unhacked = meanNA(sancheck.mean.yi.unhacked.pub.affirm),
+             Discrep = Mean.yi.hacked - Mean.yi.unhacked,
+             Discrep.ratio = (Mean.yi.hacked - Mean.yi.unhacked) / abs(Mean.yi.unhacked) ) %>%
   mutate_if( is.numeric, function(x) round(x, 2) )
 
-View(t)
+View(t.affirm)
 setwd(results.dir)
-write.xlsx( as.data.frame(t), "table_hacked_vs_unhacked_pub_affirms.xlsx")
+write.xlsx( as.data.frame(t.affirm), "table_hacked_vs_unhacked_pub_affirms.xlsx")
 
-#**effect of true.sei.expr on power
+
+### Published NONaffirmatives: hacked vs. unhacked yi ###
+t.nonaffirm = s %>% group_by_at( param.vars.manip2 ) %>%
+  
+  summarise( scen.name = as.numeric( paste( unique(scen.name) ) ),  # should only be 1 scen
+             Power = meanNA(sancheck.prob.unhacked.udraws.affirm),
+             Mean.yi.hacked = meanNA(sancheck.mean.yi.hacked.pub.nonaffirm),
+             Mean.yi.unhacked = meanNA(sancheck.mean.yi.unhacked.pub.nonaffirm),
+             Discrep = Mean.yi.hacked - Mean.yi.unhacked,
+             Discrep.ratio = (Mean.yi.hacked - Mean.yi.unhacked) / abs(Mean.yi.unhacked) ) %>%
+  mutate_if( is.numeric, function(x) round(x, 2) )
+
+View(t.nonaffirm)
+setwd(results.dir)
+write.xlsx( as.data.frame(t.nonaffirm), "table_hacked_vs_unhacked_pub_nonaffirms.xlsx")
+
+
+### 2022-3-8: look at scen where 2PSM was especially an underestimate ###
+# find scenario names 
+agg %>% filter( true.sei.expr == "0.1 + rexp(n = 1, rate = 1.5)" &
+                  prob.hacked == 0.8 &
+                  Mu == 0.1 &
+                  t2a == 1 ) %>%
+  select(scen.name, method, MhatBias, MhatCover)
+
+data.frame( t.affirm %>% filter(scen.name == 32 ) )
+
+data.frame( t.nonaffirm %>% filter(scen.name == 32 ) )
+#bm
+#***VERY INTERESTING THAT IN SCEN 32, THE 2PSM IS BIASED DOWNWARD, YET
+# mean.yi.hacked affirm is LARGER in hacked studies than unhacked (2 vs. 1.51)
+
+
+### **Effect of true.sei.expr on power ###
 t = s %>% group_by( true.sei.expr, rho ) %>%
   summarise_at( all_of( c("sancheck.dp.meanN.hacked",
                           #"sancheck.dp.q90N.hacked",  #@add after next round of sims
