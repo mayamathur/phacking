@@ -110,7 +110,7 @@ s = fread( "stitched.csv")
 file.info("stitched.csv")$mtime
 
 dim(s)
-
+nuni(s$scen.name)
 
 #**Check for MCMC errors and similar
 #*# frequent errors for both jeffreys-var and mle-var, but not the corresponding SD param'zations
@@ -133,7 +133,7 @@ agg = fread( "agg.csv")
 file.info("agg.csv")$mtime
 
 dim(agg)
-
+nuni(agg$scen.name)
 
 
 # MAYBE SAVE? THESE WORK WHEN CONSIDERING 1 SCEN.
@@ -176,12 +176,41 @@ dim(agg)
 # fwrite(t, "sanity_check_stats.csv")
 
 
-# 2022-3-8: SORT SCENS BY PERFORMANCE OF A GIVEN METHOD -------------------------
+# 2022-3-8: SORT ROWS BY PERFORMANCE -------------------------
 
-t = sort_agg(MhatCover, desc = FALSE)
+t.sort = sort_agg(MhatCover, desc = FALSE)
 
-View(t)
+View(t.sort)
 
+# sort by method, then performance within method
+t.sort = t.sort %>% arrange(method, MhatCover)
+
+View(t.sort)
+
+
+setwd(results.dir)
+write.xlsx( as.data.frame(t.sort), "agg_sorted_by_method_and_coverage.xlsx")
+
+# 2022-3-9: REGRESS PERFORMANCE ON MANIPULATED SCEN PARS  -------------------------
+
+( param.vars.manip2 = drop_vec_elements(param.vars.manip, "method") )
+
+RHS = paste( param.vars.manip2, collapse = " + " )
+formula = paste( "MhatCover", RHS, sep = " ~ ")
+mod = lm( eval( parse( text = formula) ), data = agg )
+
+
+summary(mod)
+
+# what's the reference level for this var?
+levels(as.factor(agg$true.sei.expr))
+
+# Conclusions
+# Things that HURT 2PSM performance
+# -	Wider range of SEs (e.g., U[1, 3] vs. U[0.1,3]; exponential is especially bad)
+# -	Larger t2a
+# -	Higher prob.hacked
+# -	k.pub.nonaffirm doesn’t matter
 
 
 # 2022-3-5: SIMPLE PLOTS -------------------------
@@ -192,17 +221,24 @@ Ynames = rev(MhatYNames)
 # to help decide which vars to include in plot:
 param.vars.manip
 
+# in case you want to filter scens:
+# aggp = agg
+aggp = agg %>% filter( Mu == 1 )
+
 # for 2022-3-8 sims
-agg$tempFacetVar = paste( "prob.hacked = ", agg$prob.hacked,
-                          "; Mu = ", agg$Mu,
-                          "; t2a = ", agg$t2a,
+aggp$tempFacetVar = paste( "prob.hacked = ", aggp$prob.hacked,
+                          "; Mu = ", aggp$Mu,
+                          "; t2a = ", aggp$t2a,
                           sep = "")
-table(agg$tempFacetVar)
+table(aggp$tempFacetVar)
+
+
 
 for ( Yname in Ynames) {
   
   # to run "manually"
   #Yname = "MhatBias"
+  #Yname = "MhatCover"
   
   # for 2022-3-8 sims
   p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
@@ -210,7 +246,7 @@ for ( Yname in Ynames) {
                           .colorVarName = "method",
                           .facetVar1Name = "tempFacetVar",
                           .facetVar2Name = "true.sei.expr.pretty",
-                          .dat = agg,
+                          .dat = aggp,
                           .ggtitle = "",
                           .writePlot = FALSE,
                           .results.dir = NULL)
@@ -320,6 +356,47 @@ write.xlsx( as.data.frame(t), "table_underlying_draw_power.xlsx")
 # - why is sancheck.prob.hacked.udraws.affirm != sancheck.prob.unhacked.udraws.affirm even when rho = 0? It's because hacked studies make more draws when they have smaller mui, so small-mui hacked studies are overrepresented.
 # - with these settings, first draws have 13-17% power 
 # - rho has little effect on anything because it hardly changes how many draws the hacked studies make
+
+
+# ISOLATE SCENS THAT WERE BAD FOR 2PSM -------------------------
+
+# I picked scens using the sorted table:
+View(t.sort)
+
+
+# ~ Scen with large Mu, large t2a, and expo SEs -------------------------
+scen = 144
+t %>% filter(scen.name == scen)
+# **this is a great scenario because Jeffreys isn't even THAT wide (width 2.54) and has coverage 94%, but 2PSM has coverage 10%!
+
+# look at power characteristics of this scen
+data.frame( t.affirm %>% filter(scen.name == scen) )
+
+
+
+# ~ Scen with large Mu, large t2a, and less heterogeneity than above -------------------------
+scen = 125
+t %>% filter(scen.name == scen)
+# **this is a great scenario because Jeffreys isn't even THAT wide (width 2.54) and has coverage 94%, but 2PSM has coverage 10%!
+
+# look at power characteristics of this scen
+data.frame( t.affirm %>% filter(scen.name == scen) )
+
+
+# ~ Scen with large Mu, large t2a, and unif SEs -------------------------
+scen = 150
+t %>% filter(scen.name == scen)
+
+# **also a great scen!
+
+# look at power characteristics of this scen
+data.frame( t.affirm %>% filter(scen.name == scen) )
+
+#**Q: Are there cases where 2PSM is badly biased downward that even MAON is less conservative than 2PSM?
+
+
+
+
 
 # 2022-3-6: EXPLORE NMAX -------------------------
 

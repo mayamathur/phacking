@@ -1,11 +1,27 @@
 
 
+
+# run this interactively in ml load R or via:
+#   sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/job_stitch.sbatch
+# scontrol show job 33834701
+# look at its out file:
+# cd /home/groups/manishad/SAPH
+# cd /home/users/mmathur
+# less rm_stitch.out
+
+# for non-huge simulations, can often run this script interactively in a higher-memory
+#  Sherlock session:
+# ml load R/4.1.2
+# srun --mem=32G --time=3:00:00 --pty bash
+# R
+
+
 # to be run by stitch.sbatch or manually
 
-# load command line arguments
-args = commandArgs(trailingOnly = TRUE)
-start.num = as.numeric( args[1] )  # starting results number to stitch
-stop.num = as.numeric( args[2] )  # stopping results number to stitch
+# # load command line arguments
+# args = commandArgs(trailingOnly = TRUE)
+# start.num = as.numeric( args[1] )  # starting results number to stitch
+# stop.num = as.numeric( args[2] )  # stopping results number to stitch
 
 
 
@@ -69,6 +85,14 @@ fwrite(s, .stitch.file.name)
 # nrow(s) / (1600*500)  # main sims: 1600*500, bias correction sims: 32*3*500
 # length(unique(s$scen.name))  # main sims: 1600; bias correction sims: 26
 
+cat("\n\n nrow(s) =", nrow(s))
+cat("\n nuni(s$scen.name) =", nuni(s$scen.name) )
+
+
+# not sure why this is needed - has NA columns at end
+s = s[ , -c(158,159) ]
+
+s = s %>% filter(!is.na(scen.name))
 
 
 ##### Make Agg Data #####
@@ -77,82 +101,33 @@ agg = make_agg_data(s)
 setwd(.results.stitched.write.path)
 fwrite(agg, "agg.csv")
 
+cat("\n\n nrow(agg) =", nrow(agg))
+cat("\n nuni(agg$scen.name) =", nuni(agg$scen.name) )
+
 
 ##### Look for Missed Jobs #####
+
+path = "/home/groups/manishad/SAPH"
+setwd(path)
+source("helper_SAPH.R")
+source("analyze_sims_helper_SAPH.R")
+
 # look for missed jobs
 missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
                               "/home/groups/manishad/SAPH/long_results",
                               .name.prefix = "long",
                               .max.sbatch.num = 1620)
 
-path = "/home/groups/manishad/SAPH"
-
-setwd( paste(path, "/sbatch_files", sep="") )
-for (i in missed.nums) {
-  system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
-}
+# setwd( paste(path, "/sbatch_files", sep="") )
+# for (i in missed.nums) {
+#   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
+# }
 
 ##### Move to Desktop #####
 # Sherlock -> Desktop
 #scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/sim_results/overall_stitched/stitched.csv ~/Desktop
 
-# stitched and agg -> local directory
-scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/stitched_results/* /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Sherlock\ simulation\ results/Pilot\ simulations
+# # stitched and agg -> local directory
+# scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/stitched_results/* /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Sherlock\ simulation\ results/Pilot\ simulations
 
-
-
-##### Quick Look at Results #####
-
-library(cli, lib.loc = "/home/groups/manishad/Rpackages/")
-library(fansi, lib.loc = "/home/groups/manishad/Rpackages/")
-library(utf8, lib.loc = "/home/groups/manishad/Rpackages/")
-library(rlang, lib.loc = "/home/groups/manishad/Rpackages/")
-library(crayon, lib.loc = "/home/groups/manishad/Rpackages/")
-library(dplyr, lib.loc = "/home/groups/manishad/Rpackages/")
-library(foreach, lib.loc = "/home/groups/manishad/Rpackages/")
-library(doParallel, lib.loc = "/home/groups/manishad/Rpackages/")
-library(boot, lib.loc = "/home/groups/manishad/Rpackages/")
-library(metafor, lib.loc = "/home/groups/manishad/Rpackages/")
-library(robumeta, lib.loc = "/home/groups/manishad/Rpackages/")
-library(data.table, lib.loc = "/home/groups/manishad/Rpackages/")
-library(purrr, lib.loc = "/home/groups/manishad/Rpackages/")
-library(metRology, lib.loc = "/home/groups/manishad/Rpackages/")
-
-
-s = s[ ,!is.na(names(s)) ]
-
-s %>% group_by(scen.name) %>%
-  mutate(PhatRelBias = mean( abs(Phat - TheoryP[1])/TheoryP[1] ),
-         EstVarRelBias = mean( abs(EstVar - V[1])/V[1] ) ) %>%
-  group_by(calib.method) %>%
-  summarise( n(),
-             PhatRelBiasMn = mean(PhatRelBias),
-             EstVarRelBiasMn = mean(EstVarRelBias) )
-# expect n=16000 for each calib.method since there are 96 total rows (3 each per scenario)
-
-table(is.na(s$PhatLo))
-table(is.na(s$DiffLo))
-
-# assumes a single scenario
-mean(s$Phat)
-table(s$TheoryP)
-bias = mean(s$Phat) - s$TheoryP
-mean(s$PhatBtMn, na.rm=TRUE); bias  # hope this is equal to the bias
-
-
-mean(s$Diff)
-table(s$TheoryDiff)
-bias = mean(s$Diff) - s$TheoryDiff
-mean(s$DiffBtMn, na.rm=TRUE); bias  # hope this is equal to the bias
-
-
-
-
-
-# stitch on Sherlock
-# sbatch -p qsu,normal,owners /home/groups/manishad/SAPH/stitch_sbatch_files/stitch_4.sbatch
-# sacct --jobs=49474291 --format=User,JobID,account,Timelimit,elapsed,ReqMem,MaxRss,ExitCode
-
-# # move it to Desktop
-# scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/stitched_results/stitched.csv ~/Desktop
 
