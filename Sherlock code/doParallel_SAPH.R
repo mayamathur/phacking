@@ -180,20 +180,20 @@ if ( run.local == TRUE ) {
   # naive ; gold-std ; 2psm ; maon ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
   scen.params = data.frame(scen = 1,
                            
-                           rep.methods = "mle-sd",
+                           rep.methods = "maon ; pcurve",
                            #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-sd ; mle-sd ; mle-var",
                            
                            # args from sim_meta_2
-                           Nmax = 10,
-                           Mu = 0.1,
-                           t2a = 0.25,
-                           t2w = 0.25,
+                           Nmax = 30,
+                           Mu = 0.5,
+                           t2a = 0.5,
+                           t2w = 0.05,
                            m = 50,
-                           true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
+                           true.sei.expr = "runif(n = 1, min = 0.1, max = 3)",
                            hack = "affirm",
                            rho = 0,
                            k.pub.nonaffirm = 50,
-                           prob.hacked = 0.2,
+                           prob.hacked = 0.8,
                            
                            # Stan control args
                            stan.maxtreedepth = 20,
@@ -286,6 +286,9 @@ doParallel.seconds = system.time({
     
     # published nonaffirmatives only
     dpn = dp[ dp$affirm == FALSE, ]
+    
+    # published affirmatives only
+    dpa = dp[ dp$affirm == TRUE, ]
     
     if ( i == 1 ) cat("\n\nHEAD OF DP:\n")
     if ( i == 1 ) print(head(dp))
@@ -397,6 +400,34 @@ doParallel.seconds = system.time({
       
     }
     
+    
+    # ~~ Fit P-Curve (Published Affirmatives) ------------------------------
+    
+    if ( "pcurve" %in% all.methods ) {
+      # since pcurve.opt internally retains only 
+      rep.res = run_method_safe(method.label = c("pcurve"),
+                                method.fn = function() {
+                                  #@later, revisit the decision to use df_obs = 1000
+                                  #   to effectively treat yi/sei z-scores
+                                  
+                                  # using all significant studies (that's what pcurve.opt does internally):
+                                  Mhat = pcurve.opt( t_obs = dp$yi/dp$sei,
+                                                     df_obs = rep(1000, length(dp$yi)),
+                                                     dmin = -5, #@HARD-CODED and arbitrary
+                                                     dmax = 5)
+                                  
+                                  # # using only published affirmatives:
+                                  # Mhat = pcurve.opt( t_obs = dpa$yi/dpa$sei,
+                                  #                    df_obs = rep(1000, length(dpa$yi)),
+                                  #                    dmin = -5, #@HARD-CODED and arbitrary
+                                  #                    dmax = 5)
+                                  
+                                  
+                                  return( list( stats = data.frame( Mhat = Mhat) ) )
+                                },
+                                .rep.res = rep.res )
+      
+    }
     
     # ~~ MCMC ------------------------------
     
