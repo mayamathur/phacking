@@ -58,7 +58,7 @@ scen.params = tidyr::expand_grid(
                      "runif(n = 1, min = 1, max = 3)",  # generally larger SEs; mean is 2
                      "0.1 + rexp(n = 1, rate = 1.5)"  # 2022-3-7-b: ADDED
                      ),  
-  hack = "affirm",
+  hack = c( "favor-best-affirm-wch", "affirm"),
   rho = c(0),  
   k.pub.nonaffirm = c(10, 20, 50),
   prob.hacked = c(0.5, 0.8), # 2022-3-7-b: ADDED

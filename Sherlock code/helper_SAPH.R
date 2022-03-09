@@ -1981,7 +1981,9 @@ sim_meta = function(Nmax,  # max draws to try
 #    but if you reach Nmax, do NOT report any result at all
 #  - "signif": similar to "affirm", but hack to significance
 #  - "affirm2": (NOT worst-case hacking): similar to "affirm", but you always report the last draw, even
-#    if it was nonaffirm (no file drawer)
+#       if it was nonaffirm (no file drawer)
+#  - "favor-best-affirm-wch": always make Nmax draws; if you get any affirmatives, publish the one with the lowest
+#      p-value; if you don't get any affirmatives, don't publish anything
 
 # NOTE: If you add args here, need to update quick_sim as well
 sim_one_study_set = function(Nmax,  # max draws to try
@@ -2005,10 +2007,10 @@ sim_one_study_set = function(Nmax,  # max draws to try
   # m = 50
   # t2w = .5
   # se = 1
-  # hack = "affirm"
+  # hack = "favor-best-affirm-wch"
   # rho=0
   
-  # mean for this study set
+  # ~~ Mean for this study set ----
   # doesn't have t2w because that applies to results within this study set
   mui = Mu + rnorm(mean = 0,
                    sd = sqrt(t2a),
@@ -2027,7 +2029,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
   stop = FALSE  # indicator for whether to stop drawing results
   N = 0  # counts draws actually made
   
-  
+  # ~~ Draw until study reaches its stopping criterion ----
   # we use this loop whether there's hacking or not
   while( stop == FALSE & N < Nmax ) {
     
@@ -2038,7 +2040,7 @@ sim_one_study_set = function(Nmax,  # max draws to try
       # make correlated draw
       if ( N == 0 ) .args$last.muin = NA  # on first draw, so there's no previous one
       if ( N > 0 ) .args$last.muin = d$muin[ nrow(d) ]
-      newRow = do.call( make_one_draw, .args )
+      newRow = do.call( make_one_draw, .args ) 
     }
     
     
@@ -2054,21 +2056,23 @@ sim_one_study_set = function(Nmax,  # max draws to try
       stop = (newRow$pval < 0.05)
     } else if ( hack %in% c("affirm", "affirm2") ) {
       stop = (newRow$pval < 0.05 & newRow$yi > 0)
-    } else if ( hack == "no" ) {
+    } else if ( hack %in% c("no", "favor-best-affirm-wch") ) {
       # if this study set is unhacked, then success is just whether
       #  we've reached Nmax draws
-      if ( hack == "no") stop = (N == Nmax)
+      # and for favor-best-affirm-wch, we always do Nmax draws so 
+      #  we can pick the smallest p-value
+      stop = (N == Nmax)
     } else {
       stop("No stopping criterion implemented for your chosen hack mechanism")
     }
     
-  }  # end while-loop
+  }  # end while-loop until N = Nmax or we succeed
   
   # record info in dataset
   d$N = N
   d$hack = hack
   
-  # empirical correlation of muin's
+  # ~~ Empirical correlation of muin's ----
   #  but note this will be biased for rho in small samples (i.e., Nmax small)
   if ( nrow(d) > 1 ) {
     # get lag-1 autocorrelation
@@ -2084,21 +2088,35 @@ sim_one_study_set = function(Nmax,  # max draws to try
     d$covEmp = NA
   }
   
-  
-  
   # convenience indicators for significance and affirmative status
   d$signif = d$pval < 0.05
   d$affirm = (d$pval < 0.05 & d$yi > 0)
+
   
-  # publication indicator
+  # ~~ Decide which draw to favor & publish ----
   # in the first 2 cases, Di=1 for only the last draw IF we got an affirm result
   #  but if we didn't, then it will always be 0
   if ( hack == "signif" ) d$Di = (d$signif == TRUE)
   if (hack == "affirm") d$Di = (d$affirm == TRUE)
-  # if no hacking or affirmative hacking without file drawer, assume only last draw is published
+  
+  # if no hacking or affirmative hacking without file drawer,
+  #   assume only LAST draw is published
   if ( hack %in% c("no", "affirm2") ) {
     d$Di = 0
     d$Di[ length(d$Di) ] = 1
+  }
+  
+  # for favor-best-affirm-wch, favor the one with the 
+  if ( hack %in% c("favor-best-affirm-wch") ) {
+    d$Di = 0
+    # if there was at least 1 affirm, publish it 
+    if ( any(d$affirm == TRUE) ) {
+      best.affirm.pval = min( d$pval[d$affirm == TRUE] )
+      d$Di[ d$pval == best.affirm.pval & d$affirm == TRUE ] = 1
+    }
+    # ...otherwise don't publish any draw
+    # sanity check:
+    #View(d%>%select(Di,affirm,pval,yi))
   }
   
   if ( return.only.published == TRUE ) d = d[ d$Di == 1, ]
@@ -2106,6 +2124,21 @@ sim_one_study_set = function(Nmax,  # max draws to try
   return(d)
   
 }
+
+
+### example
+
+d = sim_one_study_set(Nmax = 20,
+                      Mu = 1,
+                      t2a = 1,
+                      m = 50,
+                      t2w = .5,
+                      se = 1,
+                      hack = "favor-best-affirm-wch",
+                      return.only.published = FALSE)
+nrow(d)
+d
+
 
 
 # ### example
