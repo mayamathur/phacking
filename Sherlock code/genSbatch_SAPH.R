@@ -56,7 +56,8 @@ scen.params = tidyr::expand_grid(
                      #"runif(n = 1, min = 0.51, max = 1.5)", # same range as first one, but higher mean
                      "runif(n = 1, min = 0.1, max = 3)",
                      "runif(n = 1, min = 1, max = 3)",  # generally larger SEs; mean is 2
-                     "0.1 + rexp(n = 1, rate = 1.5)"  # 2022-3-7-b: ADDED
+                     "0.1 + rexp(n = 1, rate = 1.5)",  # 2022-3-7-b: ADDED
+                     "rbeta(n = 1, 2, 5)"  # 2022-3-9: ADDED to closely resemble SAPB-E; see aux code
                      ),  
   hack = c( "favor-best-affirm-wch", "affirm"),
   rho = c(0),  
