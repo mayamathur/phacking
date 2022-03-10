@@ -122,7 +122,7 @@ s %>% group_by(method) %>%
 # table(s$method, s$overall.error)
 
 
-# ~~ Aggregate locally or read in aggregated data -------------------------
+# ~~ Get agg data -------------------------
 
 #agg = make_agg_data(s)
 
@@ -134,6 +134,8 @@ file.info("agg.csv")$mtime
 
 dim(agg)
 nuni(agg$scen.name)
+
+fake = wrangle_agg_local(agg)
 
 
 # MAYBE SAVE? THESE WORK WHEN CONSIDERING 1 SCEN.

@@ -90,12 +90,21 @@ cat("\n nuni(s$scen.name) =", nuni(s$scen.name) )
 
 
 # not sure why this is needed - has NA columns at end
-s = s[ , -c(158,159) ]
+names(s)
+any(is.na(names(s)))
+NA.names = which( is.na(names(s) ) )
+s = s[ , -NA.names ]
 
 s = s %>% filter(!is.na(scen.name))
 
 
 ##### Make Agg Data #####
+
+
+path = "/home/groups/manishad/SAPH"
+setwd(path)
+source("helper_SAPH.R")
+source("analyze_sims_helper_SAPH.R")
 
 agg = make_agg_data(s)
 setwd(.results.stitched.write.path)

@@ -65,17 +65,19 @@ make_agg_data = function( .s,
     "ShatEstFail",
     "ShatCIFail",
     
-    # diagnostics for main Mhat optimizer
-    "OptimConverged",
-    
-    # diagnostics for other optimizers
-    "OptimxMhatWinner",
-    "OptimxPropAgreeMhatWinner",
-    "OptimxPropAgreeConvergersMhatWinner",
-    
-    "OptimxShatWinner",
-    "OptimxPropAgreeShatWinner",
-    "OptimxPropAgreeConvergersShatWinner", 
+    # #@2022-3-10 TEMP: COMMENTED OUT BECAUSE I DIDN'T RUN OPTIMX METHODS, SO THIS BREAKS
+    # # diagnostics for main Mhat optimizer
+    # "OptimConverged",
+    # 
+    # #@2022-3-10 TEMP: COMMENTED OUT BECAUSE I DIDN'T RUN OPTIMX METHODS, SO THIS BREAKS
+    # # diagnostics for other optimizers
+    # "OptimxMhatWinner",
+    # "OptimxPropAgreeMhatWinner",
+    # "OptimxPropAgreeConvergersMhatWinner",
+    # 
+    # "OptimxShatWinner",
+    # "OptimxPropAgreeShatWinner",
+    # "OptimxPropAgreeConvergersShatWinner", 
     
     # Stan diagnostics, part 2
     "StanWarned",
@@ -210,24 +212,20 @@ make_agg_data = function( .s,
             MhatSERelBias = (MhatEstSE - MhatEmpSE) / MhatEmpSE, 
             ShatSERelBias = (ShatEstSE - ShatEmpSE) / ShatEmpSE,
             
-            # static within scenario
-            OptimConverged = meanNA(optim.converged),
-            OptimxNConvergers = meanNA(optimx.Nconvergers),
-            OptimxNAgreeOfConvergersMhatWinner = meanNA(optimx.Nagree.of.convergers.Mhat.winner),
-            
-            OptimxMhatWinner = meanNA(optimx.Mhat.winner),
-            OptimxPropAgreeMhatWinner = meanNA(optimx.Pagree.Mhat.winner),
-            OptimxPropAgreeConvergersMhatWinner = meanNA(optimx.Pagree.of.convergers.Mhat.winner),
-            
-            OptimxShatWinner = meanNA(optimx.Shat.winner),
-            OptimxPropAgreeShatWinner = meanNA(optimx.Pagree.Shat.winner),
-            OptimxPropAgreeConvergersShatWinner = meanNA(optimx.Pagree.of.convergers.Shat.winner),
-            
-            # # proportions of reps within scenarios for which 2 optimizers disagreed by 
-            # #  more than various thresholds:
-            # MhatOptimDisagree0.001 = meanNA( abs(Mhat.opt.diff) > 0.001 ),
-            # MhatOptimDisagree0.01 = meanNA( abs(Mhat.opt.diff) > 0.01 ),
-            # MhatOptimDisagree0.05 = meanNA( abs(Mhat.opt.diff) > 0.05 ),
+            # # static within scenario
+            # #@2022-3-10 TEMP: COMMENTED OUT BECAUSE I DIDN'T RUN OPTIMX METHODS, SO THIS BREAKS
+            # # ALSO COMMENTED OUT PART OF ANALYSIS.VARS ABOVE
+            # OptimConverged = meanNA(optim.converged),
+            # OptimxNConvergers = meanNA(optimx.Nconvergers),
+            # OptimxNAgreeOfConvergersMhatWinner = meanNA(optimx.Nagree.of.convergers.Mhat.winner),
+            # 
+            # OptimxMhatWinner = meanNA(optimx.Mhat.winner),
+            # OptimxPropAgreeMhatWinner = meanNA(optimx.Pagree.Mhat.winner),
+            # OptimxPropAgreeConvergersMhatWinner = meanNA(optimx.Pagree.of.convergers.Mhat.winner),
+            # 
+            # OptimxShatWinner = meanNA(optimx.Shat.winner),
+            # OptimxPropAgreeShatWinner = meanNA(optimx.Pagree.Shat.winner),
+            # OptimxPropAgreeConvergersShatWinner = meanNA(optimx.Pagree.of.convergers.Shat.winner),
             
             # static within scenario
             StanWarned = meanNA(stan.warned),
@@ -273,8 +271,9 @@ make_agg_data = function( .s,
   
   
   # sanity check: name mismatches
-  if ( length( analysis.vars[ !analysis.vars %in% names(s2) ] ) > 0 ) {
-    stop("Might have name mismatches; edit analysis.vars in make_agg_data")
+  trouble.vars = analysis.vars[ !analysis.vars %in% names(s2) ]
+  if ( length( trouble.vars ) > 0 ) {
+    stop( paste("Might have name mismatches; edit analysis.vars in make_agg_data; trouble vars are: ", trouble.vars ) )
   }
   
   # sanity check: SDs of all analysis variables should be 0 within unique scenarios
@@ -292,15 +291,18 @@ make_agg_data = function( .s,
   #  combination of scenario name and calib.method
   agg = s3[ !duplicated(s3$unique.scen), ]
   
-  ##### create Variables That Are Defined At Scenario Rather Than Iterate Level #####
+  ##### Create Variables That Are Defined At Scenario Rather Than Iterate Level #####
   agg = agg %>% mutate( BadMhatCover = MhatCover < badCoverageCutoff,
                         BadShatCover = ShatCover < badCoverageCutoff )
   
-  # # absolute bias is now just the absolute value of bias
-  # #  and this is only used for the regressions in Supplement
-  # agg$PhatAbsBias = abs(agg$PhatBias)
-  # agg$DiffAbsBias = abs(agg$DiffBias)
-  
+  return(agg %>% ungroup() )
+}
+
+
+# This is meant to be called after make_agg_data
+# Can be run locally even when agg is huge
+# This fn is separate from make_agg_data because it needs more frequent modification
+wrangle_agg_local = function(agg) {
   ##### Make New Variables At Scenario Level ##### 
   # label methods more intelligently for use in plots
   agg$method.pretty.est = NA
@@ -331,29 +333,16 @@ make_agg_data = function( .s,
   
   table(agg$method, agg$method.pretty.inf)
   
-  message("You probably need to edit the recoding after this point")
-  
+
   agg$true.sei.expr = as.factor(agg$true.sei.expr)
   
-  agg$true.sei.expr.pretty = dplyr::recode( agg$true.sei.expr,
-                  `0.1 + rexp(n = 1, rate = 1.5)` = "sei ~ Exp(1.5)",
-                  `runif(n = 1, min = 0.1, max = 1)` = "sei ~ U(0.1, 1)",
-                  `runif(n = 1, min = 0.50, max = 0.60)` = "sei ~ U(0.5, 0.6)",
-                  `runif(n = 1, min = 0.51, max = 1.5)` = "sei ~ U(0.51, 1.5)",
-                  `runif(n = 1, min = 0.1, max = 3)` = "sei ~ U(0.1, 3)",
-                  `runif(n = 1, min = 1, max = 3)` = "sei ~ U(1, 3)",
-                  # by default, retain original factor level
-                  .default = levels(agg$true.sei.expr) )
+  agg$true.sei.expr.pretty = o
   #table(agg$true.sei.expr, x)
 
+  agg$rho.pretty = paste("rho = ", agg$rho, sep = "")
   
-    agg$rho.pretty = paste("rho = ", agg$rho, sep = "")
-  
-  
-  
-  return(agg %>% ungroup() )
+  return(agg)
 }
-
 
 
 
