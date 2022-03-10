@@ -39,6 +39,11 @@ lapply( allPackages,
 # 2. Nmax > 1, k.hacked = 0, rho = 0.9 
 # 3. Nmax > 1, k.hacked = 50, rho = 0 or 0.9 (conservative?)
 
+# Note that if you don't include any of these: jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var
+#  then you'll need to comment out Optim variables from the analysis.vars in make_agg_data and 
+#  also from mutate in there
+# I think a similar thing will be true with the Rhats if you omit jeffreys-mcmc?
+
 # "full version"
 scen.params = tidyr::expand_grid(
   #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var",
