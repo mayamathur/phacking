@@ -150,7 +150,7 @@ if (run.local == FALSE) {
   
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
-  sim.reps = 100  #@update this 
+  sim.reps = 200  #@update this 
   
   
   # set the number of cores
@@ -814,6 +814,16 @@ doParallel.seconds = system.time({
                                       
                                         sancheck.mean.yi.hacked.pub.nonaffirm = mean( dp$yi[ dp$hack != "no" & dp$affirm == FALSE ] ),
                                         sancheck.mean.yi.hacked.pub.affirm = mean( dp$yi[ dp$hack != "no" & dp$affirm == TRUE ] ),
+                                        
+                                        # average Zi's
+                                        sancheck.mean.Zi.unhacked.pub.study = mean( dp$Zi[ dp$hack == "no"] ),
+                                        sancheck.mean.Zi.hacked.pub.study = mean( dp$Zi[ dp$hack != "no"] ),
+                                        
+                                        sancheck.mean.Zi.unhacked.pub.nonaffirm = mean( dp$Zi[ dp$hack == "no" & dp$affirm == FALSE ] ),
+                                        sancheck.mean.Zi.unhacked.pub.affirm = mean( dp$Zi[ dp$hack == "no" & dp$affirm == TRUE ] ),
+                                        
+                                        sancheck.mean.Zi.hacked.pub.nonaffirm = mean( dp$Zi[ dp$hack != "no" & dp$affirm == FALSE ] ),
+                                        sancheck.mean.Zi.hacked.pub.affirm = mean( dp$Zi[ dp$hack != "no" & dp$affirm == TRUE ] ),
                                         
                                         
                                         sancheck.prob.ustudies.published = sancheck.prob.ustudies.published,

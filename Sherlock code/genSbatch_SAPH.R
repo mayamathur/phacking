@@ -47,7 +47,7 @@ scen.params = tidyr::expand_grid(
   # args from sim_meta_2
   Nmax = 30,  
   Mu = c(0.5, 1),
-  t2a = c(0.2, 1, 1.5),
+  t2a = c(0.05, 0.2, 1, 1.5),
   t2w = 0.05,  
   m = 50,
 
@@ -125,7 +125,7 @@ source("helper_SAPH.R")
 
 # number of sbatches to generate (i.e., iterations within each scenario)
 n.reps.per.scen = 1000  
-n.reps.in.doParallel = 100  #@update these
+n.reps.in.doParallel = 100  #@if running optimx, I used 100 here and 5:00:00 below
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
@@ -143,7 +143,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "05:00:00",  #@update this; was 1:00:00 with all methods and sim.reps = 10
+                            jobtime = "02:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -164,10 +164,10 @@ n.files
 # run just the first one
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
-# 1620
+# 1920
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1001:1620) {
+for (i in 1:1000) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
