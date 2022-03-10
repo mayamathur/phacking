@@ -184,15 +184,15 @@ if ( run.local == TRUE ) {
                            #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-sd ; mle-sd ; mle-var",
                            
                            # args from sim_meta_2
-                           Nmax = 30,
+                           Nmax = 3, # just to speed things up
                            Mu = 0.5,
                            t2a = 0.5,
                            t2w = 0.05,
                            m = 50,
-                           true.sei.expr = "runif(n = 1, min = 0.1, max = 3)",
-                           hack = "affirm",
+                           true.sei.expr = "rbeta(n = 1, 2, 5)",
+                           hack = "favor-best-affirm-wch",
                            rho = 0,
-                           k.pub.nonaffirm = 50,
+                           k.pub.nonaffirm = 5,
                            prob.hacked = 0.8,
                            
                            # Stan control args
@@ -276,6 +276,8 @@ doParallel.seconds = system.time({
                     k.pub.nonaffirm = p$k.pub.nonaffirm,
                     prob.hacked = p$prob.hacked,
                     return.only.published = FALSE)
+    
+    d$Zi = d$yi / sqrt(d$vi)
     
     
     # dataset of only published results
@@ -409,12 +411,13 @@ doParallel.seconds = system.time({
                                 method.fn = function() {
                                   #@later, revisit the decision to use df_obs = 1000
                                   #   to effectively treat yi/sei z-scores
-                                  
+                                
                                   # using all significant studies (that's what pcurve.opt does internally):
-                                  Mhat = pcurve.opt( t_obs = dp$yi/dp$sei,
-                                                     df_obs = rep(1000, length(dp$yi)),
+                                  Mhat = pcurve.opt( t_obs = dp$Zi,
+                                                     df_obs = rep(1000, length(dp$Zi)),
                                                      dmin = -5, #@HARD-CODED and arbitrary
                                                      dmax = 5)
+
                                   
                                   # # using only published affirmatives:
                                   # Mhat = pcurve.opt( t_obs = dpa$yi/dpa$sei,
@@ -835,6 +838,8 @@ doParallel.seconds = system.time({
 } )[3]  # end system.time
 
 
+# quick look
+rs %>% select(method, Mhat)
 
 table(rs$method)
 

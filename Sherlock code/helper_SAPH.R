@@ -2263,17 +2263,17 @@ sim_one_study_set = function(Nmax,  # max draws to try
 
 
 ### example
-
-d = sim_one_study_set(Nmax = 20,
-                      Mu = 1,
-                      t2a = 1,
-                      m = 50,
-                      t2w = .5,
-                      se = 1,
-                      hack = "favor-best-affirm-wch",
-                      return.only.published = FALSE)
-nrow(d)
-d
+# 
+# d = sim_one_study_set(Nmax = 20,
+#                       Mu = 1,
+#                       t2a = 1,
+#                       m = 50,
+#                       t2w = .5,
+#                       se = 1,
+#                       hack = "favor-best-affirm-wch",
+#                       return.only.published = FALSE)
+# nrow(d)
+# d
 
 
 
