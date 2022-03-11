@@ -65,6 +65,8 @@ n.levels = agg %>% select(param.vars) %>%
   summarise_all( function(x) nuni(x) )
 
 ( param.vars.manip = names(n.levels)[ n.levels > 1 ] )
+( param.vars.manip2 = drop_vec_elements(param.vars.manip, "method") )
+
 
 # eliminate redundant ones
 if ( "t2a" %in% param.vars.manip ) param.vars.manip = drop_vec_elements( param.vars.manip, c("S", "V") )
@@ -72,12 +74,6 @@ if ( "t2a" %in% param.vars.manip ) param.vars.manip = drop_vec_elements( param.v
 # sanity check: SDs of all analysis variables should be 0 within unique scenarios
 t = data.frame( s3 %>% group_by(unique.scen) %>%
                   summarise_at( analysis.vars, sd ) )
-
-# variables that define the scenarios (though some aren't actually manipulated, like stan.iter)
-#@THIS IS ONLY THE ONES THAT I CHOSE TO VARY
-param.vars.manipulated = c("k.pub.nonaffirm",
-                           "rho",
-                           "true.sei.expr")
 
 
 
@@ -135,7 +131,7 @@ file.info("agg.csv")$mtime
 dim(agg)
 nuni(agg$scen.name)
 
-fake = wrangle_agg_local(agg)
+agg = wrangle_agg_local(agg)
 
 
 # MAYBE SAVE? THESE WORK WHEN CONSIDERING 1 SCEN.
@@ -180,22 +176,32 @@ fake = wrangle_agg_local(agg)
 
 # 2022-3-8: SORT ROWS BY PERFORMANCE -------------------------
 
-t.sort = sort_agg(MhatCover, desc = FALSE)
 
-View(t.sort)
+# ~ Coverage -------------------------
+t.sort = sort_agg(MhatCover, desc = FALSE)
 
 # sort by method, then performance within method
 t.sort = t.sort %>% arrange(method, MhatCover)
 
 View(t.sort)
 
+setwd(results.dir)
+write.xlsx( as.data.frame(t.sort), "agg_sorted_by_method_and_coverage.xlsx")
+
+# ~ Bias (Signed) -------------------------
+
+t.sort = sort_agg(MhatBias, desc = TRUE)
+
+# sort by method, then performance within method
+t.sort = t.sort %>% arrange(method, desc(MhatBias))
+
+View(t.sort)
 
 setwd(results.dir)
 write.xlsx( as.data.frame(t.sort), "agg_sorted_by_method_and_coverage.xlsx")
 
 # 2022-3-9: REGRESS PERFORMANCE ON MANIPULATED SCEN PARS  -------------------------
 
-( param.vars.manip2 = drop_vec_elements(param.vars.manip, "method") )
 
 RHS = paste( param.vars.manip2, collapse = " + " )
 formula = paste( "MhatCover", RHS, sep = " ~ ")
@@ -221,11 +227,13 @@ levels(as.factor(agg$true.sei.expr))
 Ynames = rev(MhatYNames)
 
 # to help decide which vars to include in plot:
-param.vars.manip
+param.vars.manip2
 
 # in case you want to filter scens:
 # aggp = agg
-aggp = agg %>% filter( Mu == 1 )
+aggp = agg %>% filter( Mu == 0.5 &
+                         true.sei.expr == "rbeta(n = 1, 2, 5)" &
+                         hack == "favor-best-affirm-wch" )
 
 # for 2022-3-8 sims
 aggp$tempFacetVar = paste( "prob.hacked = ", aggp$prob.hacked,

@@ -1,6 +1,6 @@
 
 # this file is exactly the same as init_stan_model_SAPH.R (from 2022-3-6)
-#  except commented out 
+#  except commented out this part:
 # "options(mc.cores = parallel::detectCores())"
 #  because that seems not to work when running interactively in Sherlock
 #  (b/c detectCores() thinks there are 128 cores!)
