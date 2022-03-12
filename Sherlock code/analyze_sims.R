@@ -101,7 +101,8 @@ source("analyze_sims_helper_SAPH.R")
 
 setwd(data.dir)
 # check when the dataset was last modified to make sure we're working with correct version
-s = fread( "stitched.csv")
+# MAY TAKE A LONG TIME!
+#s = fread( "stitched.csv")
 
 file.info("stitched.csv")$mtime
 
@@ -226,22 +227,57 @@ levels(as.factor(agg$true.sei.expr))
 # **this is great
 Ynames = rev(MhatYNames)
 
+#@temp if not running optimx:
+Ynames = Ynames[3:11]
+
 # to help decide which vars to include in plot:
 param.vars.manip2
 
+
 # in case you want to filter scens:
 # aggp = agg
-aggp = agg %>% filter( Mu == 0.5 &
-                         true.sei.expr == "rbeta(n = 1, 2, 5)" &
-                         hack == "favor-best-affirm-wch" )
+# aggp = agg %>% filter( Mu == 0.5 &
+#                          true.sei.expr == "rbeta(n = 1, 2, 5)" &
+#                          hack == "favor-best-affirm-wch" )
+aggp = agg %>% filter(hack == "affirm")
+# to label the plots
+prefix = "affirm"
 
 # for 2022-3-8 sims
-aggp$tempFacetVar = paste( "prob.hacked = ", aggp$prob.hacked,
-                          "; Mu = ", aggp$Mu,
-                          "; t2a = ", aggp$t2a,
+aggp$tempFacetVar = paste( "pr.hack=", aggp$prob.hacked,
+                          "; Mu=", aggp$Mu,
+                          "; t2a=", aggp$t2a,
                           sep = "")
 table(aggp$tempFacetVar)
 
+
+##### for reference about factor levels:
+# scen.params = tidyr::expand_grid(
+#   #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var",
+#   rep.methods = "naive ; maon ; 2psm ; pcurve ; jeffreys-mcmc",
+#   
+#   # args from sim_meta_2
+#   Nmax = 30,  
+#   Mu = c(0.5, 1),
+#   t2a = c(0.05, 0.2, 1, 1.5),
+#   t2w = 0.05,  
+#   m = 50,
+#   
+#   true.sei.expr = c(  
+#     "0.1 + rexp(n = 1, rate = 1.5)",  
+#     "rbeta(n = 1, 2, 5)"  # 2022-3-9: ADDED to closely resemble SAPB-E; see aux code
+#   ),  
+#   hack = c( "favor-best-affirm-wch", "affirm"),
+#   rho = c(0),  
+#   k.pub.nonaffirm = c(10, 20, 50),
+#   prob.hacked = c(0.5, 0.8), # 2022-3-7-b: ADDED
+#   
+#   # Stan control args
+#   stan.maxtreedepth = 20,
+#   stan.adapt_delta = 0.98,
+#   
+#   get.CIs = TRUE,
+#   run.optimx = TRUE ) 
 
 
 for ( Yname in Ynames) {
@@ -278,7 +314,7 @@ for ( Yname in Ynames) {
   # how to save a plotly as html
   # https://www.biostars.org/p/458325/
   setwd(results.dir)
-  string = paste(Yname, "_plotly.html", sep="")
+  string = paste(prefix, Yname, "plotly.html", sep="_")
   htmlwidgets::saveWidget(pl, string)
   
 }
