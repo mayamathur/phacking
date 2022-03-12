@@ -1515,6 +1515,9 @@ correct_meta_phack2 = function( yi,
 #  - black line = LOESS density of nonaffirms
 #  - red line = MLE from RTMA (parametric counterpart to the above)
 #  - blue line = LOESS density of all tstats (including affirms)
+
+# IMPORTANT:
+# Note that truncation point shown in plots is only approximate because it’s set to 1.96 for all Zi.tilde, whereas actually each Zi.tilde has its own trunc point (see Zi_tilde_cdf).
 plot_trunc_densities_RTMA = function(d,
                                      Mhat,
                                      Shat,
@@ -1575,7 +1578,6 @@ plot_trunc_densities_RTMA = function(d,
   
   # also show density of all t-stats, not just the nonaffirms
   if ( showAffirms == TRUE ) {
-    warning("This part currently doesn't work. I haven't tried to fix it.")
     p = p + geom_density( data = d,
                           aes(x = Zi.tilde),
                           color = "blue",
@@ -1665,8 +1667,49 @@ plot_trunc_densities_RTMA = function(d,
 #   
 # }
 
+# 2022-3-12
+# fit diagnostics
+# get CDF of (non-iid) marginal Z-scores (Zi.tilde)
+#  given a fitted Shat
+Zi_tilde_cdf = function(x, .SE, .Shat) {
+  
+  # calculate cutpoint for EACH Zi.tilde
+  # **reasoning:
+  #  we observe a truncated sample st yi > 1.96*SE
+  # therefore Zi.tilde = (yi - mu) / ( sqrt(Shat^2 + .SE^2) ) > (1.96*SE - mu) / ( sqrt(Shat^2 + .SE^2) )
+  # and we know that Zi.tilde ~ N(0,1) prior to truncation
+  Zi.tilde.crit = ( qnorm(.975) * .SE ) / sqrt(.Shat^2 + .SE^2)
+  
+  ptruncnorm(q = x,
+             a = -Inf,
+             b = Zi.tilde.crit,
+             mean = 0,
+             sd = 1)
+}
 
 
+# 2022-3-12
+# test for RTMA fit
+# yi, sei: can be for all published studies or for just nonaffirms; 
+#  fn will automatically retain only nonaffirms
+my_ks_test_RTMA = function(yi,
+                           sei,
+                           Mhat,
+                           Shat) {
+  
+  # retain only nonaffirmatives
+  nonaffirm = yi/sei < qnorm(.975)
+  yi = yi[ nonaffirm == TRUE ]
+  sei = sei[ nonaffirm == TRUE ]
+  
+  Zi.tilde = (yi - Mhat) / sqrt(Shat^2 + sei^2)
+  
+  res = ks.test(Zi.tilde, function(x) Zi_tilde_cdf(x,
+                                                   .SE = sei,
+                                                   .Shat = Shat) )
+  res$p.value
+  
+}
 
 # get MLE for ONE nonaffirmative study
 # can either estimate the total within-study variance (t2w + SE^2)
