@@ -10,6 +10,13 @@
 
 # PRELIMINARIES ----------------------------------------
 
+
+# ~ User-Specified Parameters --------------------
+
+# "sapbe" or "kvarven"
+dataset.name = "kvarven"
+
+# ~ Packages, Etc.  --------------------
 toLoad = c("crayon",
            "dplyr",
            "foreach",
@@ -35,7 +42,8 @@ toLoad = c("crayon",
            "optimx",
            "weightr",
            "DataEditR",
-           "plotly")
+           "plotly",
+           "readxl")
 lapply( toLoad,
         require,
         character.only = TRUE)
@@ -46,66 +54,163 @@ code.dir = here("Sherlock code")
 setwd(code.dir)
 source("helper_SAPH.R")
 
-results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-11 SAPBE results from Sherlock/sapbe"
+
+if ( meta.name == "sapbe" ) {
+  data.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-11 prep SAPBE dataset for SAPH/Datasets from SAPBE"
+  results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-11 SAPBE results from Sherlock/sapbe"
+}
+
+if ( meta.name == "kvarven" ) {
+  data.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-13 prep Kvarven dataset for SAPH"
+  results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-12 Kvarven results from Sherlock"
+  
+}
 
 # ~ PREP DATA -----------------------------
 
-# these datasets are directly copied from this dir:
-# "~/Dropbox/Personal computer/Independent studies/Sensitivity analysis for publication bias (SAPB)/Linked to OSF (SAPB)/Empirical benchmarks/Data collection/Prepped data for analysis"
-setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-11 prep SAPBE dataset for SAPH/Datasets from SAPBE")
-b2 = fread("**b2_data_prepped_step2.csv")
-f2 = fread("**f2_data_aggregated_step2.csv")
 
-# exclude duplicated Metalab sensitivity estimates
-unique( b2$meta.name[ grepl(pattern = "[.]sens", b2$meta.name) == TRUE ] )
-b2 = b2 %>% filter( grepl(pattern = "[.]sens", meta.name) == FALSE ) 
-
-expect_equal(63, nuni(b2$meta.name))
-
-# how much clustering?
-# average number of studies per cluster
-t = b2 %>% group_by(meta.name) %>%
-  summarise( n.randomly.chosen = sum(randomly.chosen),
-             n.total = n(),
-             k.per.cluster = round(n.total/n.randomly.chosen, 3),
-             # to see if dataset is public vs. scraped
-             Data.source = Data.source[1] )
-View(t)
-
-# only analyze ones with relatively little clustering
-meta.keepers = t$meta.name[ t$k.per.cluster < 1.2 ]
-
-b2 = b2 %>% filter(meta.name %in% meta.keepers)
-f2 = f2 %>% filter(meta.name %in% meta.keepers) 
-
-nuni(b2$meta.name)
-
-#**quick look at these metas' characteristics
-t = f2 %>% select(meta.name, group, discipline,
-                  k.all, k.rc, k.nonaffirm.rc,
-                  Mhat, Mhat.Lo, Mhat.Hi,
-                  Mhat.Worst, Mhat.Worst.Lo,
-                  LogEta) %>%
-  mutate_if(is.numeric, function(x) round(x,2))
-
-View(t)
-
-setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-11 prep SAPBE dataset for SAPH/Datasets from SAPBE")
-
-fwrite(t, "quick_summary_sapbe_meta_subset.csv")
+# ~ Prep SAPB-E Metas -----------------------------
 
 
-# WRITE PREPPED DATA AND ALSO SEND TO CLUSTER -----------------------------
+if ( meta.name == "sapbe" ) {
+  # these datasets are directly copied from this dir:
+  # "~/Dropbox/Personal computer/Independent studies/Sensitivity analysis for publication bias (SAPB)/Linked to OSF (SAPB)/Empirical benchmarks/Data collection/Prepped data for analysis"
+  setwd(data.dir)
+  b2 = fread("**b2_data_prepped_step2.csv")
+  f2 = fread("**f2_data_aggregated_step2.csv")
+  
+  # exclude duplicated Metalab sensitivity estimates
+  unique( b2$meta.name[ grepl(pattern = "[.]sens", b2$meta.name) == TRUE ] )
+  b2 = b2 %>% filter( grepl(pattern = "[.]sens", meta.name) == FALSE ) 
+  
+  expect_equal(63, nuni(b2$meta.name))
+  
+  # how much clustering?
+  # average number of studies per cluster
+  t = b2 %>% group_by(meta.name) %>%
+    summarise( n.randomly.chosen = sum(randomly.chosen),
+               n.total = n(),
+               k.per.cluster = round(n.total/n.randomly.chosen, 3),
+               # to see if dataset is public vs. scraped
+               Data.source = Data.source[1] )
+  View(t)
+  
+  # only analyze ones with relatively little clustering
+  meta.keepers = t$meta.name[ t$k.per.cluster < 1.2 ]
+  
+  b2 = b2 %>% filter(meta.name %in% meta.keepers)
+  f2 = f2 %>% filter(meta.name %in% meta.keepers) 
+  
+  nuni(b2$meta.name)
+  
+  #**quick look at these metas' characteristics
+  t = f2 %>% select(meta.name, group, discipline,
+                    k.all, k.rc, k.nonaffirm.rc,
+                    Mhat, Mhat.Lo, Mhat.Hi,
+                    Mhat.Worst, Mhat.Worst.Lo,
+                    LogEta) %>%
+    mutate_if(is.numeric, function(x) round(x,2))
+  
+  View(t)
+  
+  setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-11 prep SAPBE dataset for SAPH/Datasets from SAPBE")
+  
+  fwrite(t, "quick_summary_sapbe_meta_subset.csv")
+  
+  ### Write Prepped Data ###
+  setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-11 prep SAPBE dataset for SAPH/Datasets prepped for SAPH")
+  
+  fwrite(b2, "b2_long_prepped.csv")
+  fwrite(f2, "f2_short_prepped.csv")
+}
 
-setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-11 prep SAPBE dataset for SAPH/Datasets prepped for SAPH")
-
-fwrite(b2, "b2_long_prepped.csv")
-fwrite(f2, "f2_short_prepped.csv")
-
-# send to cluster
-scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/Applied\ examples/2022-3-11\ prep\ SAPBE\ dataset\ for\ SAPH/Datasets\ prepped\ for\ SAPH/* mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/applied_examples/data/sapbe
 
 
+
+# ~ Prep Kvarven Metas -----------------------------
+
+# this code is mostly taken from our RSOS paper code: analysis_code/analysis_2/analyze.R
+if ( meta.name == "kvarven" ) {
+  
+  setwd(data.dir)
+  setwd("Datasets from Kvarven")
+  
+  # Kvarven's summary results containing replications
+  agg = read_xls("Dataset.xls")
+  # remove blank rows
+  agg = agg[ !is.na(agg$metaanalysis), ]
+  # for later merging joy: identify the vars that came from Kvarven's own dataset
+  names(agg) = paste( "kvarven.", names(agg), sep = "" )
+  # make merger variable with just first author's last name
+  agg$meta = unlist( lapply( agg$kvarven.metaanalysis, FUN = function(x) strsplit( x, " " )[[1]][1] ) )
+  
+  
+  # list all meta-analysis datasets
+  setwd(data.dir)
+  setwd("Datasets from Kvarven/Meta")
+  files = list.files()[ grepl( pattern = ".csv", x = list.files() ) ]
+  
+  # separation character different for different meta-analyses
+  sep.vec = rep( ";", length(files) )
+  sep.vec[1] = ","
+  sep.vec[10] = ","
+  
+  
+  ##### Read In Each Meta and Add to Combined Dataset #####
+  
+  for ( i in 1:length(files) ) {
+    
+    cat( paste("\n ****Starting", files[i] ) )
+    
+    setwd(data.dir)
+    setwd("Datasets from Kvarven/Meta")
+    
+    # d and var are always the first 2 columns, even though they are named
+    #  differently
+    # EXCEPT Schimmack, which uses Cohen's q and has cols in different order
+    if ( files[i] != "Schimmack.csv" ) {
+      d = read.csv( files[i], sep = sep.vec[i] )[,1:2]
+      print( names(d) )  # as a sanity check
+      # standardize names
+      names(d) = c("d", "var")
+    } 
+    
+    if ( files[i] == "Schimmack.csv" ) {
+      d = read.csv( files[i], sep = ";" )
+      d = d %>% select( q, Var.q. )
+      # not actually Cohen's d, but irrelevant for the analyses we're going to do
+      names(d) = c("d", "var")
+    }
+    
+    # extract name of meta-analysis
+    d = d %>% add_column( meta = str_remove_all( files[i], ".csv" ),
+                          .before = 1 )
+    
+    # merge in other variables from Kvarven's own dataset
+    d = merge( d, agg, all.x = TRUE, by = "meta" ) 
+    
+    # add it to combined dataset, named for consistency with SAPB-E
+    if ( i == 1 ) b2 = d else b2 = rbind(b2, d) 
+    
+    
+    cat( paste("\n ****Done", files[i] ) )
+  }
+  
+  table(b2$meta)
+  
+  ### Write Prepped Data ###
+  setwd(data.dir)
+  setwd("Datasets prepped for SAPH")
+  
+  fwrite(b2, "b2_long_prepped_kvarven.csv")
+  
+} # end "if(dataset.name == "kvarven")
+
+
+# send to cluster (specific to SAPB-E)
+# scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/Applied\ examples/2022-3-11\ prep\ SAPBE\ dataset\ for\ SAPH/Datasets\ prepped\ for\ SAPH/* mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/applied_examples/data/sapbe
+
+# (NOW RUN ANALYSIS CODE ON CLUSTER) -----------------------------
 
 # ANALYZE RESULTS FROM CLUSTER -----------------------------
 
