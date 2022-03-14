@@ -307,9 +307,10 @@ doParallel.seconds = system.time({
                                                             
                                                             # could definitely get these from weightr
                                                             # I didn't even try
-                                                            Shat = NA,
-                                                            SLo = NA,
-                                                            SHi = NA ) )
+                                                            Shat = sqrt( mod[[2]]$par[1] ),
+                                                            # truncate lower limit at 0
+                                                            SLo = sqrt( max( 0, mod[[2]]$par[1] - qnorm(.975) * ses[1] ) ),
+                                                            SHi = sqrt( mod[[2]]$par[1] + qnorm(.975) * ses[1] ) ) )
                                 },
                                 .rep.res = rep.res )
       
@@ -565,7 +566,6 @@ doParallel.seconds = system.time({
       mutate_if(is.numeric, function(x) round(x,2) ) )
     
     ### Make Plot 
-    
     plot.method = "jeffreys-mcmc-pmed"
     
     # catch possibility that we didn't run this method
