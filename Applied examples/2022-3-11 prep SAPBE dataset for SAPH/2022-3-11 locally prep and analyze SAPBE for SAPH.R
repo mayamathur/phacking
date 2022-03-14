@@ -198,6 +198,12 @@ if ( meta.name == "kvarven" ) {
   
   table(b2$meta)
   
+  
+  ### Sanity Check ###
+  
+  # have all pooled estimates been coded as positive?
+  expect_equal( any( b2$kvarven.meta_s < 0 ), FALSE )
+  
   ### Write Prepped Data ###
   setwd(data.dir)
   setwd("Datasets prepped for SAPH")
@@ -211,6 +217,7 @@ if ( meta.name == "kvarven" ) {
 # scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/Applied\ examples/2022-3-11\ prep\ SAPBE\ dataset\ for\ SAPH/Datasets\ prepped\ for\ SAPH/* mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/applied_examples/data/sapbe
 
 # (NOW RUN ANALYSIS CODE ON CLUSTER) -----------------------------
+
 
 # ANALYZE RESULTS FROM CLUSTER -----------------------------
 

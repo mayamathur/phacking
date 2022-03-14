@@ -3,13 +3,14 @@
 
 # IMPORTANT NOTES -----------------------------
 
-# This script is designed to be run by an sbatch file OR interactively in Sherlock,
-#  To analyze multiple metas, use the script 2022-3-11 applied doParallel SAPH.R
+# This script is designed to be run interactively in Sherlock. 
+#  However, copy-pasting the foreach loop doesn't work because the Sherlock
+#   console gets confused about the indentation, etc. 
 
-# To quickly run this script in high-mem interactive session (WORKS):
+#  Instead, run this script as follows in high-mem interactive session:
 # setwd("/home/groups/manishad/SAPH"); source("2022-3-11_applied_doParallel_SAPH.R")
 
-# To run via sbatch (NOT TESTED):
+# To run via sbatch (not tested):
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/2022-3-11_applied.sbatch
 
 # To bring back all results locally:
@@ -18,7 +19,7 @@
 
 
 
-# This is very similar to doParallel.R from 2022-3-11.
+# This script is very similar to doParallel.R from 2022-3-11.
 # The only real additions/changes are:
 #  - plot_trunc_densities_RTMA
 
@@ -31,10 +32,20 @@
 #  affects which version of init_stan_model is used
 run.interactive = TRUE
 
-sherlock.data.dir = "/home/groups/manishad/SAPH/applied_examples/data/sapbe"
-sherlock.code.dir = "/home/groups/manishad/SAPH"
-sherlock.results.dir = "/home/groups/manishad/SAPH/applied_examples/results/sapbe"
+# "sapbe" or "kvarven"
+dataset.name = "kvarven"
 
+if ( dataset.name == "sapbe" ) {
+  sherlock.data.dir = "/home/groups/manishad/SAPH/applied_examples/data/sapbe"
+  sherlock.code.dir = "/home/groups/manishad/SAPH"
+  sherlock.results.dir = "/home/groups/manishad/SAPH/applied_examples/results/sapbe"
+}
+
+if ( dataset.name == "kvarven" ) {
+  sherlock.data.dir = "/home/groups/manishad/SAPH/applied_examples/data/kvarven"
+  sherlock.code.dir = "/home/groups/manishad/SAPH"
+  sherlock.results.dir = "/home/groups/manishad/SAPH/applied_examples/results/kvarven"
+}
 
 # specify which methods to run, as in doParallel
 # but obviously can't run gold-std on a non-simulated meta-analysis
@@ -83,17 +94,7 @@ toLoad = c("crayon",
 setwd(sherlock.code.dir)
 source("helper_SAPH.R")
 
-setwd(sherlock.data.dir)
 
-# "b2" because this is published studies only
-b2 = fread("b2_long_prepped.csv")
-f2 = fread("f2_short_prepped.csv")
-
-# make columns with standardized names to match doParallel from sim study
-b2$yi = b2$EstF  # **uses the direction-flipped estimates
-b2$vi = b2$SE^2
-b2$Zi = b2$yi / sqrt(b2$vi)
-#**note we're using all estimates, not just randomly-chosen ones, because we're focusing on metas with little clustering
 
 # load packages with informative messages if one can't be installed
 # **Common reason to get the "could not library" error: You did ml load R/XXX using an old version
@@ -114,26 +115,60 @@ for (pkg in toLoad) {
 }
 if ( any.failed == TRUE ) stop("Some packages couldn't be installed. See outfile for details of which ones.")
 
-# helper code
-setwd(sherlock.code.dir)
-source("helper_SAPH.R")
+
+# read in dataset
+setwd(sherlock.data.dir)
+
+if ( dataset.name == "sapbe" ){
+  b2 = fread("b2_long_prepped.csv")
+  f2 = fread("f2_short_prepped.csv")
+  
+  # make columns with standardized names to match doParallel from sim study
+  b2$yi = b2$EstF  # **uses the direction-flipped estimates
+  b2$vi = b2$SE^2
+  b2$Zi = b2$yi / sqrt(b2$vi)
+  #**note we're using all estimates, not just randomly-chosen ones, because we're focusing on metas with little clustering
+}
+
+if ( dataset.name == "kvarven" ){
+  b2 = fread("b2_long_prepped_kvarven.csv")
+  
+  # make columns with standardized names to match doParallel from sim study
+  # per sanity check in prep code, all metas' pooled ests have already 
+  #   been coded as >0
+  b2$yi = b2$d  
+  b2$vi = b2$var
+  b2$Zi = b2$yi / sqrt(b2$vi)
+  
+  # affirm status
+  b2$pval.two = 2 * ( 1 - pnorm( abs(b2$Zi) ) ) 
+  b2$affirm = (b2$pval.two <= 0.05) & (b2$yi > 0)
+  expect_equal( b2$affirm, b2$Zi > qnorm(0.975) ) 
+  
+  # match SAPB-E naming convention
+  b2 = b2 %>% rename( meta.name = meta)
+
+}
+
+
 
 
 
 # COMPILE STAN MODEL ONCE AT BEGINNING ------------------------------
 
-if ( "jeffreys-mcmc" %in% all.methods ) {
-  setwd(sherlock.code.dir)
-  
-  # this version of init_stan doesn't use parallelization
-  if ( run.interactive == TRUE ) source("init_stan_model_applied_SAPH.R")
-  
-  # this version of init_stan DOES use parallelization
-  if ( run.interactive == FALSE ) {
-    registerDoParallel(cores=16)
-    source("init_stan_model_SAPH.R")
-  }
-}
+# @TEMP: commented out bc already ran in this interactive session
+# if ( "jeffreys-mcmc" %in% all.methods ) {
+#   setwd(sherlock.code.dir)
+#   
+#   # this version of init_stan doesn't use parallelization
+#   if ( run.interactive == TRUE ) source("init_stan_model_applied_SAPH.R")
+#   
+#   # this version of init_stan DOES use parallelization
+#   if ( run.interactive == FALSE ) {
+#     registerDoParallel(cores=16)
+#     source("init_stan_model_SAPH.R")
+#   }
+# }
 
 
 
@@ -145,7 +180,7 @@ if ( exists("rs") ) rm(rs)
 # ~~ Beginning of ForEach Loop -----------------------------
 
 # to analyze all of them
-meta.names.to.analyze = unique(b2$meta.name)
+( meta.names.to.analyze = unique(b2$meta.name) )
 
 #@analyze only a subset of them
 #meta.names.to.analyze = unique(b2$meta.name)[1:2]
@@ -166,7 +201,7 @@ doParallel.seconds = system.time({
    
     # ~~ Get Subset Data for This Meta -----------------
     dp = b2 %>% filter(meta.name == i)
-    f2.subset = f2 %>% filter(meta.name == i)
+    if ( dataset.name == "sapbe" ) f2.subset = f2 %>% filter(meta.name == i)
 
     # published nonaffirmatives only
     dpn = dp[ dp$affirm == FALSE, ]
@@ -175,7 +210,7 @@ doParallel.seconds = system.time({
     dpa = dp[ dp$affirm == TRUE, ]
     
    cat("\n\n ****** PARTIAL HEAD OF DP:\n")
-   print( head(dp %>% select(meta.name, group, EstF)) )
+   print( head(dp %>% select(meta.name, yi)) )
 
     
     # initialize rep.res st run_method_safe and other standalone estimation fns
@@ -483,25 +518,30 @@ doParallel.seconds = system.time({
     rep.res$k.pub.nonaffirm = sum(dp$affirm == FALSE)
     rep.res$prob.pub.study.affirm = rep.res$k.pub.affirm / rep.res$k.pub
     
-    # info from SAPBE
-    f2.keepers = c("author.year", "meta.study.type", "LogEta", 
-                   "VarLogEta", "shapiro.pval", "Mhat", "Mhat.Lo", "Mhat.Hi", "Mhat.Pval", 
-                   "Analysis.Scale", "Sval.Est", "Sval.CI", "Sval.Est.Num", "Sval.CI.Num", 
-                   "Mhat.Worst", "Mhat.Worst.Lo", "Mhat.Worst.Hi", "Mhat.Worst.Pval", 
-                   "group", "group.pretty", "discipline", "Data.source", "k.all", 
-                   "k.rc", "k.affirm.rc", "k.nonaffirm.rc",
-                   "meta.med.year", "k.year.coded", "Pdisaffirm.ratio", "PZeroEst", 
-                   "excl.Pdisaffirm.ratio", "excl.PZeroEst", "excl.shapiro", "excl.other")
-    f2.subset = f2.subset %>% select( all_of(f2.keepers) )
-    f2.subset = f2.subset %>% add_column(.after = "LogEta",
-                                         Eta = exp(f2.subset$LogEta) )
+    ### Info Specific to Dataset
     
-    # for clarity, name all columns from SAPBE
-    # since, for example, those use the randomly chosen estimates
-    names(f2.subset) = paste("SAPBE.", names(f2.subset), sep = "")
+    if ( dataset.name == "sapbe" ) {
+      f2.keepers = c("author.year", "meta.study.type", "LogEta", 
+                     "VarLogEta", "shapiro.pval", "Mhat", "Mhat.Lo", "Mhat.Hi", "Mhat.Pval", 
+                     "Analysis.Scale", "Sval.Est", "Sval.CI", "Sval.Est.Num", "Sval.CI.Num", 
+                     "Mhat.Worst", "Mhat.Worst.Lo", "Mhat.Worst.Hi", "Mhat.Worst.Pval", 
+                     "group", "group.pretty", "discipline", "Data.source", "k.all", 
+                     "k.rc", "k.affirm.rc", "k.nonaffirm.rc",
+                     "meta.med.year", "k.year.coded", "Pdisaffirm.ratio", "PZeroEst", 
+                     "excl.Pdisaffirm.ratio", "excl.PZeroEst", "excl.shapiro", "excl.other")
+      f2.subset = f2.subset %>% select( all_of(f2.keepers) )
+      f2.subset = f2.subset %>% add_column(.after = "LogEta",
+                                           Eta = exp(f2.subset$LogEta) )
+      
+      # for clarity, name all columns from SAPBE
+      # since, for example, those use the randomly chosen estimates
+      names(f2.subset) = paste("SAPBE.", names(f2.subset), sep = "")
+      
+      # add f2 info to rep.res
+      rep.res = cbind( rep.res, f2.subset )
+    }
     
-    # add f12 info to rep.res
-    rep.res = cbind( rep.res, f2.subset )
+
     
     ### Show Results
     
@@ -518,7 +558,7 @@ doParallel.seconds = system.time({
       p = plot_trunc_densities_RTMA(d = dp,
                                     Mhat = rep.res$Mhat[ rep.res$method == plot.method ],
                                     Shat = rep.res$Shat[ rep.res$method == plot.method ],
-                                    showAffirms  = FALSE)
+                                    showAffirms = FALSE)
       
       setwd(sherlock.results.dir)
       ggsave( filename = paste( "density_plot", i, ".pdf", sep="_" ),
@@ -543,7 +583,7 @@ rs %>% select(meta.name, method, Mhat)
 # ~ WRITE LONG RESULTS ------------------------------
 
 setwd(sherlock.results.dir)
-fwrite( rs, paste( "results_sapbe_all.csv", sep="" ) )
-
+if ( dataset.name == "sapbe" ) fwrite( rs, paste( "results_sapbe_all.csv", sep="" ) )
+if ( dataset.name == "kvarven" ) fwrite( rs, paste( "results_sapbe_all.csv", sep="" ) )
 
 
