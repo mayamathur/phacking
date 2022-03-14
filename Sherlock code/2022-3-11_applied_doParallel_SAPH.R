@@ -32,6 +32,10 @@
 #  affects which version of init_stan_model is used
 run.interactive = TRUE
 
+# should we recompile stan model?
+# set to FALSE if you've already compiled in a given interactive session
+compile.stan.model = TRUE
+
 # "sapbe" or "kvarven"
 dataset.name = "kvarven"
 
@@ -50,8 +54,9 @@ if ( dataset.name == "kvarven" ) {
 # specify which methods to run, as in doParallel
 # but obviously can't run gold-std on a non-simulated meta-analysis
 all.methods = "naive ; maon ; 2psm ; pcurve ; jeffreys-mcmc ; jeffreys-sd ; mle-sd"
-#all.methods = "naive ; maon ; 2psm ; jeffreys-mcmc"
-run.optimx = TRUE
+#all.methods = "naive ; maon ; 2psm ; jeffreys-sd"
+#@temp:
+run.optimx = FALSE
 stan.adapt_delta = 0.98
 stan.maxtreedepth = 20
 # hacky because estimate_jeffreys_mcmc_RTMA looks for p as global var
@@ -156,44 +161,44 @@ if ( dataset.name == "kvarven" ){
 
 # COMPILE STAN MODEL ONCE AT BEGINNING ------------------------------
 
-# @TEMP: commented out bc already ran in this interactive session
-# if ( "jeffreys-mcmc" %in% all.methods ) {
-#   setwd(sherlock.code.dir)
-#   
-#   # this version of init_stan doesn't use parallelization
-#   if ( run.interactive == TRUE ) source("init_stan_model_applied_SAPH.R")
-#   
-#   # this version of init_stan DOES use parallelization
-#   if ( run.interactive == FALSE ) {
-#     registerDoParallel(cores=16)
-#     source("init_stan_model_SAPH.R")
-#   }
-# }
+if ( "jeffreys-mcmc" %in% all.methods &
+     compile.stan.model == TRUE ) {
+  setwd(sherlock.code.dir)
+
+  # this version of init_stan doesn't use parallelization
+  if ( run.interactive == TRUE ) source("init_stan_model_applied_SAPH.R")
+
+  # this version of init_stan DOES use parallelization
+  if ( run.interactive == FALSE ) {
+    registerDoParallel(cores=16)
+    source("init_stan_model_SAPH.R")
+  }
+}
 
 
 
 
 # RUN ANALYSIS FOR MULTIPLE METAS ------------------------------
 
-if ( exists("rs") ) rm(rs)
+
 
 # ~~ Beginning of ForEach Loop -----------------------------
 
 # to analyze all of them
-( meta.names.to.analyze = unique(b2$meta.name) )
+#( meta.names.to.analyze = unique(b2$meta.name) )
 
 #@analyze only a subset of them
-#meta.names.to.analyze = unique(b2$meta.name)[1:2]
+meta.names.to.analyze = unique(b2$meta.name)[1:2]
 
+if ( exists("rs") ) rm(rs)
 
 # system.time is in seconds
 doParallel.seconds = system.time({
-  rs = foreach( i = meta.names.to.analyze, .combine = bind_rows ) %dopar% {
-    # for debugging (out file will contain all printed things):
-    #for ( i in 1:sim.reps ) {
+  #rs = foreach( i = meta.names.to.analyze, .combine = bind_rows ) %dopar% {
+    # for debugging (so that outfile will contain all printed things):
+    for ( i in meta.names.to.analyze ) {
     
-    # only print info for first sim rep for visual clarity
-    if ( i == meta.names.to.analyze[1] ) cat("\n\n~~~~~~~~~~~~~~~~ BEGIN ", i, "~~~~~~~~~~~~~~~~")
+    cat("\n\n~~~~~~~~~~~~~~~~ BEGIN ", i, "~~~~~~~~~~~~~~~~")
     
     # results for just this simulation rep
     if ( exists("rep.res") ) suppressWarnings( rm(rep.res) )
@@ -307,6 +312,16 @@ doParallel.seconds = system.time({
                                                             SHi = NA ) )
                                 },
                                 .rep.res = rep.res )
+      
+      
+      #bm: KS test
+      # my_ks_test_RTMA( yi = EstF,
+      #                  sei = SE,
+      #                  Mhat = r$Mhat[ r$meta.name == meta.name &
+      #                                   r$method == "jeffreys-mcmc-pmed"],
+      #                  Shat = r$Shat[ r$meta.name == meta.name &
+      #                                   r$method == "jeffreys-mcmc-pmed" ] )
+      # 
       
     }
     
@@ -546,7 +561,7 @@ doParallel.seconds = system.time({
     ### Show Results
     
     cat( "\n\n***** META", i, "PARTIAL REP.RES at the end:" )
-    print( rep.res %>% select(method, Mhat, MLo, MHi) %>%
+    print( rep.res %>% select(method, Mhat, MLo, MHi, Shat) %>%
       mutate_if(is.numeric, function(x) round(x,2) ) )
     
     ### Make Plot 
@@ -555,6 +570,9 @@ doParallel.seconds = system.time({
     
     # catch possibility that we didn't run this method
     if ( length( rep.res$Mhat[ rep.res$method == plot.method ] ) > 0 ) {
+      
+      cat("\n About to make plot")
+      
       p = plot_trunc_densities_RTMA(d = dp,
                                     Mhat = rep.res$Mhat[ rep.res$method == plot.method ],
                                     Shat = rep.res$Shat[ rep.res$method == plot.method ],
@@ -564,6 +582,9 @@ doParallel.seconds = system.time({
       ggsave( filename = paste( "density_plot", i, ".pdf", sep="_" ),
               width = 10, 
               height = 10)
+      
+      cat("\n Done writing plot")
+      
       
     }
     
@@ -575,7 +596,8 @@ doParallel.seconds = system.time({
 
 
 # quick look
-rs %>% select(meta.name, method, Mhat)
+rs %>% select(meta.name, method, Mhat, MLo, MHi) %>%
+  mutate_if(is.numeric, function(x) round(x, 2))
 
 
 
