@@ -549,7 +549,10 @@ joint_nll_2 = function(.yi,
   
   
   # as in TNE::nll()
-  .dat = data.frame(yi = .yi, sei = .sei, crit = .tcrit)
+  .dat = data.frame(yi = .yi,
+                    sei = .sei,
+                    crit = .tcrit,
+                    affirm = (yi/sei) > crit )
   
   .dat = .dat %>% rowwise() %>%
     mutate( term1 = dmvnorm(x = as.matrix(yi, nrow = 1),
@@ -558,17 +561,27 @@ joint_nll_2 = function(.yi,
                             sigma = as.matrix(.T2t + sei^2, nrow=1),
                             log = TRUE),
             
+            # this term applies if the study is nonaffirmative
             term2 = log( pmvnorm( lower = -99,
                                   upper = crit * sei,
                                   mean = .Mu,
                                   sigma = .T2t + sei^2 ) ),
             
-            nll.i = -term1 + term2 )
+            # this term applies if the study is affirmative
+            term3 = log( pmvnorm( lower = crit * sei,
+                                  upper = 99,
+                                  mean = .Mu,
+                                  sigma = .T2t + sei^2 ) ),
+            
+            nll.i = ifelse( affirm == FALSE,
+                            -term1 + term2,
+                            -term1 + term3 ) )
   
-  
+  browser()
+
   nll = sum(.dat$nll.i)
   
-  # # sanity checks
+  # # sanity checks (from before allowing affirmatives)
   # term1.new = log( dnorm( x = .dat$yi[1],
   #                         mean = .Mu,
   #                         sd = sqrt(.T2t + .dat$sei[1]^2) ) )

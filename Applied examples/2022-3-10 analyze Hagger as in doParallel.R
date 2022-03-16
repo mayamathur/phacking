@@ -20,7 +20,7 @@
 
 # ~~ User-Specified Parameters -----------------------------------------------
 
-run.local = FALSE
+run.local = TRUE
 
 sherlock.data.dir = "/home/groups/manishad/SAPH/applied_examples/data"
 sherlock.code.dir = "/home/groups/manishad/SAPH"
@@ -32,8 +32,8 @@ local.results.dir = NULL
 
 # specify which methods to run, as in doParallel
 # but obviously can't run gold-std on a non-simulated meta-analysis
- all.methods = "naive ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var"
-# all.methods = "naive ; maon ; 2psm ; jeffreys-sd ; mle-sd ; mle-var"
+# all.methods = "naive ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var"
+all.methods = "naive ; maon ; 2psm ; mle-sd"
 run.optimx = TRUE
 stan.adapt_delta = 0.98
 stan.maxtreedepth = 20
@@ -74,11 +74,13 @@ toLoad = c("crayon",
            "truncnorm",
            "rstan",
            "optimx",
-           "weightr")
+           "weightr",
+           "here")
 
 
 
 #@SPECIFIC TO HAGGER
+# load dataset and code
 if ( run.local == FALSE ) {
   # set up dataset (currently specific to Hagger)
   setwd(sherlock.code.dir)
@@ -153,7 +155,6 @@ if ( "jeffreys-mcmc" %in% all.methods ) {
   source("init_stan_model_applied_SAPH.R")
 }
 
-#BM: this step breaks
 
 
 # RUN ANALYSIS ------------------------------
@@ -392,7 +393,13 @@ if ( "mle-sd" %in% all.methods ) {
 }
 
 cat("\n")
-rep.res
+rep.res %>% select(method, Mhat, MLo, MHi,
+                   Shat,
+                   optim.converged,
+                   optimx.Mhat.winner,
+                   optimx.Nconvergers,
+                   optimx.Pagree.of.convergers.Mhat.winner) %>%
+  mutate_if(is.numeric, function(x) round(x,2))
 cat("\n")
 
 # ~~ MLE (Var param) ------------------------------
