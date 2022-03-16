@@ -33,7 +33,11 @@ local.results.dir = NULL
 # specify which methods to run, as in doParallel
 # but obviously can't run gold-std on a non-simulated meta-analysis
 # all.methods = "naive ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var"
-all.methods = "naive ; maon ; 2psm ; mle-sd"
+all.methods = "naive ; maon ; 2psm ; mle-sd; csm-mle-sd"
+# parse methods string
+all.methods = unlist( strsplit( x = all.methods,
+                                split = " ; " ) )
+
 run.optimx = TRUE
 stan.adapt_delta = 0.98
 stan.maxtreedepth = 20
@@ -48,9 +52,7 @@ meta.name = "hagger"
 
 # ~~ Load Data and Packages -----------------------------------------------
 
-# parse methods string
-all.methods = unlist( strsplit( x = all.methods,
-                                split = " ; " ) )
+
 toLoad = c("crayon",
            "dplyr",
            "foreach",
@@ -76,6 +78,8 @@ toLoad = c("crayon",
            "optimx",
            "weightr",
            "here")
+
+
 
 
 
@@ -127,6 +131,10 @@ if ( run.local == TRUE ) {
   code.dir = here("Sherlock code")
   setwd(code.dir)
   source("helper_SAPH.R")
+  
+  # specific helpers
+  setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-10 analyze Hagger as in doParallel")
+  source("helper_aux.R")
   
   # "dp" because this is published studies only
   setwd(local.data.dir)
@@ -194,9 +202,7 @@ if ( "naive" %in% all.methods ) {
   Shat.naive = rep.res$Shat[ rep.res$method == "naive" ]
 }
 
-cat("\n")
-rep.res
-cat("\n")
+show_rep_res()
 
 # ~~ Change Starting Values -----
 if ( !is.na(Mhat.naive) ) Mhat.start = Mhat.naive 
@@ -223,9 +229,7 @@ if ( "maon" %in% all.methods ) {
 }
 
 
-cat("\n")
-rep.res
-cat("\n")
+show_rep_res()
 
 # ~~ Fit 2PSM (All Published Draws) ------------------------------
 
@@ -256,10 +260,12 @@ if ( "2psm" %in% all.methods ) {
   
 }
 
+show_rep_res()
 
-cat("\n")
-rep.res
-cat("\n")
+
+### Sanity check: Reproduce using own 2PSM fn ###
+
+
 
 # ~~ MCMC ------------------------------
 
@@ -392,15 +398,53 @@ if ( "mle-sd" %in% all.methods ) {
   cat("\n doParallel flag: Done mle-sd if applicable")
 }
 
-cat("\n")
-rep.res %>% select(method, Mhat, MLo, MHi,
-                   Shat,
-                   optim.converged,
-                   optimx.Mhat.winner,
-                   optimx.Nconvergers,
-                   optimx.Pagree.of.convergers.Mhat.winner) %>%
-  mutate_if(is.numeric, function(x) round(x,2))
-cat("\n")
+show_rep_res()
+
+
+# ~~ Conditional Selection Model: MLE *with* affirms (SD param) ------------------------------
+
+if ( "csm-mle-sd" %in% all.methods ) {
+  
+  # # temp for refreshing code
+  # path = "/home/groups/manishad/SAPH"
+  # setwd(path)
+  # source("helper_SAPH.R")
+  
+  rep.res = run_method_safe(method.label = c("csm-mle-sd"),
+                            method.fn = function() estimate_jeffreys_RTMA(yi = dp$yi,
+                                                                          sei = sqrt(dp$vi),
+                                                                          par2is = "Tt",
+                                                                          tcrit = qnorm(0.975), 
+                                                                          Mu.start = Mhat.start,
+                                                                          par2.start = Shat.start,
+                                                                          usePrior = FALSE,
+                                                                          get.CIs = TRUE,
+                                                                          CI.method = "wald",
+                                                                          run.optimx = run.optimx),
+                            .rep.res = rep.res )
+  
+  
+  
+  cat("\n doParallel flag: Done csm-mle-sd if applicable")
+}
+
+show_rep_res()
+
+### LEFT-truncated normal
+# include only affirmatives
+rep.res = run_method_safe(method.label = c("ltn-mle-sd"),
+                          method.fn = function() estimate_jeffreys_RTMA(yi = dp$yi[ dp$affirm == TRUE ],
+                                                                        sei = sqrt(dp$vi[ dp$affirm == TRUE ]),
+                                                                        par2is = "Tt",
+                                                                        tcrit = qnorm(0.975), 
+                                                                        Mu.start = Mhat.start,
+                                                                        par2.start = Shat.start,
+                                                                        usePrior = FALSE,
+                                                                        get.CIs = TRUE,
+                                                                        CI.method = "wald",
+                                                                        run.optimx = run.optimx),
+                          .rep.res = rep.res )
+
 
 # ~~ MLE (Var param) ------------------------------
 
@@ -424,9 +468,7 @@ if ( "mle-var" %in% all.methods ) {
   
 }
 
-cat("\n")
-rep.res
-cat("\n")
+show_rep_res()
 
 # ~~ Info About Dataset and Sanity Checks ------------------------------
 

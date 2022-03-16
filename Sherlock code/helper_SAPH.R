@@ -70,6 +70,7 @@ estimate_jeffreys_RTMA = function( yi,
                                    
                                    run.optimx = FALSE ) {
   
+
   # #bm
   # #@TEST ONLY
   # dpn = dp[ dp$affirm == FALSE, ]
@@ -552,7 +553,7 @@ joint_nll_2 = function(.yi,
   .dat = data.frame(yi = .yi,
                     sei = .sei,
                     crit = .tcrit,
-                    affirm = (yi/sei) > crit )
+                    affirm = (.yi/.sei) > .tcrit )
   
   .dat = .dat %>% rowwise() %>%
     mutate( term1 = dmvnorm(x = as.matrix(yi, nrow = 1),
@@ -577,8 +578,6 @@ joint_nll_2 = function(.yi,
                             -term1 + term2,
                             -term1 + term3 ) )
   
-  browser()
-
   nll = sum(.dat$nll.i)
   
   # # sanity checks (from before allowing affirmatives)
