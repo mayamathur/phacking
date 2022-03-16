@@ -251,51 +251,34 @@ aggp$tempFacetVar = paste( "pr.hack=", aggp$prob.hacked,
 table(aggp$tempFacetVar)
 
 
-##### for reference about factor levels:
-# scen.params = tidyr::expand_grid(
-#   #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var",
-#   rep.methods = "naive ; maon ; 2psm ; pcurve ; jeffreys-mcmc",
-#   
-#   # args from sim_meta_2
-#   Nmax = 30,  
-#   Mu = c(0.5, 1),
-#   t2a = c(0.05, 0.2, 1, 1.5),
-#   t2w = 0.05,  
-#   m = 50,
-#   
-#   true.sei.expr = c(  
-#     "0.1 + rexp(n = 1, rate = 1.5)",  
-#     "rbeta(n = 1, 2, 5)"  # 2022-3-9: ADDED to closely resemble SAPB-E; see aux code
-#   ),  
-#   hack = c( "favor-best-affirm-wch", "affirm"),
-#   rho = c(0),  
-#   k.pub.nonaffirm = c(10, 20, 50),
-#   prob.hacked = c(0.5, 0.8), # 2022-3-7-b: ADDED
-#   
-#   # Stan control args
-#   stan.maxtreedepth = 20,
-#   stan.adapt_delta = 0.98,
-#   
-#   get.CIs = TRUE,
-#   run.optimx = TRUE ) 
-
-
 for ( Yname in Ynames) {
   
   # to run "manually"
   #Yname = "MhatBias"
   #Yname = "MhatCover"
   
-  # for 2022-3-8 sims
+  # for 2022-3-16
   p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
                           .Yname = Yname,
                           .colorVarName = "method",
-                          .facetVar1Name = "tempFacetVar",
-                          .facetVar2Name = "true.sei.expr.pretty",
+                          .facetVar1Name = "Nmax",
+                          .facetVar2Name = "hack",
                           .dat = aggp,
                           .ggtitle = "",
                           .writePlot = FALSE,
                           .results.dir = NULL)
+  
+  
+  # for 2022-3-8 sims
+  # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
+  #                         .Yname = Yname,
+  #                         .colorVarName = "method",
+  #                         .facetVar1Name = "tempFacetVar",
+  #                         .facetVar2Name = "true.sei.expr.pretty",
+  #                         .dat = aggp,
+  #                         .ggtitle = "",
+  #                         .writePlot = FALSE,
+  #                         .results.dir = NULL)
   
   # # SAVE: this was for the 2022-3-7 and earlier sims (based on what they manipulated)
   # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
@@ -441,6 +424,34 @@ data.frame( t.affirm %>% filter(scen.name == scen) )
 #**Q: Are there cases where 2PSM is badly biased downward that even MAON is less conservative than 2PSM?
 
 
+
+# 2022-3-16: Specific to these sims -------------------------
+
+t = s %>% group_by(scen.name, method) %>%
+  summarise(Nmax = Nmax[1],
+            hack = hack[1],
+    MhatMn = meanNA(Mhat),
+            MhatMed = median(Mhat),
+            Mhat2.5 = quantile(Mhat, 0.025),
+            Mhat97.5 = quantile(Mhat, 0.975) ) %>%
+  mutate_if(is.numeric, function(x) round(x,2))
+
+
+View(t)
+
+setwd(results.dir)
+write.xlsx( as.data.frame(t), "summary_results.xlsx")
+
+Mhats = s$Mhat[s$scen.name == 4 & s$method == "csm-mle-sd"]
+mean(Mhats)
+
+mean(Mhats < 0.4)
+
+# the issue is NOT that there are too few affirmatives
+s %>% filter(scen.name == 4 &
+               method == "csm-mle-sd" &
+             Mhat < -10 ) %>%
+  summarise(sancheck.dp.k.affirm)
 
 
 

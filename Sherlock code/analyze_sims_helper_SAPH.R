@@ -561,6 +561,27 @@ sort_agg = function( sort.Yname,
   
 }
 
+# quickly look at results when running locally
+show_rep_res = function() {
+  
+  if( "optimx.Mhat.winner" %in% names(rep.res) ) {
+    cat("\n")
+    print( rep.res %>% select(method, Mhat, MLo, MHi,
+                              Shat,
+                              optim.converged,
+                              optimx.Mhat.winner,
+                              optimx.Nconvergers,
+                              optimx.Pagree.of.convergers.Mhat.winner) %>%
+             mutate_if(is.numeric, function(x) round(x,2)) )
+    cat("\n")
+  } else {
+    cat("\n")
+    print( rep.res %>%
+             mutate_if(is.numeric, function(x) round(x,2)) )
+    cat("\n")
+  }
+}
+
 
 # # STRAIGHT FROM MRM:
 # # summarize performance metrics given a dataset (dat) that is already scenario-aggregated

@@ -178,31 +178,31 @@ if ( run.local == TRUE ) {
   # ~~ Set Local Sim Params -----------------------------
   # methods.to.run options:
   # naive ; gold-std ; 2psm ; maon ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
-  scen.params = data.frame(scen = 1,
-                           
-                           rep.methods = "maon ; pcurve",
-                           #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-sd ; mle-sd ; mle-var",
-                           
-                           # args from sim_meta_2
-                           Nmax = 3, # just to speed things up
-                           Mu = 0.5,
-                           t2a = 0.5,
-                           t2w = 0.05,
-                           m = 50,
-                           true.sei.expr = "rbeta(n = 1, 2, 5)",
-                           hack = "favor-best-affirm-wch",
-                           rho = 0,
-                           k.pub.nonaffirm = 5,
-                           prob.hacked = 0.8,
-                           
-                           # Stan control args
-                           stan.maxtreedepth = 20,
-                           stan.adapt_delta = 0.98,
-                           
-                           get.CIs = TRUE,
-                           run.optimx = TRUE)
+  # 2022-3-16: CSM, LTMA, RTMA
+  scen.params = tidyr::expand_grid(
+    rep.methods = "naive ; 2psm ; mle-sd ; csm-mle-sd ; ltn-mle-sd",
+    
+    # args from sim_meta_2
+    Nmax = c(1),  
+    Mu = c(0.5),
+    t2a = c(0.05),
+    t2w = 0.05,  
+    m = 50,
+    
+    true.sei.expr = c("rbeta(n = 1, 2, 5)"),  
+    hack = c( "affirm"),
+    rho = c(0),  
+    k.pub.nonaffirm = c(50),
+    prob.hacked = c(0.8),
+    
+    # Stan control args
+    stan.maxtreedepth = 20,
+    stan.adapt_delta = 0.98,
+    
+    get.CIs = TRUE,
+    run.optimx = FALSE ) 
   
-  
+  scen.params$scen = 1:nrow(scen.params)
   
   
   sim.reps = 1  # reps to run in this iterate
@@ -552,6 +552,50 @@ doParallel.seconds = system.time({
       
       cat("\n doParallel flag: Done mle-sd if applicable")
     }
+    
+    # ~~ Conditional Selection Model: MLE *with* affirms (SD param) ------------------------------
+    
+    if ( "csm-mle-sd" %in% all.methods ) {
+      
+      # # temp for refreshing code
+      # path = "/home/groups/manishad/SAPH"
+      # setwd(path)
+      # source("helper_SAPH.R")
+      
+      rep.res = run_method_safe(method.label = c("csm-mle-sd"),
+                                method.fn = function() estimate_jeffreys_RTMA(yi = dp$yi,
+                                                                              sei = sqrt(dp$vi),
+                                                                              par2is = "Tt",
+                                                                              tcrit = qnorm(0.975), 
+                                                                              Mu.start = Mhat.start,
+                                                                              par2.start = Shat.start,
+                                                                              usePrior = FALSE,
+                                                                              get.CIs = p$get.CIs,
+                                                                              CI.method = "wald",
+                                                                              run.optimx = p$run.optimx),
+                                .rep.res = rep.res )
+      
+      
+      
+      cat("\n doParallel flag: Done csm-mle-sd if applicable")
+    }
+    
+    
+    # ~~ LTMA: MLE *with only* affirms (SD param) ------------------------------
+  
+    # include only affirmatives
+    rep.res = run_method_safe(method.label = c("ltn-mle-sd"),
+                              method.fn = function() estimate_jeffreys_RTMA(yi = dpa$yi,
+                                                                            sei = sqrt(dpa$vi),
+                                                                            par2is = "Tt",
+                                                                            tcrit = qnorm(0.975), 
+                                                                            Mu.start = Mhat.start,
+                                                                            par2.start = Shat.start,
+                                                                            usePrior = FALSE,
+                                                                            get.CIs = p$get.CIs,
+                                                                            CI.method = "wald",
+                                                                            run.optimx = p$run.optimx),
+                              .rep.res = rep.res )
     
     # ~~ MLE (Var param) ------------------------------
     
