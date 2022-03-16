@@ -15,13 +15,19 @@
 
 # To bring back all results locally:
 
+#SAPB
 # scp -r mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/applied_examples/results/sapbe /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/Applied\ examples/2022-3-11\ SAPBE\ results\ from\ Sherlock
 
-
+#Kvarven
+# scp -r mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/applied_examples/results/kvarven /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/Applied\ examples
 
 # This script is very similar to doParallel.R from 2022-3-11.
 # The only real additions/changes are:
 #  - plot_trunc_densities_RTMA
+
+# # FOR LOCAL TESTING
+# setwd("/Users/mmathur/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-13 prep Kvarven dataset for SAPH/Datasets prepped for SAPH")
+# b2 = read.csv("b2_long_prepped_kvarven.csv")
 
 
 
@@ -54,9 +60,9 @@ if ( dataset.name == "kvarven" ) {
 # specify which methods to run, as in doParallel
 # but obviously can't run gold-std on a non-simulated meta-analysis
 all.methods = "naive ; maon ; 2psm ; pcurve ; jeffreys-mcmc ; jeffreys-sd ; mle-sd"
-#all.methods = "naive ; maon ; 2psm ; jeffreys-sd"
+#all.methods = "naive ; maon ; 2psm"
 #@temp:
-run.optimx = FALSE
+run.optimx = TRUE
 stan.adapt_delta = 0.98
 stan.maxtreedepth = 20
 # hacky because estimate_jeffreys_mcmc_RTMA looks for p as global var
@@ -185,18 +191,18 @@ if ( "jeffreys-mcmc" %in% all.methods &
 # ~~ Beginning of ForEach Loop -----------------------------
 
 # to analyze all of them
-#( meta.names.to.analyze = unique(b2$meta.name) )
+( meta.names.to.analyze = unique(b2$meta.name) )
 
 #@analyze only a subset of them
-meta.names.to.analyze = unique(b2$meta.name)[1:2]
+#meta.names.to.analyze = unique(b2$meta.name)[1:2]
 
 if ( exists("rs") ) rm(rs)
 
 # system.time is in seconds
 doParallel.seconds = system.time({
-  #rs = foreach( i = meta.names.to.analyze, .combine = bind_rows ) %dopar% {
+  rs = foreach( i = meta.names.to.analyze, .combine = bind_rows ) %dopar% {
     # for debugging (so that outfile will contain all printed things):
-    for ( i in meta.names.to.analyze ) {
+    #for ( i in meta.names.to.analyze ) {
     
     cat("\n\n~~~~~~~~~~~~~~~~ BEGIN ", i, "~~~~~~~~~~~~~~~~")
     
@@ -315,14 +321,29 @@ doParallel.seconds = system.time({
                                 .rep.res = rep.res )
       
       
-      #bm: KS test
-      # my_ks_test_RTMA( yi = EstF,
-      #                  sei = SE,
-      #                  Mhat = r$Mhat[ r$meta.name == meta.name &
-      #                                   r$method == "jeffreys-mcmc-pmed"],
-      #                  Shat = r$Shat[ r$meta.name == meta.name &
-      #                                   r$method == "jeffreys-mcmc-pmed" ] )
+      # #bm: KS test
+      # # I think you should incorporate this into the 2psm fn itself
+      # Mhat.2PSM = rep.res$Mhat[ rep.res$method == "2psm"]
+      # Shat.2PSM = rep.res$Shat[ rep.res$method == "2psm"]
       # 
+      # if ( !is.na(Mhat.2PSM) & !is.na(Shat.2PSM) ) {
+      #   my_ks_test_RTMA( yi = dp$yi,
+      #                    sei = sqrt(dp$vi),
+      #                    Mhat = rep.res$Mhat[ rep.res$method == "2psm"],
+      #                    Shat = rep.res$Shat[ rep.res$method == "2psm" ] )
+      #   
+      #   # nonaffirms only
+      #   my_ks_test_RTMA( yi = dp$yi[ dp$affirm == FALSE ],
+      #                    sei = sqrt(dp$vi[ dp$affirm == FALSE ]),
+      #                    Mhat = rep.res$Mhat[ rep.res$method == "2psm"],
+      #                    Shat = rep.res$Shat[ rep.res$method == "2psm" ] )
+      #   
+      #   # affirms only
+      #   my_ks_test_RTMA( yi = dp$yi[ dp$affirm == TRUE ],
+      #                    sei = sqrt(dp$vi[ dp$affirm == TRUE ]),
+      #                    Mhat = rep.res$Mhat[ rep.res$method == "2psm"],
+      #                    Shat = rep.res$Shat[ rep.res$method == "2psm" ] )
+      # }
       
     }
     

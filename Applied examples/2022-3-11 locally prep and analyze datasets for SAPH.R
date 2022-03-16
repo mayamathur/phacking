@@ -55,12 +55,12 @@ setwd(code.dir)
 source("helper_SAPH.R")
 
 
-if ( meta.name == "sapbe" ) {
+if ( dataset.name == "sapbe" ) {
   data.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-11 prep SAPBE dataset for SAPH/Datasets from SAPBE"
   results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-11 SAPBE results from Sherlock/sapbe"
 }
 
-if ( meta.name == "kvarven" ) {
+if ( dataset.name == "kvarven" ) {
   data.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-13 prep Kvarven dataset for SAPH"
   results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-12 Kvarven results from Sherlock"
   
@@ -72,7 +72,7 @@ if ( meta.name == "kvarven" ) {
 # ~ Prep SAPB-E Metas -----------------------------
 
 
-if ( meta.name == "sapbe" ) {
+if ( dataset.name == "sapbe" ) {
   # these datasets are directly copied from this dir:
   # "~/Dropbox/Personal computer/Independent studies/Sensitivity analysis for publication bias (SAPB)/Linked to OSF (SAPB)/Empirical benchmarks/Data collection/Prepped data for analysis"
   setwd(data.dir)
@@ -130,7 +130,7 @@ if ( meta.name == "sapbe" ) {
 # ~ Prep Kvarven Metas -----------------------------
 
 # this code is mostly taken from our RSOS paper code: analysis_code/analysis_2/analyze.R
-if ( meta.name == "kvarven" ) {
+if ( dataset.name == "kvarven" ) {
   
   setwd(data.dir)
   setwd("Datasets from Kvarven")
@@ -223,60 +223,104 @@ if ( meta.name == "kvarven" ) {
 
 setwd(results.dir)
 
-r = fread("results_sapbe_all.csv")
+if ( dataset.name == "sapbe" ) r = fread("results_sapbe_all.csv")
+if ( dataset.name == "kvarven" ) r = fread("results_kvarven_all.csv")
 
 
 # ~ View results in DataEditR ---------------------
 
-temp = r %>% select(meta.name, SAPBE.group, method, Mhat, MLo, MHi,
-                    SAPBE.Eta,
-                    MhatRhat, ShatRhat, optim.converged,
-                    optimx.Nagree.of.convergers.Mhat.winner) %>%
-  mutate_if(is.numeric, function(x) round(x, 2))
+if ( dataset.name == "sapbe" ) {
+  temp = r %>% select(meta.name, SAPBE.group, method, Mhat, MLo, MHi,
+                      SAPBE.Eta,
+                      MhatRhat, ShatRhat, optim.converged,
+                      optimx.Nagree.of.convergers.Mhat.winner) %>%
+    mutate_if(is.numeric, function(x) round(x, 2))
+}
+
+if ( dataset.name == "kvarven" ) {
+  temp = r %>% select(meta.name, Mhat, MLo, MHi,
+                      MhatRhat, ShatRhat, optim.converged,
+                      optimx.Nagree.of.convergers.Mhat.winner) %>%
+    mutate_if(is.numeric, function(x) round(x, 2))
+}
 
 data_edit(temp, viewer = "browser", code = TRUE)
 
 
 # ~ Add Fit Diagnostics for RTMA  ---------------------
 
+#bm: maybe add ks test for 2PSM here instead?
 # need to work with estimate-level data to do ks test
-temp = b2 %>% group_by(meta.name) %>%
-  mutate( ks.pval = my_ks_test_RTMA( yi = EstF,
-                                     sei = SE,
-                                     Mhat = r$Mhat[ r$meta.name == meta.name &
-                                                      r$method == "jeffreys-mcmc-pmed"],
-                                     Shat = r$Shat[ r$meta.name == meta.name &
-                                                      r$method == "jeffreys-mcmc-pmed" ] ) )
+
+if ( dataset.name == "sapbe" ) {
+  #@2022-3-14: THIS IS FROM BEFORE I UPDATED MY_KS_TEST; NOW WILL NEED TO PASS ONLY NONAFFIRMS
+  temp = b2 %>% group_by(meta.name) %>%
+    mutate( ks.pval = my_ks_test_RTMA( yi = EstF,
+                                       sei = SE,
+                                       Mhat = r$Mhat[ r$meta.name == meta.name &
+                                                        r$method == "jeffreys-mcmc-pmed"],
+                                       Shat = r$Shat[ r$meta.name == meta.name &
+                                                        r$method == "jeffreys-mcmc-pmed" ] ) )
+  
+  # # SAVE :)
+  # # sanity check for my_ks_test_RTMA: reproduce for a few metas
+  # .meta.name = "24988220"
+  # Mhat = r$Mhat[ r$meta.name == .meta.name &
+  #                  r$method == "jeffreys-mcmc-pmed" ]
+  # Shat = r$Shat[ r$meta.name == .meta.name &
+  #                  r$method == "jeffreys-mcmc-pmed" ]
+  # 
+  # dpn = b2 %>% filter( meta.name == .meta.name )
+  # mine = my_ks_test_RTMA( yi = dpn$EstF,
+  #                  sei = dpn$SE,
+  #                  Mhat = Mhat,
+  #                  Shat = Shat )
+  # 
+  # expect_equal( mine, unique( temp$ks.pval[ temp$meta.name == .meta.name ] ) )
+  
+}
 
 
-# # SAVE :)
-# # sanity check for my_ks_test_RTMA: reproduce for a few metas
-# .meta.name = "24988220"
-# Mhat = r$Mhat[ r$meta.name == .meta.name &
-#                  r$method == "jeffreys-mcmc-pmed" ]
-# Shat = r$Shat[ r$meta.name == .meta.name &
-#                  r$method == "jeffreys-mcmc-pmed" ]
-# 
-# dpn = b2 %>% filter( meta.name == .meta.name )
-# mine = my_ks_test_RTMA( yi = dpn$EstF,
-#                  sei = dpn$SE,
-#                  Mhat = Mhat,
-#                  Shat = Shat )
-# 
-# expect_equal( mine, unique( temp$ks.pval[ temp$meta.name == .meta.name ] ) )
+if ( dataset.name == "kvarven" ) {
+  
+  temp = suppressWarnings(  b2 %>% group_by(meta.name) %>%
+                              filter(affirm == FALSE) %>%
+                              mutate( ks.pval = my_ks_test_RTMA( yi = yi,
+                                                                 sei = sqrt(vi),
+                                                                 Mhat = r$Mhat[ r$meta.name == meta.name &
+                                                                                  r$method == "jeffreys-mcmc-pmed"],
+                                                                 Shat = r$Shat[ r$meta.name == meta.name &
+                                                                                  r$method == "jeffreys-mcmc-pmed" ] ) ) )
+  
+  #bm: need to finish checking this and then need to edit above to get ks.pval for each method (jeffreys and 2psm);
+  #  jeffreys will only have p-value for nonaffirms; 2psm will have p-value for affirms and nonaffirms
+  # SAVE :)
+  # sanity check for my_ks_test_RTMA: reproduce for a few metas
+  .meta.name = "Meissner"
+  Mhat = r$Mhat[ r$meta.name == .meta.name &
+                   r$method == "jeffreys-mcmc-pmed" ]
+  Shat = r$Shat[ r$meta.name == .meta.name &
+                   r$method == "jeffreys-mcmc-pmed" ]
+  
+  b3 = b2 %>% filter( meta.name == .meta.name ) %>% filter(affirm == FALSE)
+  nrow(b3)
+  mine = my_ks_test_RTMA( yi = b3$yi,
+                          sei = sqrt(b3$vi),
+                          Mhat = Mhat,
+                          Shat = Shat )
+  
+  expect_equal( mine, unique(temp$ks.pval[ temp$meta.name == .meta.name ]) )
+}
+
 
 # add the ks p-value to "r" dataset
 r = r %>% rowwise() %>%
-  mutate( ks.pval = unique( temp$ks.pval[ temp$meta.name == meta.name ] ) )
+  mutate( ks.pval = temp$ks.pval[ temp$meta.name == meta.name ][1] )
 
 # new meta.name variable containing the p-val
 r$meta.name.pretty = paste( r$meta.name, " (fit p=", round(r$ks.pval, 3), ")", sep = "" )
 
-# Metas with strange results:
-# pb_5: p < 0.0001 (bad fit)
 
-# Metas with reasonable results:
-# 24988220: p = 0.90
 
 
 # ~ Plotly ---------------------
@@ -297,8 +341,16 @@ table( r$psm.gt.naive[ !duplicated(r$meta.name) ],
 
 # to choose axis limits
 summary(r$Mhat)
-xmin = -1
-xmax = 4
+
+if ( dataset.name == "sapbe" ) {
+  xmin = -1
+  xmax = 4
+}
+
+if ( dataset.name == "kvarven" ) {
+  xmin = -0.5
+  xmax = 4
+}
 
 my.shapes = c(16, 2)
 
@@ -337,10 +389,43 @@ pl
 # how to save a plotly as html
 # https://www.biostars.org/p/458325/
 setwd(results.dir)
-string = paste("sapbe_all_metas_plotly.html", sep="_")
+string = paste("plotly_all_metas.html", sep="_")
 htmlwidgets::saveWidget(pl, string)
 
 
+
+# SPECIFIC TO KVARVEN ----------------------
+
+# ~ Explore a horrible meta -------------------
+
+b3 = b2 %>% filter(meta.name == "Hagger")
+
+
+View( r %>% filter(meta.name == "Hagger") %>% select(method, Mhat, MhatRhat, optimx.Mhat.winner, optimx.Shat.winner, optimx.Nagree.of.convergers.Mhat.winner) )
+ 
+# look at 2PSM's fitted density (reasonable) instead of RTMA's
+Mhat = r$Mhat[ r$meta.name == "Hagger" & r$method == "2psm" ]
+Shat = r$Shat[ r$meta.name == "Hagger" & r$method == "2psm" ]
+
+plot_trunc_densities_RTMA(d = b3,
+                          Mhat = Mhat,
+                          Shat = Shat,
+                          showAffirms = TRUE)
+
+# KS test for 2PSM fit
+my_ks_test_RTMA( yi = b3$yi,
+                 sei = sqrt(b3$vi),
+                 Mhat = Mhat,
+                 Shat = Shat )
+
+# ~~ One-tailed p-value histogram from PublicationBias ----
+
+# not helpful compared to PublicationBias version
+library(PublicationBias)
+pval_plot(yi = b3$yi, vi = b3$vi)
+
+
+# SPECIFIC TO SAPBE -----------------------
 
 # ~ Explore best-fitting meta ---------------------
 

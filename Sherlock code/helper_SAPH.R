@@ -801,7 +801,7 @@ get_optimx_dataframe = function( .yi,
     
     # index of optimizer with the best nll
     lc.winner.ind = which.min(lc$value)
-  
+    
     
     # Mhat.winner is the Mhat of the optimizer with the best nll, OF converged ones
     # catch case in which no optimizers converged
@@ -811,7 +811,7 @@ get_optimx_dataframe = function( .yi,
     } else {
       Mhat.winner = Shat.winner = NA
     }
-
+    
     
     # **note that this is the criterion for agreement
     l$agree.Mhat = abs(l$p1 - Mhat.winner) < 0.01
@@ -1675,11 +1675,11 @@ plot_trunc_densities_RTMA = function(d,
 #   
 # }
 
+# OLD VERSION (for sanity-checking the one below)
+
 # 2022-3-12
-# fit diagnostics
-# get CDF of (non-iid) marginal Z-scores (Zi.tilde)
-#  given a fitted Shat
-Zi_tilde_cdf = function(x, .SE, .Shat) {
+# nonaffirms only
+Zi_tilde_cdf_OLD = function(x, .SE, .Shat) {
   
   # calculate cutpoint for EACH Zi.tilde
   # **reasoning:
@@ -1695,29 +1695,187 @@ Zi_tilde_cdf = function(x, .SE, .Shat) {
              sd = 1)
 }
 
+# 2022-3-12
+# fit diagnostics
+# get CDF of (non-iid) marginal Z-scores (Zi.tilde)
+#  given a fitted Shat
+# .affirm: VECTOR with same length as x for affirm status
+#  including the affirms is useful for 2PSM
+Zi_tilde_cdf = function(.Zi.tilde, .SE, .Shat, .affirm) {
+  
+
+  #if ( length(.Zi.tilde) > 1 ) stop("Length of .Zi.tilde must be 1")
+  if ( length(.affirm) != length(.Zi.tilde) ) stop(".affirm must have same length as x")
+  
+  # calculate cutpoint for this Zi.tilde
+  # **reasoning:
+  #  we observe a truncated sample st yi > 1.96*SE
+  # therefore Zi.tilde = (yi - mu) / ( sqrt(Shat^2 + .SE^2) ) > (1.96*SE - mu) / ( sqrt(Shat^2 + .SE^2) )
+  # and we know that Zi.tilde ~ N(0,1) prior to truncation
+  Zi.tilde.crit = ( qnorm(.975) * .SE ) / sqrt(.Shat^2 + .SE^2)
+  
+
+  dat = data.frame(Zi.Tilde = .Zi.tilde,
+                   Zi.Tilde.Crit = Zi.tilde.crit,
+                   Affirm = .affirm)
+  
+  # if ( .affirm == FALSE ) expect_equal( .Zi.tilde < Zi.tilde.crit, TRUE )
+  # if ( .affirm == FALSE ) expect_equal( .Zi.tilde < Zi.tilde.crit, TRUE )
+  
+  # if ( Affirm == FALSE ) {
+  #   return( ptruncnorm(q = Zi.Tilde,
+  #                      a = -Inf,
+  #                      b = Zi.Tilde.Crit,
+  #                      mean = 0,
+  #                      sd = 1) )
+  # } else if ( Affirm == TRUE ) {
+  #   return( ptruncnorm(q = Zi.Tilde,
+  #                      a = Zi.Tilde.Crit,
+  #                      b = Inf,
+  #                      mean = 0,
+  #                      sd = 1) )
+  # }
+  
+  dat$cdfi = NA
+  
+  if ( any(dat$Affirm == FALSE) ) {
+    dat$cdfi[ dat$Affirm == FALSE ] = ptruncnorm(q = dat$Zi.Tilde[ dat$Affirm == FALSE ],
+                                                 a = -Inf,
+                                                 b = dat$Zi.Tilde.Crit[ dat$Affirm == FALSE ],
+                                                 mean = 0,
+                                                 sd = 1)
+  }
+
+  if ( any(dat$Affirm == TRUE) ) {
+  dat$cdfi[ dat$Affirm == TRUE ] = ptruncnorm(q = dat$Zi.Tilde[ dat$Affirm == TRUE ],
+                                               a = dat$Zi.Tilde.Crit[ dat$Affirm == TRUE ],
+                                               b = Inf,
+                                               mean = 0,
+                                               sd = 1)
+  }
+  
+  return(dat$cdfi)
+  
+  
+  # 
+  # dat = dat %>% rowwise() %>%
+  #   mutate( cdfi = function(Zi.Tilde, Affirm){
+  #     if ( Affirm == FALSE ) {
+  #       return( ptruncnorm(q = Zi.Tilde,
+  #                          a = -Inf,
+  #                          b = Zi.Tilde.Crit,
+  #                          mean = 0,
+  #                          sd = 1) )
+  #     } else if ( Affirm == TRUE ) {
+  #       return( ptruncnorm(q = Zi.Tilde,
+  #                          a = Zi.Tilde.Crit,
+  #                          b = Inf,
+  #                          mean = 0,
+  #                          sd = 1) )
+  #     }
+  #     
+  #     
+  #   } )
+
+}
+
+
+# ### Sanity checks ###
+# 
+# # sanity-check nonaffirmatives (taken from Kvarven's Belle meta-analysis)
+# Zi.tilde = c(-1.19493855966001, -0.330782431293096, 0.18135714022493, -0.355495378590117)
+# sei = c(0.183, 0.169, 0.269999994444444, 0.222)
+# Shat = 0.23  # from 2PSM
+# cdfi.mine = ptruncnorm(q = Zi.tilde,
+#                            a = -Inf,
+#                            b = ( qnorm(.975) * sei ) / sqrt(Shat^2 + sei^2),
+#                            mean = 0,
+#                            sd = 1)
+# 
+# 
+# cdfi = Zi_tilde_cdf(.Zi.tilde = Zi.tilde,
+#                     .SE = sei,
+#                     .Shat = Shat,
+#                     .affirm = rep(FALSE, length(Zi.tilde)))
+# expect_equal( cdfi.mine, cdfi)
+# 
+# # sanity-check affirmatives (also from Belle)
+# Zi.tilde = c(2.10452951219512, 2.28191480814403, 4.29142844422158, 2.33576635036496, 
+#              2.707112988856, 2.86885247443619, 3.10843366971151, 2.37931028904956, 
+#              2.6049383759669, 2.06417123549919, 2.031579)
+# sei = c(0.287, 0.188000002659574, 0.175000002857143, 0.137, 0.23900000209205, 
+#         0.304999998360656, 0.249000002008032, 0.261000001915709, 0.242999997942387, 
+#         0.186999994652406, 0.19)
+# Shat = 0.23
+# cdfi.mine = ptruncnorm(q = Zi.tilde,
+#                        a = ( qnorm(.975) * sei ) / sqrt(Shat^2 + sei^2),
+#                        b = Inf,
+#                        mean = 0,
+#                        sd = 1)
+# 
+# 
+# cdfi = Zi_tilde_cdf(.Zi.tilde = Zi.tilde,
+#                     .SE = sei,
+#                     .Shat = Shat,
+#                     .affirm = rep(TRUE, length(Zi.tilde)))
+# expect_equal( cdfi.mine, cdfi)
+
+
 
 # 2022-3-12
 # test for RTMA fit
-# yi, sei: can be for all published studies or for just nonaffirms; 
-#  fn will automatically retain only nonaffirms
+# yi, sei: can be for all published studies or for just nonaffirms or just affirms
+#  including the affirms is useful for 2PSM but not RTMA
+
 my_ks_test_RTMA = function(yi,
                            sei,
                            Mhat,
                            Shat) {
   
+  if ( is.na(Mhat) | is.na(Shat) ) return(NA)
+  
+  affirm = (yi/sei) > qnorm(.975)
+  
   # retain only nonaffirmatives
-  nonaffirm = yi/sei < qnorm(.975)
-  yi = yi[ nonaffirm == TRUE ]
-  sei = sei[ nonaffirm == TRUE ]
+  # nonaffirm = yi/sei < qnorm(.975)
+  # yi = yi[ nonaffirm == TRUE ]
+  # sei = sei[ nonaffirm == TRUE ]
   
   Zi.tilde = (yi - Mhat) / sqrt(Shat^2 + sei^2)
   
-  res = ks.test(Zi.tilde, function(x) Zi_tilde_cdf(x,
+  res = ks.test(Zi.tilde, function(x) Zi_tilde_cdf(.Zi.tilde = Zi.tilde,
                                                    .SE = sei,
-                                                   .Shat = Shat) )
+                                                   .Shat = Shat,
+                                                   .affirm = affirm) )
   res$p.value
   
 }
+
+
+
+
+# # 2022-3-12
+# # test for RTMA fit
+# # yi, sei: can be for all published studies or for just nonaffirms; 
+# #  fn will automatically retain only nonaffirms
+# my_ks_test_RTMA = function(yi,
+#                            sei,
+#                            Mhat,
+#                            Shat) {
+#   
+#   # retain only nonaffirmatives
+#   nonaffirm = yi/sei < qnorm(.975)
+#   yi = yi[ nonaffirm == TRUE ]
+#   sei = sei[ nonaffirm == TRUE ]
+#   
+#   Zi.tilde = (yi - Mhat) / sqrt(Shat^2 + sei^2)
+#   
+#   res = ks.test(Zi.tilde, function(x) Zi_tilde_cdf(x,
+#                                                    .SE = sei,
+#                                                    .Shat = Shat) )
+#   res$p.value
+#   
+# }
 
 # get MLE for ONE nonaffirmative study
 # can either estimate the total within-study variance (t2w + SE^2)
