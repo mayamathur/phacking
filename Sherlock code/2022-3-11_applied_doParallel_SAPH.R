@@ -13,8 +13,11 @@
 # To run via sbatch (not tested):
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/2022-3-11_applied.sbatch
 
-# To bring back all results locally:
+# # To push code:
+# scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/Sherlock\ code/* mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH
 
+
+# To bring back all results locally:
 #SAPB
 # scp -r mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/applied_examples/results/sapbe /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/Applied\ examples/2022-3-11\ SAPBE\ results\ from\ Sherlock
 
@@ -43,7 +46,7 @@ run.interactive = TRUE
 compile.stan.model = TRUE
 
 # "sapbe" or "kvarven"
-dataset.name = "kvarven"
+dataset.name = "sapbe"
 
 if ( dataset.name == "sapbe" ) {
   sherlock.data.dir = "/home/groups/manishad/SAPH/applied_examples/data/sapbe"
@@ -59,8 +62,8 @@ if ( dataset.name == "kvarven" ) {
 
 # specify which methods to run, as in doParallel
 # but obviously can't run gold-std on a non-simulated meta-analysis
-all.methods = "naive ; maon ; 2psm ; pcurve ; jeffreys-mcmc ; jeffreys-sd ; mle-sd"
-#all.methods = "naive ; maon ; 2psm"
+#all.methods = "naive ; maon ; 2psm ; pcurve ; jeffreys-mcmc ; jeffreys-sd ; mle-sd"
+all.methods = "csm-mle-sd ; ltn-mle-sd"
 #@temp:
 run.optimx = TRUE
 stan.adapt_delta = 0.98
@@ -233,6 +236,9 @@ doParallel.seconds = system.time({
     #  by default, but if running method-naive, those will be the start values instead
     Mhat.start = 0
     Shat.start = 1
+    
+    Mhat.naive = NA
+    Shat.naive = NA
     
     # in case we're not doing jeffreys-mcmc or it fails
     Mhat.MaxLP = NA
@@ -519,6 +525,45 @@ doParallel.seconds = system.time({
     # cat("\n")
     # print(rep.res)
     # cat("\n")
+    
+    
+    # ~~ Conditional Selection Model: MLE *with* affirms (SD param) ------------------------------
+    
+    if ( "csm-mle-sd" %in% all.methods ) {
+      
+      rep.res = run_method_safe(method.label = c("csm-mle-sd"),
+                                method.fn = function() estimate_jeffreys_RTMA(yi = dp$yi,
+                                                                              sei = sqrt(dp$vi),
+                                                                              par2is = "Tt",
+                                                                              tcrit = qnorm(0.975), 
+                                                                              Mu.start = Mhat.start,
+                                                                              par2.start = Shat.start,
+                                                                              usePrior = FALSE,
+                                                                              get.CIs = TRUE,
+                                                                              CI.method = "wald",
+                                                                              run.optimx = run.optimx),
+                                .rep.res = rep.res )
+      
+      
+      
+      cat("\n doParallel flag: Done csm-mle-sd if applicable")
+    }
+    
+  
+    # ~~ LTMA: MLE *with only* affirms (SD param) ------------------------------
+    
+    rep.res = run_method_safe(method.label = c("ltn-mle-sd"),
+                              method.fn = function() estimate_jeffreys_RTMA(yi = dpa$yi,
+                                                                            sei = sqrt(dpa$vi),
+                                                                            par2is = "Tt",
+                                                                            tcrit = qnorm(0.975), 
+                                                                            Mu.start = Mhat.start,
+                                                                            par2.start = Shat.start,
+                                                                            usePrior = FALSE,
+                                                                            get.CIs = TRUE,
+                                                                            CI.method = "wald",
+                                                                            run.optimx = run.optimx),
+                              .rep.res = rep.res )
     
     # ~~ MLE (Var param) ------------------------------
     

@@ -13,8 +13,8 @@
 
 # ~ User-Specified Parameters --------------------
 
-# "sapbe" or "kvarven"
-dataset.name = "kvarven"
+# "sapbe", "kvarven", "olsson"
+dataset.name = "olsson"
 
 # ~ Packages, Etc.  --------------------
 toLoad = c("crayon",
@@ -57,7 +57,7 @@ source("helper_SAPH.R")
 
 if ( dataset.name == "sapbe" ) {
   data.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-11 prep SAPBE dataset for SAPH/Datasets from SAPBE"
-  results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-11 SAPBE results from Sherlock/sapbe"
+  results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-11 SAPBE results from Sherlock"
 }
 
 if ( dataset.name == "kvarven" ) {
@@ -65,6 +65,14 @@ if ( dataset.name == "kvarven" ) {
   results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-12 Kvarven results from Sherlock"
   
 }
+
+if ( dataset.name == "olsson" ) {
+  data.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/Olsson-Collentine"
+  results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/Olsson-Collentine/Results from Sherlock"
+  
+}
+
+
 
 # ~ PREP DATA -----------------------------
 
@@ -213,18 +221,107 @@ if ( dataset.name == "kvarven" ) {
 } # end "if(dataset.name == "kvarven")
 
 
+# ~ Prep Olsson Metas -----------------------------
+
+if ( dataset.name == "olsson" ) {
+  
+  setwd(data.dir)
+  setwd("Dataset from their repo")
+  
+  agg = fread("collated_summary_data.csv")
+  
+  # look at what analysis methods each study used
+  # summarize by multisite project, effect size type, and site
+  t = agg %>% group_by(rp, effect, Site) %>%
+    summarise( n(), 
+               effect_type[1],
+               nuni(effect_type))
+  
+  View(t)
+  expect_equal( all(t$`nuni(effect_type)` == 1 ), TRUE )
+  
+  # number of sites per multisite replication (across all replication projects)
+  table(t$effect)
+  
+  # summarize at level of multisite replications
+  t2 = agg %>% group_by(rp, effect) %>%
+    summarise( k = n(),
+               effect.type = effect_type[1],
+               outcomes1_2 = outcomes1_2[1],
+               nuni(outcomes1_2),
+               mean.es = meanNA(effect_size) )
+  
+  View(t2)
+  
+  # from Olsson's codebook:
+  # outcomes1_2 - Describes content in outcome_1 and outcome_2. For chi-square effects (group1, group2) indicates "treatment" and "control" groups
+  b2 = agg %>% filter(outcomes1_2 == "mean _ SD")
+  
+  # c.f. Olsson's script ("03_helper_functions..."):
+  # if(any(x[, "outcomes1_2"] == "mean _ SD")){  
+  #   fit <- rma(measure = "SMD", m1i = outcome_t1, m2i = outcome_c1, sd1i = outcome_t2, sd2i = outcome_c2, n1i = ntreatment, n2i = ncontrol, data = x) 
+  ES = escalc( measure = "SMD",
+               m1i = b2$outcome_t1,
+               m2i = b2$outcome_c1,
+               sd1i = b2$outcome_t2,
+               sd2i = b2$outcome_c2,
+               n1i = b2$ntreatment,
+               n2i = b2$ncontrol )
+  
+  b2$yi = ES$yi
+  b2$vi = ES$vi
+  b2$sei = sqrt(ES$vi)
+  b2$Zi = b2$yi/b2$sei
+  b2$pval.two = 2 * ( 1 - pnorm( abs(b2$Zi) ) ) 
+  b2$affirm = (b2$pval.two <= 0.05) & (b2$yi > 0)
+  expect_equal( b2$affirm, b2$Zi > qnorm(0.975) ) 
+  
+  table(b2$effect)
+
+    # have effects been coded in same direction?
+  # make columns with standardized names to match doParallel from sim study
+  # per sanity check in prep code, all metas' pooled ests have already 
+  #   been coded as >0
+
+  # match SAPB-E naming convention
+  b2 = b2 %>% rename( meta.name = effect)
+  
+  # PAUSED BECAUSE I'M NOT SURE IF EFFECT DIRECTIONS ARE SYNCED WITH ORIGINAL STUDIES
+  # HAVE EMAIL OUT TO ANTON OLSSON-COLLENTINE ABOUT THIS
+}
+
 # send to cluster (specific to SAPB-E)
 # scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/Applied\ examples/2022-3-11\ prep\ SAPBE\ dataset\ for\ SAPH/Datasets\ prepped\ for\ SAPH/* mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/applied_examples/data/sapbe
 
 # (NOW RUN ANALYSIS CODE ON CLUSTER) -----------------------------
 
 
+
+
+
+
 # ANALYZE RESULTS FROM CLUSTER -----------------------------
 
-setwd(results.dir)
 
-if ( dataset.name == "sapbe" ) r = fread("results_sapbe_all.csv")
-if ( dataset.name == "kvarven" ) r = fread("results_kvarven_all.csv")
+
+if ( dataset.name == "sapbe" ) {
+  # dataset with all methods prior to csm and ltn
+  setwd(results.dir)
+  setwd("2022-3-11")
+  r1 = fread("2022-3-11_results_sapbe_all.csv")
+  
+  # dataset with just those 2 methods
+  setwd(results.dir)
+  setwd("2022-3-16 just CSM and LTMA")
+  r2 = fread("2022-3-16_results_sapbe_all.csv")
+  
+  r = bind_rows(r1, r2) %>% arrange(meta.name)
+}
+  
+if ( dataset.name == "kvarven" ) {
+  setwd(results.dir)
+  r = fread("results_kvarven_all.csv")
+}
 
 
 # ~ View results in DataEditR ---------------------
@@ -344,7 +441,7 @@ summary(r$Mhat)
 
 if ( dataset.name == "sapbe" ) {
   xmin = -1
-  xmax = 4
+  xmax = 8
 }
 
 if ( dataset.name == "kvarven" ) {

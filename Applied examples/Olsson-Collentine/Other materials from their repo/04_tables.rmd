@@ -1,0 +1,285 @@
+---
+title: "Tables"
+author: "Heterogeneity in direct replications in psychology and its association with effect size"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+```{r load packages, data and source functions}
+if(!require(readr)){install.packages("readr")}
+if(!require(metafor)){install.packages("metafor")}
+if(!require(dplyr)){install.packages("dplyr")}
+if(!require(purrr)){install.packages("purrr")}
+if(!require(kableExtra)){install.packages("kableExtra")}
+
+library(readr) #To load data
+library(dplyr) #For data transformation
+library(purrr) #For data iteration
+library(metafor) #To run meta-analyses
+library(kableExtra) #For creating good-looking pdf tables
+
+# MM
+setwd("~/Dropbox/Personal computer/Independent studies/2020/Reanalyze Olsson")
+dat <- read_csv("collated_summary_data.csv")
+
+source("03_helper_functions_tables_figures.r") #Load functions to prep data for figures
+```
+
+## Table 1
+### Variation in observed effect sizes as a function of true effect size and measurement reliability.  
+```{r effect-size-heterogeneity-table, cache = TRUE}
+#library(kableExtra)
+rooted_relabilities <- matrix(rep(c(.60, .70,.80), 3), ncol = 3)
+rho <- c(0.0, .30, .50)
+rel <- c("$\\sqrt{R_{xx'}}\\times\\sqrt{R_{yy'}}$ = .6", "$\\sqrt{R_{xx'}}\\times\\sqrt{R_{yy'}}$ = .7", "$\\sqrt{R_{xx'}}\\times\\sqrt{R_{yy'}}$ = .8")
+ma <- c("I", "II", "III")
+
+
+
+rooted_relabilities <- sweep(rooted_relabilities, 2, rho, "*")
+devs <- apply(rooted_relabilities, 2, sd)
+table1 <- data.frame(ma, rho, t(rooted_relabilities), devs)
+
+
+table1 %>% knitr::kable(booktabs = T, col.names = c("Meta-Analysis", "$\\rho_{xy}$", "$\\sqrt{R_{xx'}}\\times\\sqrt{R_{yy'}}$ = .6", "$\\sqrt{R_{xx'}}\\times\\sqrt{R_{yy'}}$ = .7", "$\\sqrt{R_{xx'}}\\times\\sqrt{R_{yy'}}$ = .8", "SD(ES)"), escape = FALSE, digits = 2) %>% 
+  kable_styling(position = "left") %>% 
+  add_header_above(c(" " = 2, "Study 1"= 1, "Study 2" = 1, "Study 3" = 1)) %>% 
+  add_header_above(c(" " = 2, "Observed Effect Sizes" = 3)) 
+
+#alternative inversed table 1
+# table1b <- t(table1)[2:5,]
+# studies <- c("Study 1: $\\sqrt{R_{xx'}}\\times\\sqrt{R_{yy'}}$ = .6", "Study 2: $\\sqrt{R_{xx'}}\\times\\sqrt{R_{yy'}}$ = .7", "Study 3: $\\sqrt{R_{xx'}}\\times\\sqrt{R_{yy'}}$ = .8", "SD(ES)")
+# table1b <- cbind(studies, table1b)
+# rownames(table1b) <- NULL
+# 
+# table1b %>% knitr::kable(booktabs = T, col.names = c("Study and Measurement Error", "I: $\\rho_{xy} = 0$", "II: $\\rho_{xy} = .3$", "III: $\\rho_{xy} = .5$"), escape = FALSE, digits = 2) %>% 
+#   add_header_above(c(" " = 1, "Meta-Analysis" = 3)) %>% 
+#   add_header_above(c(" " = 1, "Observed effect sizes" = 3)) %>% 
+#   row_spec(3, hline_after = TRUE)
+```
+*Note:* The values under Study 1, 2 and 3 are observed effect sizes for that study given its measurement reliability $\sqrt{R_{xx'}}\times\sqrt{R_{yy'}}$ and the true effect size $\rho_{xy}$ when within study sample size is infinite. SD(ES) is the standard deviation of the observed effect sizes for meta-analysis I, II and III; equivalent to heterogeneity given infinite within study sample sizes. Code to reproduce table: osf.io/gtfjn/
+
+## Table 2
+### Pre-registered multi-lab replication projects
+```{r data-summary-table}
+#library(dplyr)
+#library(kableExtra)
+
+#Shortened version of APA reference
+papers <- c('Klein et al. (2014)', 
+            'Klein et al. (2018)',
+'Ebersole et al. (2016)',
+'Alogna et al. (2014)',
+'Alogna et al. (2014)',
+'Eerland et al. (2016)',
+'Hagger et al. (2016)',
+'Cheung et al. (2016)',
+'Wagenmakers et al. (2016)',
+'Bouwmeester et al. (2017)',
+"O'Donnell et al. (2017)",
+"McCarthy et al. (2018)",
+"Verschuere et al. (2018)")
+
+##Full APA reference below
+# c('Klein, R. A., Ratliff, K. A., Vianello, M., Adams, R. B., Jr., Bahn?k, S., Bernstein, M. J., . . . Nosek, B. A. (2014). Investigating variation in replicability: A "many labs" replication project. Social Psychology, 45(3), 142-152.', 
+# Klein, R. A., Vianello, M., Hasselman, F., Adams, B. G., Adams, R. B., Alper, S., … Nosek, B. A. (2018). Many Labs 2: Investigating Variation in Replicability Across Samples and Settings. Advances in Methods and Practices in Psychological Science, 1(4), 443–490. https://doi.org/10.1177/2515245918810225
+# 'Ebersole, C. R., Atherton, O. E., Belanger, A. L., Skulborstad, H. M., Allen, J. M., Banks, J. B., ... & Brown, E. R. (2016). Many Labs 3: Evaluating participant pool quality across the academic semester via replication. Journal of Experimental Social Psychology, 67, 68-82.',
+# 'Alogna, V. K., Attaya, M. K., Aucoin, P., Bahn?k, S., Birch, S., Birt, A. R., ... & Buswell, K. (2014). Registered replication report: Schooler and engstler-schooler (1990). Perspectives on Psychological Science, 9(5), 556-578.',
+# 'Alogna, V. K., Attaya, M. K., Aucoin, P., Bahn?k, S., Birch, S., Birt, A. R., ... & Buswell, K. (2014). Registered replication report: Schooler and engstler-schooler (1990). Perspectives on Psychological Science, 9(5), 556-578.',
+# 'Eerland, A., Sherrill, A. M., Magliano, J. P., Zwaan, R. A., Arnal, J. D., Aucoin, P., ... & Crocker, C. (2016). Registered replication report: Hart & Albarrac?n (2011). Perspectives on Psychological Science, 11(1), 158-171.',
+# 'Hagger, M. S., Chatzisarantis, N. L., Alberts, H., Anggono, C. O., Batailler, C., Birt, A. R., ... & Calvillo, D. P. (2016). A multilab preregistered replication of the ego-depletion effect. Perspectives on Psychological Science, 11(4), 546-573.',
+# 'Cheung, I., Campbell, L., LeBel, E. P., Ackerman, R. A., Aykutoglu, B., Bahn?k, S., ... & Carcedo, R. J. (2016). Registered Replication Report: Study 1 from Finkel, Rusbult, Kumashiro, & Hannon (2002). Perspectives on Psychological Science, 11(5), 750-764.',
+# 'Wagenmakers, E. J., Beek, T., Dijkhoff, L., Gronau, Q. F., Acosta, A., Adams Jr, R. B., ... & Bulnes, L. C. (2016). Registered Replication Report: Strack, Martin, & Stepper (1988). Perspectives on Psychological Science, 11(6), 917-928.',
+# 'Bouwmeester, S., Verkoeijen, P. P., Aczel, B., Barbosa, F., B?gue, L., Bra?as-Garza, P., ... & Evans, A. M. (2017). Registered Replication Report: Rand, Greene, and Nowak (2012). Perspectives on Psychological Science, 12(3), 527-542.',
+# "O'Donnell, M., Nelson, L., McLatchie, N. M., & Lynott, D. J. (2017). Registered Replication Report: Dijksterhuis & van Knippenberg (1998): Multilab direct replication of: A variant of study 4 from Dijksterhuis, A., & van Knippenberg, A.(1998). The relation between perception and behavior, or how to win a game of trivial pursuit. Journal of personality and social psychology. Perspectives on Psychological Science."
+#McCarthy, R. J., Skowronski, J. J., Verschuere, B., Meijer, E. H., Jim, A., Hoogesteyn, K., ... & Barbosa, F. (2018). Registered replication report on Srull and Wyer (1979). Advances in Methods and Practices in Psychological Science, 1(3), 321-336.
+#Verschuere, B., Meijer, E. H., Jim, A., Hoogesteyn, K., Orthey, R., McCarthy, R. J., ... & Barbosa, F. (2018). Registered replication report on Mazar, Amir, and Ariely (2008). Advances in Methods and Practices in Psychological Science, 1(3), 299-317.
+
+description <- c("Two correlational effects: 'Gender math attitude' compared implicit attitudes (IAT) towards math between genders and 'IAT correlation math' correlated implicit attitudes with self-reported measures. The remainder were experiments with two independent groups. The groups were primed in some way (Anchoring 1-4; low vs. high category scales; norm of reciprocity; flag priming; currency priming), asked to imagine slightly different situations (Sunk costs; gain vs. loss framing; gambler's fallacy; imagined contact) or asked their agreement with statements presented differently (Allowed vs. forbidden; quote attribution). ", #ML1
+                 "Most effects were experiments with two independent groups. Often participants were primed in some way (Structure & Goal Pursuit, Priming Consumerism, Incidental Anchors, Position & Power, Moral Cleansing, Priming Warmth) or asked to imagine slightly different situations (SMS & Well-Being, Less is Better, Moral Typecasting, Intentional Side-Effects, Tempting Fate, Affect & Risk, Trolley Dilemma 1, Framing, Trolley Dilemma 2, Disgust & Homophobia, Choosing or Rejecting). Some groups saw slightly different statements (Correspondence Bias, Intuitive Reasoning), were asked to perform slightly different tasks (Direction & SES, Actions are Choices), or had to read a text with a clear vs. unclear font (Incidental Disfluency). Two correlational effects measured the correlations of Moral Foundations with political leaning, and Social Value Orientation with family size. Two effects examined order effects (Assimilation & Contrasts, Direction & Similarity). Finally, in False Consensus 1 and 2, participants made a binary choice and estimated how many people had made the same choice.", #ML2
+            "Several effects were experiments with two independent groups. The groups were either primed in some way (Power and perspective; warmth perceptions; subjective distance interaction), saw slightly different statements (Elaboration likelihood interaction; credentials interaction) or experienced different situations (weight embodiment). Examined interactions were between treatment conditions and participant characteristics. One priming effect (metaphor) compared two treatment groups with a control. One effect was correlational: 'Conscientiousness and persistence' was measured by an unsolvable anagram task and self-report respectively. The Stroop task is a within-person experiment with two conditions and the 'Availability' effect asks participants to judge whether some letters are more common in the first or third position.", #ML3
+                 "Verbal overshadowing 1; Independent two-group experiment. Participants either described a robber after watching a video or listed countries/capitals and after a filler task attempted to identify the robber in a lineup.", #RRR1
+            "Verbal overshadowing 2; Different from 1 only in that the filler task took place before the descriptive task instead of after.", #RRR2
+                 "Grammar's effect on interpretation; Independent two-group vignette experiment with three outcome variables. Participants read about actions either described in imperfect or perfect tense and then rated protagonist's intentions (intentionality/intention attribution/detailed processing).", #RRR3
+            "Ego depletion; Independent two-group experiment. Participants either assigned to a cognitively demanding task or a neutral, and performance was then measured in a subsequent cognitive task.", #RRR4
+            "Commitment on neglect/exit; Independent two-group experiment with two outcome variables. Participants either primed to think about commitment to or independence from partner.", #RRR5
+            "Facial feedback hypothesis; Independent two-group experiment. Participants either induced to 'smile' or 'pouth' by holding a pen in their mouth differently and simultaneously rated funniness of cartoons. ", #RRR6
+            "Intuitive cooperation; Independent two-group experiment. Economic game with money contribution to a common pool either under time pressure or time delay.",
+                 "Professor priming; Independent two-group experiment. Participants primed with either a 'professor' or 'hooligan' stimuli. Outcome was percentage correct trivia answers.", #RRR8
+            "Hostility priming; Independent two-group experiment with two outcome variables. Participants descrambled sentences, either 20% or 80% were hostile, then rated an individual and a list of ambiguous behaviors on perceived hostility.", #RRR9
+            "Moral reminder; Independent two-group experiment. Participants either recalled the Ten Commandments or books they'd read. Outcome was degree of cheating when reporting results. ") #RRR10 
+
+
+US_online <- dat %>% #Extract the (max when multiple effects) number of US/online labs per RP
+  group_by(rp, effect) %>% 
+  summarize(US = sum(country == "USA"),
+            online = sum(in_lab == 0, na.rm = TRUE)) %>% 
+  group_by(rp) %>% 
+  summarize(US = max(US),
+            online = max(online)) %>% 
+  ungroup() %>% select(rp, US, online)
+
+sample_settings <- c("26/36 samples were primarily university students, 3 general population and 7 undescribed. 9/36 samples were online, including all the general population ones.", #https://osf.io/g3udn/, ML1
+                     "79/125 samples were collected in person (typically in labs), remainder online. Mean age in two rounds of data collection were 22.37 and 23.34 years.", #ML2
+                     "20/21 samples were university students, 1 general population which was also the only online sample.", #Ml3
+                     "31/32 samples were undergraduate students aged 18-25, 1 general population which was also the only online sample.", #RRR1
+                     "22/23 samples were undergraduate students aged 18-25, 1 general population which was also the only online sample.", #RRR2
+                     "11/12 samples were undergraduate students mostly aged 18-25, one of which was online. 1 sample was a broader online sample.", #RRR3
+                     "All samples consisted of in-lab undergraduate students", #RRR4
+                     "All samples consisted of in-lab undergraduate students aged 18-25", #RRR5
+               "All but one sample explicitly consisted of students and all took place in-lab. The last sample was recruited at university grounds.", #RRR6
+               'All samples consisted of in-lab undergraduate students aged 18-34.', #RRR7
+                     "All samples consisted of in-lab undergraduate students aged 18-25", #RRR8
+               "All samples consisted of in-lab students aged 18-25", #RRR9
+               "All samples consisted of in-lab students aged 18-25") #RRR10
+
+#1) what kind of samples
+
+summary.table <- dat %>% 
+  group_by(rp) %>% 
+  summarize(Countries = n_distinct(country),
+            k = n_distinct(Site), 
+            Effects = n_distinct(effect),
+            N = if(Effects == 1){sum(Ntotal)}
+                           else{sum(Ntotal) / Effects}) %>% #average across effects
+  mutate('K (US)' = paste0(k, " (", US_online$US, ")"))
+
+summary.table <- summary.table[c(1:4, 6:13, 5),] #reorder so RRR10 is last instead of after RRR1
+
+summary.table <- summary.table %>% 
+  mutate(Paper = papers, #In these vectors RRR1-10 are sorted in descending order since they were manually created
+         'Sample and Settings' = sample_settings,
+         'Description of Effects' = description) %>% 
+  select(RP = rp, Paper, Countries,'K (US)', everything(), -k) #change order of columns
+
+
+
+summary.table %>% knitr::kable(booktabs = TRUE,
+                               digits = 0,
+                               linesep = "\\addlinespace",
+                               longtable = TRUE) %>% 
+  kable_styling(latex_options = c("hold_position", "repeat_header"), font_size = 7) %>%
+  column_spec(2, width = "7em") %>% #specify width of paper column 
+  column_spec(7, width = "16em") %>% 
+  column_spec(8, width = "30em") %>% 
+  landscape()
+```
+**Note:** For studies with several effects the number of participants is the average across effects, rounded to the closest whole number. N = Participants used for primary analyses by original authors (i.e., after exclusions). RP = Replication Project, K (US) = no. primary studies (number of US studies), ML = Many Labs, RRR = Registered Replication Report. Code to reproduce table: osf.io/gtfjn/
+
+## Table 3
+### Heterogeneity across primary effects and statistical power of thirteen multi-lab replication projects, ordered with respect to estimated heterogeneity ($I^2$).
+```{r prep-heterogeneity-table, results = 'hide'}
+#library(metafor) 
+#library(dplyr)
+#library(purrr)
+
+#fit a random effects model to all empirical data
+#Each set of input datapoints is meta-analyzed as per the original replication project
+#Function 'est_heterogen_smd_raw' is sourced
+res <- dat %>%
+  split(.$effect) %>%  #separate by effect, necessary step otherwise the function is applied overall
+  map_dfr(est_heterogen_smd_raw, .id = "effect") %>% #apply function, rbind results into dataframe ('dfr'), make sure purrr is up to date
+  mutate(tau = sqrt(tau2),
+         tau_ci.lb = sqrt(tau2_ci.lb),
+         tau_ci.ub = sqrt(tau2_ci.ub)) %>%
+  select(-tau2, - tau2_ci.lb, -tau2_ci.ub) #drop redundant variables
+
+
+#Add rp and k to the data-frame and prep for table
+het <- dat %>%
+  select(rp, Site, effect, effect_type) %>%
+  group_by(rp, effect) %>%
+  summarize(effect_type = unique(effect_type),
+            k = n_distinct(Site)) %>%
+  left_join(res) %>%
+  mutate(effect_type = recode(effect_type,
+                              d = "SMD",
+                              'Raw mean difference' = "MD",
+                              'Risk difference' = "RD")) %>%
+  ungroup()
+
+#****************
+#Results for "Heterogeneity Estimates and Confidence Intervals" section in paper----
+
+sum(het$s_I2 >= 62.5) #what number of I2 estimates would be rounded to "large" (75% I2) heterogeneity
+sum(het$s_I2 >= 37.5 & het$s_I2 < 62.5) #what number of I2 estimates would be rounded to "medium" (50% I2) heterogeneity
+sum(het$s_I2 >= 12.5 & het$s_I2 < 37.5) #what number of I2 estimates would be rounded to "small" (25% I2) heterogeneity
+sum(het$s_I2 < 12.5) #what number of I2 estimates would be rounded to zero (0% I2) heterogeneity
+
+
+quantile(het$tau[het$effect_type == "r"]) #quantiles of tau for correlation tau scale
+quantile(het$tau[het$effect_type == "SMD"]) ##quantiles of tau for SMD tau scale
+
+sum(het$s_ci.lb == 0) #number of meta-analysis with lower I2 CI containing zero
+sum(het$s_ci.lb == 0 & het$tau_ci.lb == 0) #All above also have lower tau CI containing zero
+
+sum(het$s_I2 == 0) #number of meta-analyses with I2 estimates of zero
+sum(het$s_I2 == 0 & het$tau == 0) #all these also have tau estimates of zero
+
+#****************
+
+#continue prepping table 3
+
+#Load simulation results (power/type 1 error for all effects)
+dens <- readRDS("../data/power_simulation_results.RDS")
+names(dens) <-  sort(unique(dat$effect)) #names were alphabetized upon splitting in simulation so must sort
+
+#Summary of simulation results, needs to be combined with main part of table
+I2_power <- dens %>%
+  bind_rows(.id = "effect") %>%
+  group_by(effect, tau_index) %>%
+  summarize(power = mean(Qp <= 0.05)) %>% #Estimate power/type 1 error for each tau level and effect
+  ungroup() %>%
+  tidyr::spread(key = tau_index, value = power) %>% #prep for table
+  rename(zero = '1', small = '2', medium = '3', large = '4')
+
+#Combine dataframes to create full table
+het <-  het %>%
+  left_join(I2_power) %>%
+  arrange(desc(s_I2),  desc(s_ci.ub)) %>% #sort by I2 and upper CI bound
+  mutate(I2_ci = paste0("[", trimws(format(round(s_ci.lb, 2), nsmall = 2)), ", ", trimws(format(round(s_ci.ub, 2), nsmall = 2)), "]"), #Round and put confidence interval between brackets, e.g., [0, 0.41]
+         s_I2 = format(round(s_I2, 2), nsmall = 2),
+         tau_ci = paste0("[", trimws(format(round(tau_ci.lb, 3), nsmall = 3)), ", ", trimws(format(round(tau_ci.ub, 3), nsmall = 3)), "]"),
+         tau = format(round(tau, 3), nsmall = 3)) %>% #rounded here instead of in table function because should have 3 digits
+  mutate_at(vars(zero, small, medium, large), ~format(round(., 2), nsmall = 2)) %>% #round here because of superscripts added later
+  select(rp, effect, k, effect_type, eff_size, s_I2, I2_ci, tau, tau_ci, zero, small, medium, large)
+
+#Add superscripts
+het <- het %>%
+  mutate(s_I2 = ifelse(effect %in% c("Grammar on intention attribution", "Conscientiousness and persistence"), paste0(s_I2, "\\textsuperscript{a}"), s_I2), #add a superscript
+         tau = ifelse(effect == "Conscientiousness and persistence", paste0(tau, "\\textsuperscript{a}"), tau)) %>%
+  mutate_at(vars(zero, small, medium, large), ~ifelse(effect %in% c('Allowed vs. forbidden', 'Gain vs. loss framing', 'Norm of reciprocity', 'Low vs. high category scales', 'Verbal overshadowing 1', 'Verbal overshadowing 2'), paste0(., "\\textsuperscript{b}"), .)) #add b superscript
+
+het$effect <- gsub("&", "\\\\&", het$effect)
+
+
+#highlight the effects in Figure 3
+fig3_smds <- unique(dat$effect[dat$outcomes1_2 == "mean _ SD"]) 
+fig3_logor <- c('Allowed vs. forbidden', 'Gain vs. loss framing', 'Norm of reciprocity', 'Low vs. high category scales', #ML1 (OR2d)
+                "Affect & Risk", "Trolley Dilemma 1", "Framing", "Trolley Dilemma 2", #ML2
+                "Verbal overshadowing 1", "Verbal overshadowing 2") #RRR1
+                     
+het$effect <- ifelse(het$effect %in% fig3_smds, paste0(het$effect, footnote_marker_symbol(1)), het$effect)
+het$effect <- ifelse(het$effect %in% fig3_logor, paste0(het$effect, footnote_marker_symbol(2)), het$effect)
+
+```
+
+```{r heterogeneity-table, cache = FALSE}
+#library(kableExtra)
+
+het %>% knitr::kable(longtable = TRUE, booktabs = TRUE, escape = FALSE, digits = 2, col.names = c("RP", "Effect", "K", "Effect type", "Effect size estimate",  "$I^2$(\\%)", "$I^2$ 95\\% CI", "$\\hat\\tau$", "$\\hat\\tau$ 95\\% CI", "Zero", "Small", "Medium", "Large")) %>%
+  add_header_above(c(" " = 9, "Level of heterogeneity" = 4)) %>%
+  add_header_above(c(" " = 9, "Type I Error Rate & Statistical Power" = 4)) %>%
+  kable_styling(latex_options = c("scale_down", "repeat_header"), font_size = 7) %>% #comment out if outputting html file
+  column_spec(5, width = "5em") %>% #make sure the 'Effect size estimate' header is wrapped
+  column_spec(4, width = "3em") %>% #wrap 'Effect Type' header 
+  footnote(threeparttable = TRUE, escape = FALSE,
+           general = "Effects were estimated in metafor using REML. The following effects are odds ratios transformed into standardized mean differences: 'Allowed vs. forbidden', 'Gain vs. loss framing', 'Norm of reciprocity', 'Low vs. high category scales'. All ML2 meta-analyses with effect type 'r' except 'Moral foundations' and 'Social Value Orientation' were transformed to correlations from a variety of effect sizes. RP = Replication Project, K = no. primary studies, $\\\\hat\\\\tau$ = between studies standard deviation, CI = confidence intervals. Statistical power was simulated, where Zero = simulated type 1 error, and the other headers represent simulated power under small/medium/large
+heterogeneity ($I^2$ = 25/50/75\\\\%) respectively. SMD = Standardized Mean difference (Hedge's g), MD = Mean Difference, RD = Risk Difference, r = correlation. Code to reproduce table: osf.io/gtfjn/" ,
+           alphabet = c("Value rounded to zero", "These effects were simulated as standardized mean differences"),
+symbol = c("SMD effect size in Figure 3", "Log odds ratio effect size in Figure 3")) %>% landscape()
+```
+
