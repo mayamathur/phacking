@@ -20,11 +20,12 @@ srr = function() {
   if( "optimx.Mhat.winner" %in% names(rep.res) ) {
     cat("\n")
     print( rep.res %>% select(method, Mhat, MLo, MHi,
-                              Shat,
-                              optim.converged,
-                              optimx.Mhat.winner,
-                              optimx.Nconvergers,
-                              optimx.Pagree.of.convergers.Mhat.winner) %>%
+                              Shat
+                              # optim.converged,
+                              # optimx.Mhat.winner,
+                              # optimx.Nconvergers,
+                              # optimx.Pagree.of.convergers.Mhat.winner
+                              ) %>%
              mutate_if(is.numeric, function(x) round(x,2)) )
     cat("\n")
   } else {
@@ -499,7 +500,7 @@ srr()
 
 # ANALYSES OF PREREG STUDIES (SPECIFIC TO LODDER) ------------------
 
-# ~~ Fit Naive Meta-Analysis (Prereg Only) ------------------------------
+# ~~ Fit Naive (Prereg Only) ------------------------------
 
 dp.prereg = dp %>% filter(Preregistered == TRUE)
 dpn.prereg = dpn %>% filter(Preregistered == TRUE)
@@ -525,9 +526,8 @@ srr()
 Mhat.start = Mhat.naive
 Shat.start = Shat.naive
 
-# ~~ MCMC ------------------------------
+# ~~ MCMC (Prereg Only) ------------------------------
 
-#bm: BREAKS - WHY?
 if ( "prereg-jeffreys-mcmc" %in% all.methods ) {
   # # temp for refreshing code
   # path = "/home/groups/manishad/SAPH"
@@ -557,7 +557,7 @@ if ( "prereg-jeffreys-mcmc" %in% all.methods ) {
 }
 
 
-# ~~ Fit 2PSM (All Prereg) ------------------------------
+# ~~ Fit 2PSM (Prereg Only) ------------------------------
 
 if ( "prereg-2psm" %in% all.methods ) {
   
@@ -588,76 +588,6 @@ if ( "prereg-2psm" %in% all.methods ) {
 
 srr()
 
-
-# OTHER NEW ANALYSES --------
-
-# ~~ Fit 2PSM (using the CSM dataset) -----------------------------
-
-# because this is estimating eta, I expect it to *not* agree with CSM
-# because we've discarded some affirmatives, it should underestimate eta and overestimate Mu
-
-if ( "csm-dataset-2psm" %in% all.methods ) {
-  
-  rep.res = run_method_safe(method.label = c("csm-dataset-2psm"),
-                            method.fn = function() {
-                              mod = weightfunct( effect = dp.csm$yi,
-                                                 v = dp.csm$vi,
-                                                 steps = c(0.025, 1),
-                                                 table = TRUE ) 
-                              
-                              H = mod[[2]]$hessian
-                              ses = sqrt( diag( solve(H) ) )
-                              
-                              # follow the same return structure as report_meta
-                              list( stats = data.frame( Mhat = mod[[2]]$par[2],
-                                                        MLo = mod[[2]]$par[2] - qnorm(.975) * ses[2],
-                                                        MHi = mod[[2]]$par[2] + qnorm(.975) * ses[2],
-                                                        
-                                                        # could definitely get these from weightr
-                                                        # I didn't even try
-                                                        Shat = NA,
-                                                        SLo = NA,
-                                                        SHi = NA ) )
-                            },
-                            .rep.res = rep.res )
-  
-}
-
-# sanity check with metafor
-
-
-# ~~ Info About Dataset and Sanity Checks ------------------------------
-
-### Info About Dataset
-
-rep.res$k.pub = nrow(dp)
-rep.res$k.pub.affirm = sum(dp$affirm == TRUE)
-rep.res$k.pub.nonaffirm = sum(dp$affirm == FALSE)
-rep.res$prob.pub.study.affirm = rep.res$k.pub.affirm / rep.res$k.pub
-
-### Show Results
-
-cat("\n\n***REP.RES at the end:")
-rep.res %>% select(method, Mhat, MLo, MHi, MhatRhat, optimx.Nagree.of.convergers.Mhat.winner) %>%
-  mutate_if(is.numeric, function(x) round(x,2) )
-
-### Make Plot 
-
-plot.method = "jeffreys-mcmc-pmed"
-
-# catch possibility that we didn't run this method
-if ( length( rep.res$Mhat[ rep.res$method == plot.method ] ) > 0 ) {
-  p = plot_trunc_densities_RTMA(d = dp,
-                                Mhat = rep.res$Mhat[ rep.res$method == plot.method ],
-                                Shat = rep.res$Shat[ rep.res$method == plot.method ],
-                                showAffirms  = FALSE)
-  
-  setwd(sherlock.results.dir)
-  ggsave( filename = paste( "density_plot", meta.name, ".pdf", sep="_" ),
-          width = 10, 
-          height = 10)
-  
-}
 
 
 # ~~ Conditional Selection Model: all prereg studies (SD param) ------------------------------
@@ -705,6 +635,80 @@ srr()
 #                           .rep.res = rep.res )
 
 
+
+# OTHER NEW ANALYSES --------
+
+# ~~ Fit 2PSM (CSM dataset) -----------------------------
+
+# because this is estimating eta, I expect it to *not* agree with CSM
+# because we've discarded some affirmatives, it should underestimate eta and overestimate Mu
+
+if ( "csm-dataset-2psm" %in% all.methods ) {
+  
+  rep.res = run_method_safe(method.label = c("csm-dataset-2psm"),
+                            method.fn = function() {
+                              mod = weightfunct( effect = dp.csm$yi,
+                                                 v = dp.csm$vi,
+                                                 steps = c(0.025, 1),
+                                                 table = TRUE ) 
+                              
+                              H = mod[[2]]$hessian
+                              ses = sqrt( diag( solve(H) ) )
+                              
+                              # follow the same return structure as report_meta
+                              list( stats = data.frame( Mhat = mod[[2]]$par[2],
+                                                        MLo = mod[[2]]$par[2] - qnorm(.975) * ses[2],
+                                                        MHi = mod[[2]]$par[2] + qnorm(.975) * ses[2],
+                                                        
+                                                        # could definitely get these from weightr
+                                                        # I didn't even try
+                                                        Shat = NA,
+                                                        SLo = NA,
+                                                        SHi = NA ) )
+                            },
+                            .rep.res = rep.res )
+  
+}
+
+# sanity check with metafor
+
+
+# DATASET INFO AND SANITY CHECKS ------------------------------
+
+# Info About Dataset ------------
+
+rep.res$k.pub = nrow(dp)
+rep.res$k.pub.affirm = sum(dp$affirm == TRUE)
+rep.res$k.pub.nonaffirm = sum(dp$affirm == FALSE)
+rep.res$prob.pub.study.affirm = rep.res$k.pub.affirm / rep.res$k.pub
+
+# Show Results --------------
+
+cat("\n\n***REP.RES at the end:")
+rep.res %>% select(method, Mhat, MLo, MHi, MhatRhat, optimx.Nagree.of.convergers.Mhat.winner) %>%
+  mutate_if(is.numeric, function(x) round(x,2) )
+
+
+
+### Make Plot 
+
+plot.method = "jeffreys-mcmc-pmed"
+
+# catch possibility that we didn't run this method
+if ( length( rep.res$Mhat[ rep.res$method == plot.method ] ) > 0 ) {
+  p = plot_trunc_densities_RTMA(d = dp,
+                                Mhat = rep.res$Mhat[ rep.res$method == plot.method ],
+                                Shat = rep.res$Shat[ rep.res$method == plot.method ],
+                                showAffirms  = FALSE)
+  
+  setwd(sherlock.results.dir)
+  ggsave( filename = paste( "density_plot", meta.name, ".pdf", sep="_" ),
+          width = 10, 
+          height = 10)
+  
+}
+
+
 # ~ WRITE LONG RESULTS ------------------------------
 
 setwd(sherlock.results.dir)
@@ -712,4 +716,4 @@ fwrite( rep.res, paste( "results_", meta.name, ".csv", sep="" ) )
 
 
 
-
+fwrite( rep.res, paste( "results2_", meta.name, ".csv", sep="" ) )

@@ -1691,21 +1691,21 @@ plot_trunc_densities_RTMA = function(d,
 
 # 2022-3-12
 # nonaffirms only
-Zi_tilde_cdf_OLD = function(x, .SE, .Shat) {
-  
-  # calculate cutpoint for EACH Zi.tilde
-  # **reasoning:
-  #  we observe a truncated sample st yi > 1.96*SE
-  # therefore Zi.tilde = (yi - mu) / ( sqrt(Shat^2 + .SE^2) ) > (1.96*SE - mu) / ( sqrt(Shat^2 + .SE^2) )
-  # and we know that Zi.tilde ~ N(0,1) prior to truncation
-  Zi.tilde.crit = ( qnorm(.975) * .SE ) / sqrt(.Shat^2 + .SE^2)
-  
-  ptruncnorm(q = x,
-             a = -Inf,
-             b = Zi.tilde.crit,
-             mean = 0,
-             sd = 1)
-}
+# Zi_tilde_cdf_OLD = function(x, .SE, .Shat) {
+#   
+#   # calculate cutpoint for EACH Zi.tilde
+#   # **reasoning:
+#   #  we observe a truncated sample st yi > 1.96*SE
+#   # therefore Zi.tilde = (yi - mu) / ( sqrt(Shat^2 + SE^2) ) > (1.96*SE - mu) / ( sqrt(Shat^2 + SE^2) )
+#   # and we know that Zi.tilde ~ N(0,1) prior to truncation
+#   Zi.tilde.crit = ( qnorm(.975) * .SE ) / sqrt(.Shat^2 + .SE^2)
+#   
+#   ptruncnorm(q = x,
+#              a = -Inf,
+#              b = Zi.tilde.crit,
+#              mean = 0,
+#              sd = 1)
+# }
 
 # 2022-3-12
 # fit diagnostics
@@ -1713,7 +1713,10 @@ Zi_tilde_cdf_OLD = function(x, .SE, .Shat) {
 #  given a fitted Shat
 # .affirm: VECTOR with same length as x for affirm status
 #  including the affirms is useful for 2PSM
-Zi_tilde_cdf = function(.Zi.tilde, .SE, .Shat, .affirm) {
+Zi_tilde_cdf = function(.Zi.tilde,
+                        .SE,
+                        .Shat,
+                        .affirm) {
   
 
   #if ( length(.Zi.tilde) > 1 ) stop("Length of .Zi.tilde must be 1")
