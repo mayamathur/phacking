@@ -13,9 +13,9 @@
 #  - plot_trunc_densities_RTMA
 
 
-
+# "show rep res"
 # quickly look at results when running locally
-show_rep_res = function() {
+srr = function() {
   
   if( "optimx.Mhat.winner" %in% names(rep.res) ) {
     cat("\n")
@@ -100,9 +100,6 @@ toLoad = c("crayon",
 
 
 
-
-
-#@SPECIFIC TO HAGGER
 # load dataset and code
 if ( run.local == FALSE ) {
   # set up dataset (currently specific to Hagger)
@@ -155,6 +152,7 @@ dpn = dp[ dp$affirm == FALSE, ]
 # special dataset for CSM: 
 # throws away affirmatives from hacked studies (i.e., all non-prereg studies)
 dp.csm = dp %>% filter( Preregistered == TRUE | affirm == FALSE )
+
 dp.csm %>% group_by(Preregistered, affirm) %>%
   summarise(n())
 
@@ -204,7 +202,7 @@ if ( "naive" %in% all.methods ) {
   Shat.naive = rep.res$Shat[ rep.res$method == "naive" ]
 }
 
-show_rep_res()
+srr()
 
 # ~~ Change Starting Values -----
 if ( !is.na(Mhat.naive) ) Mhat.start = Mhat.naive 
@@ -231,7 +229,7 @@ if ( "maon" %in% all.methods ) {
 }
 
 
-show_rep_res()
+srr()
 
 # ~~ Fit 2PSM (All Published Draws) ------------------------------
 
@@ -262,12 +260,37 @@ if ( "2psm" %in% all.methods ) {
   
 }
 
-show_rep_res()
+srr()
 
 
-### Sanity check: Reproduce using own 2PSM fn ###
+# ~~ Fit P-Curve (Published Affirmatives) ------------------------------
 
-
+if ( "pcurve" %in% all.methods ) {
+  # since pcurve.opt internally retains only 
+  rep.res = run_method_safe(method.label = c("pcurve"),
+                            method.fn = function() {
+                              #@later, revisit the decision to use df_obs = 1000
+                              #   to effectively treat yi/sei z-scores
+                              
+                              # pass all significant studies (that's what pcurve.opt does internally):
+                              Mhat = pcurve.opt( t_obs = dp$Zi,
+                                                 df_obs = rep(1000, length(dp$Zi)),
+                                                 dmin = -5, #@HARD-CODED and arbitrary
+                                                 dmax = 5)
+                              
+                              
+                              # # using only published affirmatives:
+                              # Mhat = pcurve.opt( t_obs = dpa$yi/dpa$sei,
+                              #                    df_obs = rep(1000, length(dpa$yi)),
+                              #                    dmin = -5, #@HARD-CODED and arbitrary
+                              #                    dmax = 5)
+                              
+                              
+                              return( list( stats = data.frame( Mhat = Mhat) ) )
+                            },
+                            .rep.res = rep.res )
+  
+}
 
 # ~~ MCMC ------------------------------
 
@@ -400,7 +423,7 @@ if ( "mle-sd" %in% all.methods ) {
   cat("\n doParallel flag: Done mle-sd if applicable")
 }
 
-show_rep_res()
+srr()
 
 
 # ~~ Conditional Selection Model: MLE *with* prereg affirms (SD param) ------------------------------
@@ -430,7 +453,7 @@ if ( "csm-mle-sd" %in% all.methods ) {
   cat("\n doParallel flag: Done csm-mle-sd if applicable")
 }
 
-show_rep_res()
+srr()
 
 ### LEFT-truncated normal
 # include only affirmatives
@@ -470,7 +493,138 @@ if ( "mle-var" %in% all.methods ) {
   
 }
 
-show_rep_res()
+srr()
+
+
+
+# ANALYSES OF PREREG STUDIES (SPECIFIC TO LODDER) ------------------
+
+# ~~ Fit Naive Meta-Analysis (Prereg Only) ------------------------------
+
+dp.prereg = dp %>% filter(Preregistered == TRUE)
+dpn.prereg = dpn %>% filter(Preregistered == TRUE)
+
+if ( "prereg-naive" %in% all.methods ) {
+  rep.res = run_method_safe(method.label = c("prereg-naive"),
+                            method.fn = function() {
+                              mod = rma( yi = dp.prereg$yi,
+                                         vi = dp.prereg$vi,
+                                         method = "REML",
+                                         knha = TRUE )
+                              
+                              report_meta(mod, .mod.type = "rma")
+                            },
+                            .rep.res = rep.res )
+  
+  Mhat.naive = rep.res$Mhat[ rep.res$method == "prereg-naive" ]
+  Shat.naive = rep.res$Shat[ rep.res$method == "prereg-naive" ]
+}
+
+srr()
+
+Mhat.start = Mhat.naive
+Shat.start = Shat.naive
+
+# ~~ MCMC ------------------------------
+
+#bm: BREAKS - WHY?
+if ( "prereg-jeffreys-mcmc" %in% all.methods ) {
+  # # temp for refreshing code
+  # path = "/home/groups/manishad/SAPH"
+  # setwd(path)
+  # source("helper_SAPH.R")
+  
+  # this one has two labels in method arg because a single call to estimate_jeffreys_mcmc
+  #  returns 2 lines of output, one for posterior mean and one for posterior median
+  # order of labels in method arg needs to match return structure of estimate_jeffreys_mcmc
+  rep.res = run_method_safe(method.label = c("prereg-jeffreys-mcmc-pmean",
+                                             "prereg-jeffreys-mcmc-pmed",
+                                             "prereg-jeffreys-mcmc-max-lp-iterate"),
+                            method.fn = function() estimate_jeffreys_mcmc_RTMA(.yi = dpn.prereg$yi,
+                                                                               .sei = sqrt(dpn.prereg$vi),
+                                                                               .tcrit = qnorm(0.975),
+                                                                               .Mu.start = Mhat.start,
+                                                                               .Tt.start = Shat.start,
+                                                                               .stan.adapt_delta = stan.adapt_delta,
+                                                                               .stan.maxtreedepth = stan.maxtreedepth),
+                            .rep.res = rep.res )
+  
+  
+  Mhat.MaxLP = rep.res$Mhat[ rep.res$method == "jeffreys-mcmc-max-lp-iterate" ]
+  Shat.MaxLP = rep.res$Shat[ rep.res$method == "jeffreys-mcmc-max-lp-iterate" ]
+  
+  cat("\n doParallel flag: Done jeffreys-mcmc if applicable")
+}
+
+
+# ~~ Fit 2PSM (All Prereg) ------------------------------
+
+if ( "prereg-2psm" %in% all.methods ) {
+  
+  rep.res = run_method_safe(method.label = c("prereg-2psm"),
+                            method.fn = function() {
+                              mod = weightfunct( effect = dp.prereg$yi,
+                                                 v = dp.prereg$vi,
+                                                 steps = c(0.025, 1),
+                                                 table = TRUE ) 
+                              
+                              H = mod[[2]]$hessian
+                              ses = sqrt( diag( solve(H) ) )
+                              
+                              # follow the same return structure as report_meta
+                              list( stats = data.frame( Mhat = mod[[2]]$par[2],
+                                                        MLo = mod[[2]]$par[2] - qnorm(.975) * ses[2],
+                                                        MHi = mod[[2]]$par[2] + qnorm(.975) * ses[2],
+                                                        
+                                                        # could definitely get these from weightr
+                                                        # I didn't even try
+                                                        Shat = NA,
+                                                        SLo = NA,
+                                                        SHi = NA ) )
+                            },
+                            .rep.res = rep.res )
+  
+}
+
+srr()
+
+
+# OTHER NEW ANALYSES --------
+
+# ~~ Fit 2PSM (using the CSM dataset) -----------------------------
+
+# because this is estimating eta, I expect it to *not* agree with CSM
+# because we've discarded some affirmatives, it should underestimate eta and overestimate Mu
+
+if ( "csm-dataset-2psm" %in% all.methods ) {
+  
+  rep.res = run_method_safe(method.label = c("csm-dataset-2psm"),
+                            method.fn = function() {
+                              mod = weightfunct( effect = dp.csm$yi,
+                                                 v = dp.csm$vi,
+                                                 steps = c(0.025, 1),
+                                                 table = TRUE ) 
+                              
+                              H = mod[[2]]$hessian
+                              ses = sqrt( diag( solve(H) ) )
+                              
+                              # follow the same return structure as report_meta
+                              list( stats = data.frame( Mhat = mod[[2]]$par[2],
+                                                        MLo = mod[[2]]$par[2] - qnorm(.975) * ses[2],
+                                                        MHi = mod[[2]]$par[2] + qnorm(.975) * ses[2],
+                                                        
+                                                        # could definitely get these from weightr
+                                                        # I didn't even try
+                                                        Shat = NA,
+                                                        SLo = NA,
+                                                        SHi = NA ) )
+                            },
+                            .rep.res = rep.res )
+  
+}
+
+# sanity check with metafor
+
 
 # ~~ Info About Dataset and Sanity Checks ------------------------------
 
@@ -506,7 +660,49 @@ if ( length( rep.res$Mhat[ rep.res$method == plot.method ] ) > 0 ) {
 }
 
 
+# ~~ Conditional Selection Model: all prereg studies (SD param) ------------------------------
 
+if ( "prereg-csm-mle-sd" %in% all.methods ) {
+  
+  # # temp for refreshing code
+  # path = "/home/groups/manishad/SAPH"
+  # setwd(path)
+  # source("helper_SAPH.R")
+  
+  rep.res = run_method_safe(method.label = c("prereg-csm-mle-sd"),
+                            method.fn = function() estimate_jeffreys_RTMA(yi = dp.prereg$yi,
+                                                                          sei = sqrt(dp.prereg$vi),
+                                                                          par2is = "Tt",
+                                                                          tcrit = qnorm(0.975), 
+                                                                          Mu.start = Mhat.start,
+                                                                          par2.start = Shat.start,
+                                                                          usePrior = FALSE,
+                                                                          get.CIs = TRUE,
+                                                                          CI.method = "wald",
+                                                                          run.optimx = run.optimx),
+                            .rep.res = rep.res )
+  
+  
+  
+  cat("\n doParallel flag: Done csm-mle-sd if applicable")
+}
+
+srr()
+
+# ### LEFT-truncated normal
+# # include only affirmatives
+# rep.res = run_method_safe(method.label = c("ltn-mle-sd"),
+#                           method.fn = function() estimate_jeffreys_RTMA(yi = dp$yi[ dp$affirm == TRUE ],
+#                                                                         sei = sqrt(dp$vi[ dp$affirm == TRUE ]),
+#                                                                         par2is = "Tt",
+#                                                                         tcrit = qnorm(0.975), 
+#                                                                         Mu.start = Mhat.start,
+#                                                                         par2.start = Shat.start,
+#                                                                         usePrior = FALSE,
+#                                                                         get.CIs = TRUE,
+#                                                                         CI.method = "wald",
+#                                                                         run.optimx = run.optimx),
+#                           .rep.res = rep.res )
 
 
 # ~ WRITE LONG RESULTS ------------------------------
