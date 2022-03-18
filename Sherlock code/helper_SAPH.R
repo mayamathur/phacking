@@ -1425,105 +1425,6 @@ correct_meta_phack3 = function( .dp,  # published studies
 
 # ANALYSIS FNS: APPLIED EXAMPLES -----------------------------------------------
 
-# just like correct_meta_phack1, but designed for applied examples instead of sim study
-# use only the nonaffirms to get trunc MLE
-#  and throws away the affirms
-# **note that the returned Vhat is an estimate of T2 + t2w, not T2 itself
-# crit: value at which to truncate the dataset; using a non-default value is only for sanity checks
-correct_meta_phack2 = function( yi,
-                                vi,
-                                crit = qnorm(.975) ) { 
-  
-  
-  d = data.frame(yi = yi, vi = vi)
-  d$tstat = d$yi / sqrt(d$vi)
-  d$affirm = d$tstat > crit
-  
-  
-  # published affirmatives only
-  dpn = d[ d$affirm == FALSE, ]
-  
-  ### MLEs from trunc normal ###
-  # these are the MLEs of the *t-stats*
-  #@ IMPORTANT: for convenience, this is using the normal distribution, 
-  #  so won't work well for small m
-  mle.fit = mle.tmvnorm( X = as.matrix(dpn$tstat, ncol = 1),
-                         lower = -Inf,
-                         upper = crit)
-  mles = coef(mle.fit)
-  
-  # get Wald CI a different way
-  tstat.mu.SE = attr( summary(mle.fit), "coef" )[ "mu_1", "Std. Error" ]
-  tstat.mu.CI = c( mles[1] - tstat.mu.SE * qnorm(0.975),
-                   mles[1] + tstat.mu.SE * qnorm(0.975) )
-  
-  
-  # rescale MLEs to represent effect sizes rather than tstats
-  # SEs could differ across studies, so use the tstat MLE to rescale for each study's vi
-  #@ is that right?
-  # this is using the approximation E[tstat] = E[yi/SE] \approx E[yi]/E[SE]
-  #  for now because otherwise we'd have to treat the yi's as non-iid in the likelihood
-  # the approximation holds if yi and SEi are independent
-  #   (in the underlying population, I think)
-  Mhat = mles[1] * mean( sqrt(dpn$vi) )
-  # **use Vhat to represent MARGINAL heterogeneity (i.e., T2 + t2w)
-  Vhat = mean( ( mles[2] * dpn$vi ) - dpn$vi )
-  
-  # and rescale CI limits
-  #@think about this again in light of SEs differing across studies
-  #MhatCI = tstat.mu.CI * .p$se
-  MhatCI = c(NA, NA)
-  
-  ### Naive Meta-Analysis ###
-  
-  metaNaive = rma.uni( yi = yi,
-                       vi = vi,
-                       method = "REML", 
-                       knha = TRUE )
-  
-  ### Return all the things ###
-  return( list( metaCorr = data.frame( MhatCorr = Mhat,
-                                       MhatLoCorr = MhatCI[1],
-                                       MhatHiCorr = MhatCI[2],
-                                       VhatCorr = Vhat),
-                
-                metaNaive = report_rma(.mod = metaNaive,
-                                       .Mu = NA,
-                                       .suffix = "Naive"),
-                
-                # **note that all of these stats pertain to only published nonaffirmatives
-                sanityChecks = data.frame( kNonaffirmPub = nrow(dpn),
-                                           
-                                           # MLEs of the t-stats themselves (before rescaling using the SE)
-                                           # marginal t-stats (underlying distribution rather than truncated one)
-                                           
-                                           
-                                           tstatMeanMLE = mles[1],
-                                           tstatMeanMLELo = tstat.mu.CI[1],
-                                           tstatMeanMLEHi = tstat.mu.CI[2],
-                                           
-                                           tstatVarMLE = mles[2],
-                                           
-                                           
-                                           # other stats
-                                           Mean.yi = mean(dpn$yi),
-                                           
-                                           Mean.vi = mean(dpn$vi),
-                                           
-                                           # stats about all published studies
-                                           dp.k = nrow(d),
-                                           dp.kAffirm = sum(d$affirm == TRUE),
-                                           dp.kNonaffirm = sum(d$affirm == FALSE)
-                                           
-                ),
-                
-                data = d,
-                crit = crit
-  ) )
-  
-}
-
-
 
 # Args:
 #  - d: dataset with var names "yi", "vi", "affirm"
@@ -1649,6 +1550,9 @@ one_nonaffirm_mle = function(.tstat,
                       VwHat = as.numeric(mles[2]) ) )
   
 }
+
+
+
 
 # DATA SIMULATION ---------------------------------------------------------------
 
