@@ -70,7 +70,7 @@ estimate_jeffreys_RTMA = function( yi,
                                    
                                    run.optimx = FALSE ) {
   
-
+  
   # #bm
   # #@TEST ONLY
   # dpn = dp[ dp$affirm == FALSE, ]
@@ -1112,6 +1112,8 @@ run_method_safe = function( method.label,
 # ANALYSIS FNS: APPLIED EXAMPLES -----------------------------------------------
 
 
+# ~ Fit Diagnostics -----------------------------------------------
+
 # Args:
 #  - d: dataset with var names "yi", "vi", "affirm"
 #  - Mhat: RTMA estimate of underlying mean effect size
@@ -1198,47 +1200,113 @@ plot_trunc_densities_RTMA = function(d,
 
 
 
-# get MLE for ONE nonaffirmative study
-# can either estimate the total within-study variance (t2w + SE^2)
-#  by providing both .se and .t2w, or can allow it to be estimated by not providing 
-# BUT in the latter case, could end up being smaller than SE^2,
-#  which is illogical
-one_nonaffirm_mle = function(.tstat,
-                             .se = NA, # of yi, not tstat
-                             .t2w = NA,
-                             .crit
-) {
+
+
+# 2022-3-12
+# fit diagnostics
+# get CDF of (non-iid) marginal Z-scores (Zi.tilde)
+#  given a fitted Shat
+# .affirm: VECTOR with same length as x for affirm status
+#  including the affirms is useful for 2PSM
+yi_cdf = function(yi,
+                  sei,
+                  Mhat,
+                  Shat) {
   
-  if (length(.tstat) > 1) stop("fn not intended for more than 1 observation")
   
-  # if we're given the components of the WITHIN-study variance,
-  #  treat as fixed rather than estimating it
-  if ( !is.na(.se) & !is.na(.t2w) ) Vw = (1/.se^2) * (.t2w + .se^2)
+  affirm = (yi/sei) > qnorm(0.975)
   
-  if ( exists("Vw") ) {
-    mle.fit = mle.tmvnorm( X = as.matrix(.tstat, ncol = 1),
-                           lower = -Inf,
-                           upper = .crit,
-                           # fixed parameters must be named exactly as
-                           #  coef(mle.fit) returns them
-                           fixed = list(sigma_1.1 = Vw) )
-  } else{
-    mle.fit = mle.tmvnorm( X = as.matrix(.tstat, ncol = 1),
-                           lower = -Inf,
-                           upper = .crit)
+  dat = data.frame( yi = yi,
+                    sei = sei,
+                    affirm = affirm,
+                    cdfi = NA)
+
+  if ( any(dat$affirm == FALSE) ) {
+    dat$cdfi[ dat$affirm == FALSE ] = ptruncnorm(q = dat$yi[ dat$affirm == FALSE ],
+                                                 a = -Inf,
+                                                 b = qnorm(.975) * dat$sei[ dat$affirm == FALSE ],
+                                                 mean = Mhat,
+                                                 sd = sqrt(Shat^2 + sei[ dat$affirm == FALSE ]^2) )
   }
   
+  if ( any(dat$affirm == TRUE) ) {
+    dat$cdfi[ dat$affirm == TRUE ] = ptruncnorm(q = dat$yi[ dat$affirm == TRUE ],
+                                                a = qnorm(.975) * dat$sei[ dat$affirm == TRUE ],
+                                                b = Inf,
+                                                mean = Mhat,
+                                                sd = sqrt(Shat^2 + sei[ dat$affirm == TRUE ]^2))
+  }
   
-  mles = coef(mle.fit)
-  
-  return( data.frame( tstat.mu.hat = as.numeric(mles[1]),
-                      muiHat = as.numeric(mles[1]) * .se,
-                      VwHat = as.numeric(mles[2]) ) )
+  return(dat)
   
 }
 
 
+yi_qqplot = function(yi,
+                     sei,
+                     Mhat,
+                     Shat){
+  
+  # get theoretical CDFs for each yi, given its affirm status
+  cdf.dat = yi_cdf(yi = yi,
+                   sei = sei,
+                   Mhat = Mhat,
+                   Shat = Shat)
+  
+  ecdf_fn = ecdf(yi)
+  cdf.dat$ecdfi = ecdf_fn(yi)
+  
+  ggplot( data = cdf.dat,
+          aes( x = cdfi,
+               y = ecdfi) ) +
+    geom_abline( slope = 1, 
+                 intercept = 0,
+                 color = "red") +
+    geom_point( size = 2,
+                alpha = 0.5 ) +
+    xlab("Fitted CDF of point estimates (yi)") +
+    xlab("Empirical CDF of point estimates (yi)") +
+    theme_classic()
 
+  
+}
+
+# ### sanity check on yi_cdf and yi_qqplot:
+# Mhat=0.03033567
+# Shat = 0.1010756
+# setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/Lodder/Prepped data")
+# dp = read.csv("lodder_prepped.csv")
+# # published nonaffirmatives only
+# dpn = dp[ dp$affirm == FALSE, ]
+# kn= length(dpn$yi)
+# # simulate data that conforms perfectly to fitted dist
+# yin.fake = rtruncnorm( n = kn, 
+#                        a = -Inf,
+#                        b = qnorm(.975) * dpn$sei,
+#                        mean = Mhat,
+#                        sd = sqrt(Shat^2 + dpn$sei^2) )
+# 
+# 
+# cdf.dat = yi_cdf(yi = yin.fake,
+#                  sei = dpn$sei,
+#                  Mhat = Mhat,
+#                  Shat = Shat)
+# 
+# # sanity check
+# cdfi.theory2 = ptruncnorm( yin.fake, 
+#                            a = -Inf,
+#                            b = qnorm(.975) * dpn$sei,
+#                            mean = Mhat,
+#                            sd = sqrt(Shat^2 + dpn$sei^2) )
+# 
+# expect_equal( cdf.dat$cdfi, cdfi.theory2 )
+# 
+# p = yi_qqplot(yi = yin.fake,
+#               sei = dpn$sei,
+#               Mhat = Mhat,
+#               Shat = Shat)
+# p
+# ### end sanity check
 
 # DATA SIMULATION ---------------------------------------------------------------
 

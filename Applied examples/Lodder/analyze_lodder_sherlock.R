@@ -689,8 +689,32 @@ rep.res %>% select(method, Mhat, MLo, MHi, MhatRhat, optimx.Nagree.of.convergers
   mutate_if(is.numeric, function(x) round(x,2) )
 
 
+# QQ Plot: RTMA ------------------
 
-### Make Plot 
+p = yi_qqplot(yi = dpn$yi,
+              sei = dpn$sei,
+              Mhat = Mhat,
+              Shat = Shat)
+
+
+# QQ Plot: CSM -------------------
+
+# this will be a bad fit because of hacking
+p = yi_qqplot(yi = dp.csm$yi,
+              sei = dp.csm$sei,
+              Mhat = Mhat,
+              Shat = Shat)
+
+# QQ Plot: All Results -------------------
+
+# this will be a bad fit because of hacking
+p = yi_qqplot(yi = dp$yi,
+              sei = dp$sei,
+              Mhat = Mhat,
+              Shat = Shat)
+
+
+### Make RTMA Density Plot 
 
 plot.method = "jeffreys-mcmc-pmed"
 
