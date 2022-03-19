@@ -137,11 +137,7 @@ if ( dataset.name == "sapbe" ){
   b2 = fread("b2_long_prepped.csv")
   f2 = fread("f2_short_prepped.csv")
   
-  # make columns with standardized names to match doParallel from sim study
-  b2$yi = b2$EstF  # **uses the direction-flipped estimates
-  b2$vi = b2$SE^2
-  b2$Zi = b2$yi / sqrt(b2$vi)
-  #**note we're using all estimates, not just randomly-chosen ones, because we're focusing on metas with little clustering
+ 
 }
 
 if ( dataset.name == "kvarven" ){
@@ -630,29 +626,7 @@ doParallel.seconds = system.time({
     cat( "\n\n***** META", i, "PARTIAL REP.RES at the end:" )
     print( rep.res %>% select(method, Mhat, MLo, MHi, Shat) %>%
       mutate_if(is.numeric, function(x) round(x,2) ) )
-    
-    ### Make Plot 
-    plot.method = "jeffreys-mcmc-pmed"
-    
-    # catch possibility that we didn't run this method
-    if ( length( rep.res$Mhat[ rep.res$method == plot.method ] ) > 0 ) {
-      
-      cat("\n About to make plot")
-      
-      p = plot_trunc_densities_RTMA(d = dp,
-                                    Mhat = rep.res$Mhat[ rep.res$method == plot.method ],
-                                    Shat = rep.res$Shat[ rep.res$method == plot.method ],
-                                    showAffirms = FALSE)
-      
-      setwd(sherlock.results.dir)
-      ggsave( filename = paste( "density_plot", i, ".pdf", sep="_" ),
-              width = 10, 
-              height = 10)
-      
-      cat("\n Done writing plot")
-      
-      
-    }
+
     
     rep.res
     

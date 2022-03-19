@@ -60,7 +60,7 @@ if ( dataset.name == "sapbe" ) {
   
   prepped.data.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/SAPBE/Prepped datasets for SAPH"
   
-  results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/Results from Sherlock"
+  results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/SAPBE/Results from Sherlock"
 }
 
 if ( dataset.name == "kvarven" ) {
@@ -113,6 +113,13 @@ if ( dataset.name == "sapbe" ) {
   f2 = f2 %>% filter(meta.name %in% meta.keepers) 
   
   nuni(b2$meta.name)
+  
+  # make columns with standardized names to match doParallel from sim study
+  b2$yi = b2$EstF  # **uses the direction-flipped estimates
+  b2$vi = b2$SE^2
+  b2$sei = b2$SE
+  b2$Zi = b2$yi / sqrt(b2$vi)
+  #**note we're using all estimates, not just randomly-chosen ones, because we're focusing on metas with little clustering
   
   #**quick look at these metas' characteristics
   t = f2 %>% select(meta.name, group, discipline,
@@ -226,6 +233,9 @@ if ( dataset.name == "kvarven" ) {
 # send to cluster (specific to SAPB-E)
 # scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/Applied\ examples/2022-3-11\ prep\ SAPBE\ dataset\ for\ SAPH/Datasets\ prepped\ for\ SAPH/* mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/applied_examples/data/sapbe
 
+
+
+
 # (NOW RUN ANALYSIS CODE ON CLUSTER) -----------------------------
 
 
@@ -249,6 +259,11 @@ if ( dataset.name == "sapbe" ) {
   r2 = fread("2022-3-16_results_sapbe_all.csv")
   
   r = bind_rows(r1, r2) %>% arrange(meta.name)
+  
+  
+  ### Get Prepped Meta-Level Data ###
+  setwd(prepped.data.dir)
+  b2 = fread("b2_long_prepped.csv")
 }
   
 if ( dataset.name == "kvarven" ) {
@@ -275,6 +290,47 @@ if ( dataset.name == "kvarven" ) {
 }
 
 data_edit(temp, viewer = "browser", code = TRUE)
+
+
+# ~ Fit Diagnostics: QQ Plot  ---------------------
+
+plot.method = "jeffreys-mcmc-pmed"
+
+r2 = r %>% filter( method == plot.method & 
+                     !is.na(Mhat) )
+
+b3 = b2 %>% filter( )
+
+for ( .m in unique(r2$meta.name) ) {
+  
+  yi = b2$yi[ b2$meta.name == .m & b2$affirm == FALSE ]
+  sei = sqrt(b2$vi[ b2$meta.name == .m & b2$affirm == FALSE ])
+  Mhat = r$Mhat[ r$meta.name == .m & r$method == plot.method ]
+  Shat = r$Shat[ r$meta.name == .m & r$method == plot.method ]
+  
+  p1 = yi_qqplot(yi = yi,
+            sei = sei, 
+            Mhat = Mhat,
+            Shat = Shat)
+  
+  
+  
+  ### SEEMS CRAZY!
+  p2 = plot_trunc_densities_RTMA(d = b2 %>% filter(meta.name == .m),
+                                Mhat = Mhat,
+                                Shat = Shat,
+                                showAffirms = FALSE)
+  
+  setwd(sherlock.results.dir)
+  ggsave( filename = paste( "density_plot", i, ".pdf", sep="_" ),
+          width = 10, 
+          height = 10)
+  
+  
+  
+}
+
+
 
 
 # ~ Add Fit Diagnostics for RTMA  ---------------------

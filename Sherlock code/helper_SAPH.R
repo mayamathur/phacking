@@ -1114,93 +1114,6 @@ run_method_safe = function( method.label,
 
 # ~ Fit Diagnostics -----------------------------------------------
 
-# Args:
-#  - d: dataset with var names "yi", "vi", "affirm"
-#  - Mhat: RTMA estimate of underlying mean effect size
-#  - Shat: Same for heterogeneity
-#  - showAffirms: should it show all studies, even affirms?
-
-# Returned plot:
-#  - black line = LOESS density of nonaffirms
-#  - red line = MLE from RTMA (parametric counterpart to the above)
-#  - blue line = LOESS density of all tstats (including affirms)
-
-# IMPORTANT:
-# Note that truncation point shown in plots is only approximate because it’s set to 1.96 for all Zi.tilde, whereas actually each Zi.tilde has its own trunc point (see Zi_tilde_cdf).
-plot_trunc_densities_RTMA = function(d,
-                                     Mhat,
-                                     Shat,
-                                     showAffirms = FALSE) {
-  
-  # #@TEST ONLY
-  # d = dp
-  # showAffirms = FALSE
-  # Mhat = 0.45  # FAKE for now
-  # Shat = 0.10
-  
-  # add Z-scores
-  # these are standardized ACROSS studies using the ESTIMATED mean and heterogeneity
-  # so they should look truncated N(0,1)
-  d$Zi.tilde = (d$yi - Mhat) / sqrt(Shat^2 + d$vi)
-  
-  # already has affirmative indicator
-  dn = d %>% filter(affirm == FALSE)
-  
-  
-  xmin = floor(min(dn$Zi.tilde))
-  xmax = ceiling(max(dn$Zi.tilde))
-  
-  p = ggplot(data = data.frame(x = c(xmin, 3)),
-             aes(x)) +
-    
-    geom_vline(xintercept = 0,
-               lwd = 1,
-               color = "gray") +
-    
-    # estimated density of estimates
-    geom_density( data = dn,
-                  aes(x = Zi.tilde),
-                  adjust = .3 ) +
-    
-    # estimated density from meta-analysis
-    stat_function( fun = dtrunc,
-                   n = 101,
-                   args = list( spec = "norm",
-                                mean = 0,
-                                sd = 1,
-                                b = qnorm(.975) ),
-                   #aes(y = .25 * ..count..),  # doesn't work
-                   lwd = 1.2,
-                   color = "red") +
-    
-    #bm: got histogram to work with density in terms of scaling, but not yet the stat_function
-    
-    
-    ylab("") +
-    #scale_x_continuous( breaks = seq(xmin, 3, 0.5)) +
-    xlab("Across-study Z-score using (Mhat, Shat)") +
-    theme_minimal() +
-    scale_y_continuous(breaks = NULL) +
-    theme(text = element_text(size=16),
-          axis.text.x = element_text(size=16))
-  
-  
-  # also show density of all t-stats, not just the nonaffirms
-  if ( showAffirms == TRUE ) {
-    p = p + geom_density( data = d,
-                          aes(x = Zi.tilde),
-                          color = "blue",
-                          adjust = .3 )
-  }
-  
-  
-  return(p)
-  
-}
-
-
-
-
 
 # 2022-3-12
 # fit diagnostics
@@ -2498,7 +2411,102 @@ stitch_files = function(.results.singles.path, .results.stitched.write.path=.res
 
 # TRASH -------------------------------------
 
-
+# # 2022-3-19: I NO LONGER THINK IT MAKES SENSE TO USE THIS PLOT WITH VARIABLE SEI'S. 
+# #  BUT SAVE IT B/C USEFUL WHEN SEI'S ARE THE SAME.
+# #  Since the sei's differ, so do the cutpoints, and even if we plot the full normal dist, 
+# #  its height doesn't align properly with the density when the density is truncated,
+# #  giving the impression of a poor fit.
+# # Args:
+# #  - d: dataset with var names "yi", "vi", "affirm"
+# #  - Mhat: RTMA estimate of underlying mean effect size
+# #  - Shat: Same for heterogeneity
+# #  - showAffirms: should it show all studies, even affirms?
+# 
+# # Returned plot:
+# #  - black line = LOESS density of nonaffirms
+# #  - red line = MLE from RTMA (parametric counterpart to the above)
+# #  - blue line = LOESS density of all tstats (including affirms)
+# 
+# # IMPORTANT:
+# # Note that truncation point shown in plots is only approximate because it’s set to 1.96 for all Zi.tilde, whereas actually each Zi.tilde has its own trunc point (see Zi_tilde_cdf).
+# plot_trunc_densities_RTMA = function(d,
+#                                      Mhat,
+#                                      Shat,
+#                                      showAffirms = FALSE) {
+#   
+#   # #@TEST ONLY
+#   # d = dp
+#   # showAffirms = FALSE
+#   # Mhat = 0.45  # FAKE for now
+#   # Shat = 0.10
+#   
+#   # add Z-scores
+#   # these are standardized ACROSS studies using the ESTIMATED mean and heterogeneity
+#   # so they should look truncated N(0,1)
+#   d$Zi.tilde = (d$yi - Mhat) / sqrt(Shat^2 + d$vi)
+#   
+#   # already has affirmative indicator
+#   dn = d %>% filter(affirm == FALSE)
+#   
+#   
+#   xmin = floor(min(dn$Zi.tilde))
+#   xmax = ceiling(max(dn$Zi.tilde))
+#   
+#   p = ggplot(data = data.frame(x = c(xmin, 3)),
+#              aes(x)) +
+#     
+#     geom_vline(xintercept = 0,
+#                lwd = 1,
+#                color = "gray") +
+#     
+#     # estimated density of estimates
+#     geom_density( data = dn,
+#                   aes(x = Zi.tilde),
+#                   adjust = .3 ) +
+#     
+#     # estimated density from meta-analysis
+#     # stat_function( fun = dnorm,
+#     #                n = 101,
+#     #                args = list( 
+#     #                             mean = 0,
+#     #                             sd = 1 ),
+#     #                #aes(y = .25 * ..count..),  # doesn't work
+#     #                lwd = 1.2,
+#     #                color = "red") +
+#     stat_function( fun = dtrunc,
+#                    n = 101,
+#                    args = list( spec = "norm",
+#                                 mean = 0,
+#                                 sd = 1,
+#                                 b = qnorm(.975) ),
+#                    #aes(y = .25 * ..count..),  # doesn't work
+#                    lwd = 1.2,
+#                    color = "red") +
+#     
+#     #bm: got histogram to work with density in terms of scaling, but not yet the stat_function
+#     
+#     
+#     ylab("") +
+#     #scale_x_continuous( breaks = seq(xmin, 3, 0.5)) +
+#     xlab("Across-study Z-score using (Mhat, Shat)") +
+#     theme_minimal() +
+#     scale_y_continuous(breaks = NULL) +
+#     theme(text = element_text(size=16),
+#           axis.text.x = element_text(size=16))
+#   
+#   
+#   # also show density of all t-stats, not just the nonaffirms
+#   if ( showAffirms == TRUE ) {
+#     p = p + geom_density( data = d,
+#                           aes(x = Zi.tilde),
+#                           color = "blue",
+#                           adjust = .3 )
+#   }
+#   
+#   
+#   return(p)
+#   
+# }
 # # OLDER VERSION - MAYBE SAVE?
 # # plot empirical data
 # 

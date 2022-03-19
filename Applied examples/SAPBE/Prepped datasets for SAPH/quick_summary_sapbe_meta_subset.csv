@@ -1,0 +1,64 @@
+meta.name,n.randomly.chosen,n.total,k.per.cluster,Data.source
+21695187,21,47,2.238,public
+24586827,43,65,1.512,public
+24622676,47,67,1.426,scraped
+24651675,83,398,4.795,public
+24699695,95,96,1.011,public
+24865979,44,149,3.386,public
+24959902,50,51,1.02,scraped
+24968234,30,47,1.567,scraped
+24988220,51,55,1.078,scraped
+25019505,54,63,1.167,scraped
+25111792,42,42,1,scraped
+25141289,54,80,1.481,author.contact
+25162620,82,853,10.402,public
+25216101,39,72,1.846,public
+25225888,48,53,1.104,scraped
+25365303,42,122,2.905,author.contact
+25409023,54,60,1.111,scraped
+25548908,12,47,3.917,scraped
+26023925,82,105,1.28,public
+26305785,41,48,1.171,public
+26398658,173,173,1,author.contact
+26785039,27,37,1.37,public
+27416099,114,145,1.272,author.contact
+27835651,59,156,2.644,public
+27870889,31,31,1,author.contact
+28085922,33,39,1.182,scraped
+28700609,43,100,2.326,author.contact
+28700728,42,126,3,scraped
+29293522,43,46,1.07,scraped
+29360884,77,83,1.078,author.contact
+29408858,39,50,1.282,public
+29474359,41,52,1.268,author.contact
+30188907,31,78,2.516,public
+Abstract rule learning,18,90,5,
+aim_2,61,64,1.049,author.contact
+jama_11,47,47,1,scraped
+jama_14,93,139,1.495,author.contact
+jama_2,49,51,1.041,scraped
+lancet_12,36,39,1.083,scraped
+lancet_4,17,119,7,scraped
+lancet_7,99,99,1,scraped
+Mispronunciation sensitivity,26,212,8.154,
+Natural word segmentation,59,281,4.763,
+pb_1,52,55,1.058,scraped
+pb_11,123,525,4.268,scraped
+pb_12,27,35,1.296,scraped
+pb_13,120,447,3.725,public
+pb_16,62,171,2.758,public
+pb_17,125,1300,10.4,public
+pb_18,4,26,6.5,public
+pb_19,53,53,1,author.contact
+pb_2,82,230,2.805,public
+pb_20,49,74,1.51,public
+pb_3,44,407,9.25,scraped
+pb_5,62,62,1,scraped
+pb_7,31,36,1.161,scraped
+pb_8,615,3223,5.241,author.contact
+pb_9,86,376,4.372,public
+pps_1,46,120,2.609,public
+ps_1,145,258,1.779,author.contact
+ps_2,18,103,5.722,public
+Statistical word segmentation,24,85,3.542,
+Switch task,41,131,3.195,
