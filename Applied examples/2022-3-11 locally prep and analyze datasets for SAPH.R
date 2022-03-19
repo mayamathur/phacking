@@ -265,11 +265,23 @@ if ( dataset.name == "sapbe" ) {
   setwd(prepped.data.dir)
   b2 = fread("b2_long_prepped.csv")
 }
-  
+
 if ( dataset.name == "kvarven" ) {
   setwd(results.dir)
   r = fread("results_kvarven_all.csv")
 }
+
+
+# ~ Add Variables to Analyze -----------------
+
+r = r %>% group_by(meta.name) %>%
+  mutate( psm.gt.naive = ifelse( Mhat[ method == "2psm" ] > Mhat[ method == "naive" ],
+                                 "2psm > naive",
+                                 "2psm <= naive" ),
+          pmed.gt.naive = ifelse( Mhat[ method == "jeffreys-mcmc-pmed" ] > Mhat[ method == "naive" ],
+                                  "pmed > naive",
+                                  "pmed <= naive") )
+
 
 
 # ~ View results in DataEditR ---------------------
@@ -292,41 +304,75 @@ if ( dataset.name == "kvarven" ) {
 data_edit(temp, viewer = "browser", code = TRUE)
 
 
-# ~ Fit Diagnostics: QQ Plot  ---------------------
+# ~ Fit Diagnostics: Plots  ---------------------
 
+# which method's estimates should we use in QQ plot?
 plot.method = "jeffreys-mcmc-pmed"
 
-r2 = r %>% filter( method == plot.method & 
-                     !is.na(Mhat) )
-
-b3 = b2 %>% filter( )
-
-for ( .m in unique(r2$meta.name) ) {
+for ( .m in unique(r$meta.name) ) {
   
   yi = b2$yi[ b2$meta.name == .m & b2$affirm == FALSE ]
   sei = sqrt(b2$vi[ b2$meta.name == .m & b2$affirm == FALSE ])
   Mhat = r$Mhat[ r$meta.name == .m & r$method == plot.method ]
   Shat = r$Shat[ r$meta.name == .m & r$method == plot.method ]
   
-  p1 = yi_qqplot(yi = yi,
-            sei = sei, 
-            Mhat = Mhat,
-            Shat = Shat)
+  r2 = r %>% filter(meta.name == .m)
+  dir.name = paste(r2$pmed.gt.naive[1], r2$psm.gt.naive[1], sep = ", ")
   
   
+  # ### QQ plot ###
+  # p = yi_qqplot(yi = yi,
+  #               sei = sei, 
+  #               Mhat = Mhat,
+  #               Shat = Shat)
+  # 
+  # setwd(results.dir)
+  # setwd("QQ plots")
+  # setwd(dir.name)
+  # ggsave( filename = paste( "qqplot", .m, ".pdf", sep="_" ),
+  #         width = 8, 
+  #         height = 8)
   
-  ### SEEMS CRAZY!
-  p2 = plot_trunc_densities_RTMA(d = b2 %>% filter(meta.name == .m),
-                                Mhat = Mhat,
-                                Shat = Shat,
-                                showAffirms = FALSE)
   
-  setwd(sherlock.results.dir)
-  ggsave( filename = paste( "density_plot", i, ".pdf", sep="_" ),
-          width = 10, 
-          height = 10)
+  ### Plot Within-Study Z-scores ###
+  dn = b2 %>% filter(meta.name == .m )
+                     #& affirm == FALSE)
+  xmin = floor(min(dn$Zi))
+  xmax = ceiling(max(dn$Zi))
   
+  p2 = ggplot(data = data.frame(x = c(xmin, 3)),
+             aes(x)) +
+    
+    geom_vline(xintercept = 0,
+               lwd = 1,
+               color = "gray") +
+    
+    geom_vline(xintercept = qnorm(0.975),
+               lty = 2,
+               color = "red") +
+    
+    # estimated density of estimates
+    geom_density( data = dn,
+                  aes(x = Zi),
+                  adjust = .3 ) +
+    
+    ylab("") +
+    #scale_x_continuous( breaks = seq(xmin, 3, 0.5)) +
+    xlab("Within-study Z-score") +
+    theme_minimal() +
+    scale_y_continuous(breaks = NULL) +
+    theme(text = element_text(size=16),
+          axis.text.x = element_text(size=16))
   
+  setwd(results.dir)
+  setwd("Z-score densities")
+  setwd(dir.name)
+
+  
+
+  ggsave( filename = paste( "z_density", .m, ".pdf", sep="_" ),
+          width = 8, 
+          height = 8)
   
 }
 
@@ -335,8 +381,6 @@ for ( .m in unique(r2$meta.name) ) {
 
 # ~ Add Fit Diagnostics for RTMA  ---------------------
 
-#bm: maybe add ks test for 2PSM here instead?
-# need to work with estimate-level data to do ks test
 
 if ( dataset.name == "sapbe" ) {
   #@2022-3-14: THIS IS FROM BEFORE I UPDATED MY_KS_TEST; NOW WILL NEED TO PASS ONLY NONAFFIRMS
@@ -411,14 +455,6 @@ r$meta.name.pretty = paste( r$meta.name, " (fit p=", round(r$ks.pval, 3), ")", s
 
 # ~ Plotly ---------------------
 
-r = r %>% group_by(meta.name) %>%
-  mutate( psm.gt.naive = ifelse( Mhat[ method == "2psm" ] > Mhat[ method == "naive" ],
-                                 "2psm > naive",
-                                 "2psm <= naive" ),
-          pmed.gt.naive = ifelse( Mhat[ method == "jeffreys-mcmc-pmed" ] > Mhat[ method == "naive" ],
-                                  "pmed > naive",
-                                  "pmed <= naive") )
-
 # **in half the metas, 2PSM exceeds naive
 table( r$psm.gt.naive[ !duplicated(r$meta.name) ],
        r$pmed.gt.naive[ !duplicated(r$meta.name) ] )
@@ -488,7 +524,7 @@ b3 = b2 %>% filter(meta.name == "Hagger")
 
 
 View( r %>% filter(meta.name == "Hagger") %>% select(method, Mhat, MhatRhat, optimx.Mhat.winner, optimx.Shat.winner, optimx.Nagree.of.convergers.Mhat.winner) )
- 
+
 # look at 2PSM's fitted density (reasonable) instead of RTMA's
 Mhat = r$Mhat[ r$meta.name == "Hagger" & r$method == "2psm" ]
 Shat = r$Shat[ r$meta.name == "Hagger" & r$method == "2psm" ]
