@@ -1264,8 +1264,8 @@ yi_qqplot = function(yi,
                  color = "red") +
     geom_point( size = 2,
                 alpha = 0.5 ) +
-    xlab("Fitted CDF of point estimates (yi)") +
-    xlab("Empirical CDF of point estimates (yi)") +
+    xlab("Fitted CDF of point estimates") +
+    ylab("Empirical CDF of point estimates") +
     theme_classic()
 
   
