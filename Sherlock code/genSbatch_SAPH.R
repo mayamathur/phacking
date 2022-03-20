@@ -34,72 +34,66 @@ lapply( allPackages,
 
 # set up sim params for cluster
 
-# main scenarios of interest:
-# 1. Nmax = 1, k.hacked = 0, rho = 0 (basically a sanity check)
-# 2. Nmax > 1, k.hacked = 0, rho = 0.9 
-# 3. Nmax > 1, k.hacked = 50, rho = 0 or 0.9 (conservative?)
-
 # Note that if you don't include any of these: jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var
 #  then you'll need to comment out Optim variables from the analysis.vars in make_agg_data and 
 #  also from mutate in there
 # I think a similar thing will be true with the Rhats if you omit jeffreys-mcmc?
 
-# ### FULL VERSION ###
+### FULL VERSION ###
+scen.params = tidyr::expand_grid(
+  rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
+  #rep.methods = "naive ; maon ; 2psm ; pcurve ; jeffreys-mcmc",
+
+  # args from sim_meta_2
+  Nmax = 30,
+  Mu = c(0.5, 1),
+  t2a = c(0.05, 0.2, 1, 1.5),
+  t2w = 0.05,
+  m = 50,
+
+  true.sei.expr = c( #"runif(n = 1, min = 0.1, max = 1)",  # mean=0.55
+                     #"runif(n = 1, min = 0.50, max = 0.60)", # mean=0.55 also
+                     #"runif(n = 1, min = 0.51, max = 1.5)", # same range as first one, but higher mean
+                     #"runif(n = 1, min = 0.1, max = 3)",
+                     #"runif(n = 1, min = 1, max = 3)",
+                     #"0.1 + rexp(n = 1, rate = 1.5)",
+                     "rbeta(n = 1, 2, 5)" ),
+  hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
+  rho = c(0),
+  k.pub.nonaffirm = c(5, 10, 20, 50),
+  prob.hacked = c(0.5, 0.8), 
+
+  # Stan control args
+  stan.maxtreedepth = 20,
+  stan.adapt_delta = 0.98,
+
+  get.CIs = TRUE,
+  run.optimx = TRUE )
+
+# ### 2022-3-16: CSM, LTMA, RTMA ###
 # scen.params = tidyr::expand_grid(
 #   #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var",
-#   rep.methods = "naive ; maon ; 2psm ; pcurve ; jeffreys-mcmc",
-# 
+#   rep.methods = "naive ; 2psm ; jeffreys-mcmc ; mle-sd ; csm-mle-sd ; ltn-mle-sd",
+#   
 #   # args from sim_meta_2
-#   Nmax = 30,  
-#   Mu = c(0.5, 1),
-#   t2a = c(0.05, 0.2, 1, 1.5),
+#   Nmax = c(30, 1),  
+#   Mu = c(0.5),
+#   t2a = c(0.05),
 #   t2w = 0.05,  
 #   m = 50,
-# 
-#   true.sei.expr = c( #"runif(n = 1, min = 0.1, max = 1)",  # mean=0.55
-#                      #"runif(n = 1, min = 0.50, max = 0.60)", # mean=0.55 also
-#                      #"runif(n = 1, min = 0.51, max = 1.5)", # same range as first one, but higher mean
-#                      #"runif(n = 1, min = 0.1, max = 3)",
-#                      #"runif(n = 1, min = 1, max = 3)", 
-#                      "0.1 + rexp(n = 1, rate = 1.5)",  
-#                      "rbeta(n = 1, 2, 5)"  # 2022-3-9: ADDED to closely resemble SAPB-E; see aux code
-#                      ),  
+#   
+#   true.sei.expr = c("rbeta(n = 1, 2, 5)"),  
 #   hack = c( "favor-best-affirm-wch", "affirm"),
 #   rho = c(0),  
-#   k.pub.nonaffirm = c(10, 20, 50),
-#   prob.hacked = c(0.5, 0.8), # 2022-3-7-b: ADDED
+#   k.pub.nonaffirm = c(50),
+#   prob.hacked = c(0.8), # 2022-3-7-b: ADDED
 #   
 #   # Stan control args
 #   stan.maxtreedepth = 20,
 #   stan.adapt_delta = 0.98,
 #   
 #   get.CIs = TRUE,
-#   run.optimx = TRUE )  
-
-### 2022-3-16: CSM, LTMA, RTMA ###
-scen.params = tidyr::expand_grid(
-  #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var",
-  rep.methods = "naive ; 2psm ; jeffreys-mcmc ; mle-sd ; csm-mle-sd ; ltn-mle-sd",
-  
-  # args from sim_meta_2
-  Nmax = c(30, 1),  
-  Mu = c(0.5),
-  t2a = c(0.05),
-  t2w = 0.05,  
-  m = 50,
-  
-  true.sei.expr = c("rbeta(n = 1, 2, 5)"),  
-  hack = c( "favor-best-affirm-wch", "affirm"),
-  rho = c(0),  
-  k.pub.nonaffirm = c(50),
-  prob.hacked = c(0.8), # 2022-3-7-b: ADDED
-  
-  # Stan control args
-  stan.maxtreedepth = 20,
-  stan.adapt_delta = 0.98,
-  
-  get.CIs = TRUE,
-  run.optimx = FALSE )  
+#   run.optimx = FALSE )  
 
 
 
@@ -151,7 +145,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "02:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
+                            jobtime = "05:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -172,10 +166,10 @@ n.files
 # run just the first one
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
-# 40
+# 1920
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 2:39) {
+for (i in 2:1000) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 

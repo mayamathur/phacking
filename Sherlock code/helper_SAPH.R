@@ -1614,26 +1614,24 @@ sim_meta = function(Nmax,  # max draws to try
 
 
 # ~ Simulate a single study ----------------- 
-# simulated study from potentially heterogeneous meta-analysis distribution
-#  + its own heterogeneous distribution
 
-# for hack = "no":
-# draws exactly Nmax results and treats the last one as the reported one
-#  so the final result could be affirmative or nonaffirmative
+# Simulate study from potentially heterogeneous meta-analysis distribution;
+#  within-study draws have their own heterogeneous within-study distribution
 
-# for hack = "affirm" or "signif":
-# draws until affirm or signif result is obtained or Nmax is reached
-# then reports the last result
+### Hacking types ###
 
-# hack options:
-#  - "no": no hacking (report all Nmax results)
-#  - "affirm": (worst-case hacking): hack until you get an affirmative result or you reach Nmax,
-#    but if you reach Nmax, do NOT report any result at all
-#  - "signif": similar to "affirm", but hack to significance
-#  - "affirm2": (NOT worst-case hacking): similar to "affirm", but you always report the last draw, even
-#       if it was nonaffirm (no file drawer)
-#  - "favor-best-affirm-wch": always make Nmax draws; if you get any affirmatives, publish the one with the lowest
-#      p-value; if you don't get any affirmatives, don't publish anything
+# - "no": Makes exactly Nmax results and treats the last one as the reported one,
+#     so the final result could be affirmative or nonaffirmative
+
+# - "affirm" (worst-case hacking): Makes draws until the first affirmative is obtained
+#    but if you reach Nmax, do NOT report any result at all. (Hack type "signif" is the 
+#    same but favors all significant results.)
+
+# - "affirm2": (NOT worst-case hacking): Similar to "affirm", but always reports the last draw,
+#    even if it was nonaffirm (no file drawer)
+
+# - "favor-best-affirm-wch" (worst-case hacking): Always makes Nmax draws. If you get any affirmatives,
+#    publish the one with the lowest p-value. If you don't get any affirmatives, don't publish anything.
 
 # NOTE: If you add args here, need to update quick_sim as well
 sim_one_study_set = function(Nmax,  # max draws to try
@@ -1707,8 +1705,8 @@ sim_one_study_set = function(Nmax,  # max draws to try
     } else if ( hack %in% c("affirm", "affirm2") ) {
       stop = (newRow$pval < 0.05 & newRow$yi > 0)
     } else if ( hack %in% c("no", "favor-best-affirm-wch") ) {
-      # if this study set is unhacked, then success is just whether
-      #  we've reached Nmax draws
+      # if this study set is unhacked, then stopping criterion
+      #  is just whether we've reached Nmax draws
       # and for favor-best-affirm-wch, we always do Nmax draws so 
       #  we can pick the smallest p-value
       stop = (N == Nmax)
@@ -1750,7 +1748,8 @@ sim_one_study_set = function(Nmax,  # max draws to try
   if (hack == "affirm") d$Di = (d$affirm == TRUE)
   
   # if no hacking or affirmative hacking without file drawer,
-  #   assume only LAST draw is published
+  #   assume only LAST draw is published,
+  #   which could be affirm or nonaffirm
   if ( hack %in% c("no", "affirm2") ) {
     d$Di = 0
     d$Di[ length(d$Di) ] = 1
@@ -2094,6 +2093,27 @@ my_ggsave = function(name,
           height = height)
 }
 
+
+# quickly look at results when running doParallel locally
+srr = function() {
+  
+  if( "optimx.Mhat.winner" %in% names(rep.res) ) {
+    cat("\n")
+    print( rep.res %>% select(method, Mhat, MLo, MHi,
+                              Shat,
+                              optim.converged,
+                              optimx.Mhat.winner,
+                              optimx.Nconvergers,
+                              optimx.Pagree.of.convergers.Mhat.winner) %>%
+             mutate_if(is.numeric, function(x) round(x,2)) )
+    cat("\n")
+  } else {
+    cat("\n")
+    print( rep.res %>%
+             mutate_if(is.numeric, function(x) round(x,2)) )
+    cat("\n")
+  }
+}
 
 # SMALL GENERIC HELPERS ---------------------
 

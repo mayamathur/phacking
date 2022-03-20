@@ -150,7 +150,7 @@ if (run.local == FALSE) {
   
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
-  sim.reps = 200  #@update this 
+  sim.reps = 100  #@update this 
   
   
   # set the number of cores
@@ -180,7 +180,7 @@ if ( run.local == TRUE ) {
   # naive ; gold-std ; 2psm ; maon ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
   # 2022-3-16: CSM, LTMA, RTMA
   scen.params = tidyr::expand_grid(
-    rep.methods = "naive ; 2psm ; mle-sd ; csm-mle-sd ; ltn-mle-sd",
+    rep.methods = "naive ; 2psm ; mle-sd ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
     
     # args from sim_meta_2
     Nmax = c(1),  
@@ -233,7 +233,7 @@ source("init_stan_model_SAPH.R")
 
 if ( exists("rs") ) rm(rs)
 
-# ~~ Beginning of ForEach Loop -----------------------------
+# ~ Beginning of ForEach Loop -----------------------------
 
 # system.time is in seconds
 doParallel.seconds = system.time({
@@ -262,7 +262,7 @@ doParallel.seconds = system.time({
     all.methods = unlist( strsplit( x = p$rep.methods,
                                     split = " ; " ) )
     
-    # ~~ Simulate Dataset ------------------------------
+    # ~ Simulate Dataset ------------------------------
     # includes unpublished studies
     d = sim_meta_2( Nmax = p$Nmax,
                     Mu = p$Mu,
@@ -279,7 +279,7 @@ doParallel.seconds = system.time({
     
     d$Zi = d$yi / sqrt(d$vi)
     
-    
+    # ~ Dataset Subsets for Various Methods ------------------------------
     # dataset of only published results
     dp = d %>% filter(Di == 1)
     
@@ -308,7 +308,7 @@ doParallel.seconds = system.time({
     rep.res = data.frame()
     
     
-    # ~~ Start Values ------------------------------
+    # ~ Start Values ------------------------------
     Mhat.start = p$Mu
     Shat.start = p$S
     
@@ -320,7 +320,9 @@ doParallel.seconds = system.time({
     Shat.MAP = NA
     
     
-    # ~~ Fit Naive Meta-Analysis (All PUBLISHED Draws) ------------------------------
+    # ~ Existing Methods ------------------------------
+    
+    # ~~ Naive Meta-Analysis (All PUBLISHED Draws) ------------------------------
     
     if ( "naive" %in% all.methods ) {
       rep.res = run_method_safe(method.label = c("naive"),
@@ -338,7 +340,7 @@ doParallel.seconds = system.time({
     
     
     
-    # ~~ Fit Gold-Standard Meta-Analysis (ALL FIRST Draws) ------------------------------
+    # ~~ Gold-Standard Meta-Analysis (ALL FIRST Draws) ------------------------------
     
     if ( "gold-std" %in% all.methods ) {
       
@@ -354,7 +356,7 @@ doParallel.seconds = system.time({
                                 .rep.res = rep.res )
     }
     
-    # ~~ Fit MAON (Nonaffirmative Published Draws) ------------------------------
+    # ~~ MAON (Nonaffirmative Published Draws) ------------------------------
     
     if ( "maon" %in% all.methods ) {
       
@@ -373,7 +375,7 @@ doParallel.seconds = system.time({
     }
     
     
-    # ~~ Fit 2PSM (All Published Draws) ------------------------------
+    # ~~ 2PSM (All Published Draws) ------------------------------
     
     if ( "2psm" %in% all.methods ) {
       
@@ -392,18 +394,17 @@ doParallel.seconds = system.time({
                                                             MLo = mod[[2]]$par[2] - qnorm(.975) * ses[2],
                                                             MHi = mod[[2]]$par[2] + qnorm(.975) * ses[2],
                                                             
-                                                            # could definitely get these from weightr
-                                                            # I didn't even try
-                                                            Shat = NA,
-                                                            SLo = NA,
-                                                            SHi = NA ) )
+                                                            Shat = sqrt( mod[[2]]$par[1] ),
+                                                            # truncate lower limit at 0
+                                                            SLo = sqrt( max( 0, mod[[2]]$par[1] - qnorm(.975) * ses[1] ) ),
+                                                            SHi = sqrt( mod[[2]]$par[1] + qnorm(.975) * ses[1] ) ) ) 
                                 },
                                 .rep.res = rep.res )
       
     }
     
     
-    # ~~ Fit P-Curve (Published Affirmatives) ------------------------------
+    # ~~ P-Curve (Published Affirmatives) ------------------------------
     
     if ( "pcurve" %in% all.methods ) {
       # since pcurve.opt internally retains only 
@@ -432,6 +433,8 @@ doParallel.seconds = system.time({
       
     }
     
+    
+    # ~ New Methods ------------------------------
     # ~~ MCMC ------------------------------
     
     if ( "jeffreys-mcmc" %in% all.methods ) {
@@ -553,18 +556,23 @@ doParallel.seconds = system.time({
       cat("\n doParallel flag: Done mle-sd if applicable")
     }
     
-    # ~~ Conditional Selection Model: MLE *with* affirms (SD param) ------------------------------
+    # ~~ CSM: MLE with known hacking status (SD param) ------------------------------
     
-    if ( "csm-mle-sd" %in% all.methods ) {
+    
+    # discard affirmatives from hacked studies
+    dp.csm = dp %>% filter( affirm == FALSE | hack == "no" )
+
+    if ( "csm-mle-sd" %in% all.methods &
+         nrow(dp.csm) > 0 ) {
       
       # # temp for refreshing code
       # path = "/home/groups/manishad/SAPH"
       # setwd(path)
       # source("helper_SAPH.R")
-      
+
       rep.res = run_method_safe(method.label = c("csm-mle-sd"),
-                                method.fn = function() estimate_jeffreys_RTMA(yi = dp$yi,
-                                                                              sei = sqrt(dp$vi),
+                                method.fn = function() estimate_jeffreys_RTMA(yi = dp.csm$yi,
+                                                                              sei = sqrt(dp.csm$vi),
                                                                               par2is = "Tt",
                                                                               tcrit = qnorm(0.975), 
                                                                               Mu.start = Mhat.start,
@@ -579,23 +587,6 @@ doParallel.seconds = system.time({
       
       cat("\n doParallel flag: Done csm-mle-sd if applicable")
     }
-    
-    
-    # ~~ LTMA: MLE *with only* affirms (SD param) ------------------------------
-  
-    # include only affirmatives
-    rep.res = run_method_safe(method.label = c("ltn-mle-sd"),
-                              method.fn = function() estimate_jeffreys_RTMA(yi = dpa$yi,
-                                                                            sei = sqrt(dpa$vi),
-                                                                            par2is = "Tt",
-                                                                            tcrit = qnorm(0.975), 
-                                                                            Mu.start = Mhat.start,
-                                                                            par2.start = Shat.start,
-                                                                            usePrior = FALSE,
-                                                                            get.CIs = p$get.CIs,
-                                                                            CI.method = "wald",
-                                                                            run.optimx = p$run.optimx),
-                              .rep.res = rep.res )
     
     # ~~ MLE (Var param) ------------------------------
     
@@ -619,6 +610,79 @@ doParallel.seconds = system.time({
       
     }
     
+    
+    # ~ Secondary/Sanity-Check Methods ------------------------------
+    # ~~ 2PSM With CSM Dataset ------------------------------
+    
+    if ( "2psm-csm-dataset" %in% all.methods &
+         nrow(dp.csm) > 0 ) {
+      
+      rep.res = run_method_safe(method.label = c("2psm-csm-dataset"),
+                                method.fn = function() {
+                                  mod = weightfunct( effect = dp.csm$yi,
+                                                     v = dp.csm$vi,
+                                                     steps = c(0.025, 1),
+                                                     table = TRUE ) 
+                                  
+                                  H = mod[[2]]$hessian
+                                  ses = sqrt( diag( solve(H) ) )
+                                  
+                                  # follow the same return structure as report_meta
+                                  list( stats = data.frame( Mhat = mod[[2]]$par[2],
+                                                            MLo = mod[[2]]$par[2] - qnorm(.975) * ses[2],
+                                                            MHi = mod[[2]]$par[2] + qnorm(.975) * ses[2],
+                                                            
+                                                            Shat = sqrt( mod[[2]]$par[1] ),
+                                                            # truncate lower limit at 0
+                                                            SLo = sqrt( max( 0, mod[[2]]$par[1] - qnorm(.975) * ses[1] ) ),
+                                                            SHi = sqrt( mod[[2]]$par[1] + qnorm(.975) * ses[1] ) ) ) 
+                                },
+                                .rep.res = rep.res )
+      
+      cat("\n doParallel flag: Done 2psm-csm-dataset if applicable")
+      
+    }
+    
+    # ~~ Naive (Unhacked Only) ------------------------------
+    
+    # this is like analyzing only preregistered studies
+    dp.unhacked = dp %>% filter(hack == "no")
+    
+    if ( "prereg-naive" %in% all.methods &
+         nrow(dp.unhacked) > 0 ) {
+      rep.res = run_method_safe(method.label = c("prereg-naive"),
+                                method.fn = function() {
+                                  mod = rma( yi = dp.unhacked$yi,
+                                             vi = dp.unhacked$vi,
+                                             method = "REML",
+                                             knha = TRUE )
+                                  
+                                  report_meta(mod, .mod.type = "rma")
+                                },
+                                .rep.res = rep.res )
+      
+      cat("\n doParallel flag: Done prereg-naive if applicable")
+    }
+    
+    
+    
+    # ~~ LTMA: MLE *with only* affirms (SD param) ------------------------------
+  
+    # include only affirmatives
+    rep.res = run_method_safe(method.label = c("ltn-mle-sd"),
+                              method.fn = function() estimate_jeffreys_RTMA(yi = dpa$yi,
+                                                                            sei = sqrt(dpa$vi),
+                                                                            par2is = "Tt",
+                                                                            tcrit = qnorm(0.975), 
+                                                                            Mu.start = Mhat.start,
+                                                                            par2.start = Shat.start,
+                                                                            usePrior = FALSE,
+                                                                            get.CIs = p$get.CIs,
+                                                                            CI.method = "wald",
+                                                                            run.optimx = p$run.optimx),
+                              .rep.res = rep.res )
+    
+ 
     # ~~ Sanity checks: Prior and NLL Agreement Between Stan and R ------------------------------
     
     if ( FALSE ) {
@@ -893,7 +957,7 @@ doParallel.seconds = system.time({
 
 
 # quick look
-rs %>% select(method, Mhat)
+rs %>% dplyr::select(method, Mhat)
 
 table(rs$method)
 
@@ -911,7 +975,6 @@ table(rs$method)
 # mean(temp$sancheck.mean.yi.hacked.pub.nonaffirm)
 
 
-names(rs)
 
 # ~~ End of ForEach Loop ----------------
 # estimated time for 1 simulation rep

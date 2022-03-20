@@ -295,8 +295,7 @@ doParallel.seconds = system.time({
                                                             MLo = mod[[2]]$par[2] - qnorm(.975) * ses[2],
                                                             MHi = mod[[2]]$par[2] + qnorm(.975) * ses[2],
                                                             
-                                                            # could definitely get these from weightr
-                                                            # I didn't even try
+                                                  
                                                             Shat = sqrt( mod[[2]]$par[1] ),
                                                             # truncate lower limit at 0
                                                             SLo = sqrt( max( 0, mod[[2]]$par[1] - qnorm(.975) * ses[1] ) ),

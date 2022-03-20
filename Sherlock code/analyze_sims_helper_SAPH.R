@@ -562,7 +562,7 @@ sort_agg = function( sort.Yname,
 }
 
 # quickly look at results when running locally
-show_rep_res = function() {
+srr = function() {
   
   if( "optimx.Mhat.winner" %in% names(rep.res) ) {
     cat("\n")
