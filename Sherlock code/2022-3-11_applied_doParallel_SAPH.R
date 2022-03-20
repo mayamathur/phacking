@@ -136,28 +136,10 @@ setwd(sherlock.data.dir)
 if ( dataset.name == "sapbe" ){
   b2 = fread("b2_long_prepped.csv")
   f2 = fread("f2_short_prepped.csv")
-  
- 
 }
 
 if ( dataset.name == "kvarven" ){
   b2 = fread("b2_long_prepped_kvarven.csv")
-  
-  # make columns with standardized names to match doParallel from sim study
-  # per sanity check in prep code, all metas' pooled ests have already 
-  #   been coded as >0
-  b2$yi = b2$d  
-  b2$vi = b2$var
-  b2$Zi = b2$yi / sqrt(b2$vi)
-  
-  # affirm status
-  b2$pval.two = 2 * ( 1 - pnorm( abs(b2$Zi) ) ) 
-  b2$affirm = (b2$pval.two <= 0.05) & (b2$yi > 0)
-  expect_equal( b2$affirm, b2$Zi > qnorm(0.975) ) 
-  
-  # match SAPB-E naming convention
-  b2 = b2 %>% rename( meta.name = meta)
-
 }
 
 

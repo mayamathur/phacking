@@ -14,11 +14,10 @@
 # ~ User-Specified Parameters --------------------
 
 # "sapbe", "kvarven"
-dataset.name = "sapbe"
+dataset.name = "kvarven"
 
 # ~ Packages, Etc.  --------------------
 toLoad = c("crayon",
-           "dplyr",
            "foreach",
            "doParallel",
            "boot",
@@ -43,6 +42,7 @@ toLoad = c("crayon",
            "weightr",
            "DataEditR",
            "plotly",
+           "dplyr",
            "readxl")
 lapply( toLoad,
         require,
@@ -64,14 +64,11 @@ if ( dataset.name == "sapbe" ) {
 }
 
 if ( dataset.name == "kvarven" ) {
-  data.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-13 prep Kvarven dataset for SAPH"
-  results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/2022-3-12 Kvarven results from Sherlock"
+  raw.data.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/Kvarven/Datasets from Kvarven"
   
-}
-
-if ( dataset.name == "olsson" ) {
-  data.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/Olsson-Collentine"
-  results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/Olsson-Collentine/Results from Sherlock"
+  prepped.data.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/Kvarven/Prepped datasets for SAPH"
+  
+  results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/Kvarven/Results"
   
 }
 
@@ -114,6 +111,7 @@ if ( dataset.name == "sapbe" ) {
   
   nuni(b2$meta.name)
   
+  ### Make Standardized Var Names ###
   # make columns with standardized names to match doParallel from sim study
   b2$yi = b2$EstF  # **uses the direction-flipped estimates
   b2$vi = b2$SE^2
@@ -148,8 +146,7 @@ if ( dataset.name == "sapbe" ) {
 # this code is mostly taken from our RSOS paper code: analysis_code/analysis_2/analyze.R
 if ( dataset.name == "kvarven" ) {
   
-  setwd(data.dir)
-  setwd("Datasets from Kvarven")
+  setwd(raw.data.dir)
   
   # Kvarven's summary results containing replications
   agg = read_xls("Dataset.xls")
@@ -162,8 +159,8 @@ if ( dataset.name == "kvarven" ) {
   
   
   # list all meta-analysis datasets
-  setwd(data.dir)
-  setwd("Datasets from Kvarven/Meta")
+  setwd(raw.data.dir)
+  setwd("Meta")
   files = list.files()[ grepl( pattern = ".csv", x = list.files() ) ]
   
   # separation character different for different meta-analyses
@@ -178,8 +175,8 @@ if ( dataset.name == "kvarven" ) {
     
     cat( paste("\n ****Starting", files[i] ) )
     
-    setwd(data.dir)
-    setwd("Datasets from Kvarven/Meta")
+    setwd(raw.data.dir)
+    setwd("Meta")
     
     # d and var are always the first 2 columns, even though they are named
     #  differently
@@ -193,7 +190,7 @@ if ( dataset.name == "kvarven" ) {
     
     if ( files[i] == "Schimmack.csv" ) {
       d = read.csv( files[i], sep = ";" )
-      d = d %>% select( q, Var.q. )
+      d = d %>% dplyr::select( q, Var.q. )
       # not actually Cohen's d, but irrelevant for the analyses we're going to do
       names(d) = c("d", "var")
     }
@@ -215,16 +212,33 @@ if ( dataset.name == "kvarven" ) {
   table(b2$meta)
   
   
+  ### Make Standardized Var Names ###
+  # make columns with standardized names to match doParallel from sim study
+  # per sanity check in prep code, all metas' pooled ests have already 
+  #   been coded as >0
+  b2$yi = b2$d  
+  b2$vi = b2$var
+  b2$sei = sqrt(b2$vi)
+  b2$Zi = b2$yi / sqrt(b2$vi)
+  
+  # affirm status
+  b2$pval.two = 2 * ( 1 - pnorm( abs(b2$Zi) ) ) 
+  b2$affirm = (b2$pval.two <= 0.05) & (b2$yi > 0)
+  expect_equal( b2$affirm, b2$Zi > qnorm(0.975) ) 
+  
+  # match SAPB-E naming convention
+  b2 = b2 %>% rename( meta.name = meta)
+  
+  
+  
   ### Sanity Check ###
   
   # have all pooled estimates been coded as positive?
   expect_equal( any( b2$kvarven.meta_s < 0 ), FALSE )
   
   ### Write Prepped Data ###
-  setwd(data.dir)
-  setwd("Datasets prepped for SAPH")
-  
-  fwrite(b2, "b2_long_prepped_kvarven.csv")
+  setwd(prepped.data.dir)
+  fwrite(b2, "b2_long_prepped.csv")
   
 } # end "if(dataset.name == "kvarven")
 
@@ -245,6 +259,10 @@ if ( dataset.name == "kvarven" ) {
 
 # ANALYZE RESULTS FROM CLUSTER -----------------------------
 
+### Get Prepped Meta-Level Data ###
+setwd(prepped.data.dir)
+b2 = fread("b2_long_prepped.csv")
+
 
 
 if ( dataset.name == "sapbe" ) {
@@ -259,11 +277,6 @@ if ( dataset.name == "sapbe" ) {
   r2 = fread("2022-3-16_results_sapbe_all.csv")
   
   r = bind_rows(r1, r2) %>% arrange(meta.name)
-  
-  
-  ### Get Prepped Meta-Level Data ###
-  setwd(prepped.data.dir)
-  b2 = fread("b2_long_prepped.csv")
 }
 
 if ( dataset.name == "kvarven" ) {
@@ -309,39 +322,49 @@ data_edit(temp, viewer = "browser", code = TRUE)
 # which method's estimates should we use in QQ plot?
 plot.method = "jeffreys-mcmc-pmed"
 
-for ( .m in unique(r$meta.name) ) {
-  
-  yi = b2$yi[ b2$meta.name == .m & b2$affirm == FALSE ]
-  sei = sqrt(b2$vi[ b2$meta.name == .m & b2$affirm == FALSE ])
-  Mhat = r$Mhat[ r$meta.name == .m & r$method == plot.method ]
-  Shat = r$Shat[ r$meta.name == .m & r$method == plot.method ]
+# don't analyze metas with no nonaffirms
+#  or with no Mhat for pmed
+meta.keepers = unique( r %>% filter( k.pub.nonaffirm > 0 & 
+                !is.na( Mhat[ method == plot.method ] ) ) %>%
+  dplyr::select(meta.name) )
+meta.keepers = meta.keepers$meta.name
+
+for ( .m in meta.keepers ) {
   
   r2 = r %>% filter(meta.name == .m)
   dir.name = paste(r2$pmed.gt.naive[1], r2$psm.gt.naive[1], sep = ", ")
   
+  b3 = b2 %>% filter(meta.name == .m )
   
-  # ### QQ plot ###
-  # p = yi_qqplot(yi = yi,
-  #               sei = sei, 
-  #               Mhat = Mhat,
-  #               Shat = Shat)
-  # 
-  # setwd(results.dir)
-  # setwd("QQ plots")
-  # setwd(dir.name)
-  # ggsave( filename = paste( "qqplot", .m, ".pdf", sep="_" ),
-  #         width = 8, 
-  #         height = 8)
   
+  ### QQ plot ###
+  yi = b3$yi[ b3$affirm == FALSE ]
+  sei = b3$sei[ b3$affirm == FALSE ]
+  Mhat = r$Mhat[ r$meta.name == .m & r$method == plot.method ]
+  Shat = r$Shat[ r$meta.name == .m & r$method == plot.method ]
+  
+  if ( !is.na(Mhat) ) {
+    p = yi_qqplot(yi = yi,
+                  sei = sei,
+                  Mhat = Mhat,
+                  Shat = Shat)
+    
+    setwd(results.dir)
+    setwd("QQ plots")
+    setwd(dir.name)
+    ggsave( filename = paste( "qqplot", .m, ".pdf", sep="_" ),
+            width = 8,
+            height = 8)
+  }
   
   ### Plot Within-Study Z-scores ###
-  dn = b2 %>% filter(meta.name == .m )
-                     #& affirm == FALSE)
-  xmin = floor(min(dn$Zi))
-  xmax = ceiling(max(dn$Zi))
+  
+  #& affirm == FALSE)
+  xmin = floor(min(b3$Zi))
+  xmax = ceiling(max(b3$Zi))
   
   p2 = ggplot(data = data.frame(x = c(xmin, 3)),
-             aes(x)) +
+              aes(x)) +
     
     geom_vline(xintercept = 0,
                lwd = 1,
@@ -352,7 +375,7 @@ for ( .m in unique(r$meta.name) ) {
                color = "red") +
     
     # estimated density of estimates
-    geom_density( data = dn,
+    geom_density( data = b3,
                   aes(x = Zi),
                   adjust = .3 ) +
     
@@ -367,9 +390,9 @@ for ( .m in unique(r$meta.name) ) {
   setwd(results.dir)
   setwd("Z-score densities")
   setwd(dir.name)
-
   
-
+  
+  
   ggsave( filename = paste( "z_density", .m, ".pdf", sep="_" ),
           width = 8, 
           height = 8)
@@ -378,7 +401,7 @@ for ( .m in unique(r$meta.name) ) {
 
 
 
-# ~ Plotly ---------------------
+# ~ Plotly Forest Plot (---------------------
 
 # **in half the metas, 2PSM exceeds naive
 table( r$psm.gt.naive[ !duplicated(r$meta.name) ],
@@ -403,7 +426,7 @@ my.shapes = c(16, 2)
 
 p = ggplot( data = r,
             aes(x = Mhat,
-                y = meta.name.pretty, 
+                y = meta.name, 
                 color = method,
                 shape = (method == "naive" ) ) ) +
   
