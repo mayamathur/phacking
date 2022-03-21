@@ -68,7 +68,7 @@ scen.params = tidyr::expand_grid(
   stan.adapt_delta = 0.98,
 
   get.CIs = TRUE,
-  run.optimx = TRUE )
+  run.optimx = FALSE )
 
 # ### 2022-3-16: CSM, LTMA, RTMA ###
 # scen.params = tidyr::expand_grid(
@@ -145,7 +145,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "10:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
+                            jobtime = "2:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,

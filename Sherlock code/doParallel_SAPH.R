@@ -489,8 +489,10 @@ doParallel.seconds = system.time({
                                                                               usePrior = TRUE,
                                                                               get.CIs = p$get.CIs,
                                                                               CI.method = "wald",
-                                                                              
-                                                                              run.optimx = p$run.optimx),
+                                                                              #@TEMP
+                                                                              run.optimx = TRUE
+                                                                              #run.optimx = p$run.optimx
+                                                                              ),
                                 .rep.res = rep.res )
       
       Mhat.MAP = rep.res$Mhat[ rep.res$method == "jeffreys-sd" ]
@@ -580,7 +582,10 @@ doParallel.seconds = system.time({
                                                                               usePrior = FALSE,
                                                                               get.CIs = p$get.CIs,
                                                                               CI.method = "wald",
-                                                                              run.optimx = p$run.optimx),
+                                                                              #@TEMP
+                                                                              run.optimx = TRUE,
+                                                                              #run.optimx = p$run.optimx
+                                                                              ),
                                 .rep.res = rep.res )
       
       
@@ -913,10 +918,11 @@ doParallel.seconds = system.time({
                                         sancheck.dp.q90N.hacked = quantile( dp$N[dp$hack != "no"], 0.90 ),
                                         
                                         # average yi's of published draws from each study type
-                                        #bm
                                         sancheck.mean.yi.unhacked.pub.study = mean( dp$yi[ dp$hack == "no"] ),
                                         sancheck.mean.yi.hacked.pub.study = mean( dp$yi[ dp$hack != "no"] ),
-
+                                        
+                                        #bm
+                                        sancheck.mean.mui.unhacked.pub.nonaffirm = mean( dp$mui[ dp$hack == "no" & dp$affirm == FALSE ] ),
                                         sancheck.mean.yi.unhacked.pub.nonaffirm = mean( dp$yi[ dp$hack == "no" & dp$affirm == FALSE ] ),
                                         sancheck.mean.yi.unhacked.pub.affirm = mean( dp$yi[ dp$hack == "no" & dp$affirm == TRUE ] ),
                                       
