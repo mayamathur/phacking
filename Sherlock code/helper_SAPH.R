@@ -2427,6 +2427,24 @@ stitch_files = function(.results.singles.path, .results.stitched.write.path=.res
 }
 
 
+# quickly look at results from job #1
+
+res1 = function() {
+  setwd("/home/groups/manishad/SAPH/long_results")
+  rep.res = fread("long_results_job_1_.csv")
+  srr()
+  
+  cat("\nErrors by method:" )
+  print( rep.res %>% group_by(method) %>%
+          summarise(prop.error = mean( overall.error != "" ) ) )
+  
+  #table(rep.res$overall.error)
+  
+  cat("\n\nDim:", dim(rep.res))
+  cat("\n\nReps completed:", nrow(rep.res)/nuni(rep.res$method))
+}
+
+
 
 
 # TRASH -------------------------------------

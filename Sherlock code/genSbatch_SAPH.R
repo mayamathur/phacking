@@ -126,8 +126,8 @@ write.csv( scen.params, "scen_params.csv", row.names = FALSE )
 source("helper_SAPH.R")
 
 # number of sbatches to generate (i.e., iterations within each scenario)
-n.reps.per.scen = 1000  
-n.reps.in.doParallel = 100  #@if running optimx, I used 100 here and 5:00:00 below
+n.reps.per.scen = 500  
+n.reps.in.doParallel = 25  #@if running optimx, I used 100 here and 5:00:00 below
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
@@ -145,7 +145,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "05:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
+                            jobtime = "10:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -166,10 +166,10 @@ n.files
 # run just the first one
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
-# 1920
+# 3840
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 2:1000) {
+for (i in 1:1000) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
