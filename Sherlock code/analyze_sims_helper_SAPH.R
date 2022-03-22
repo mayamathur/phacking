@@ -65,19 +65,19 @@ make_agg_data = function( .s,
     "ShatEstFail",
     "ShatCIFail",
     
-    # #@2022-3-10 TEMP: COMMENTED OUT BECAUSE I DIDN'T RUN OPTIMX METHODS, SO THIS BREAKS
-    # # diagnostics for main Mhat optimizer
-    # "OptimConverged",
-    # 
-    # #@2022-3-10 TEMP: COMMENTED OUT BECAUSE I DIDN'T RUN OPTIMX METHODS, SO THIS BREAKS
-    # # diagnostics for other optimizers
-    # "OptimxMhatWinner",
-    # "OptimxPropAgreeMhatWinner",
-    # "OptimxPropAgreeConvergersMhatWinner",
-    # 
-    # "OptimxShatWinner",
-    # "OptimxPropAgreeShatWinner",
-    # "OptimxPropAgreeConvergersShatWinner", 
+    #@2022-3-10 TEMP: COMMENTED OUT BECAUSE I DIDN'T RUN OPTIMX METHODS, SO THIS BREAKS
+    # diagnostics for main Mhat optimizer
+    "OptimConverged",
+
+    #@2022-3-10 TEMP: COMMENTED OUT BECAUSE I DIDN'T RUN OPTIMX METHODS, SO THIS BREAKS
+    # diagnostics for other optimizers
+    "OptimxMhatWinner",
+    "OptimxPropAgreeMhatWinner",
+    "OptimxPropAgreeConvergersMhatWinner",
+
+    "OptimxShatWinner",
+    "OptimxPropAgreeShatWinner",
+    "OptimxPropAgreeConvergersShatWinner",
     
     # Stan diagnostics, part 2
     "StanWarned",
@@ -212,20 +212,20 @@ make_agg_data = function( .s,
             MhatSERelBias = (MhatEstSE - MhatEmpSE) / MhatEmpSE, 
             ShatSERelBias = (ShatEstSE - ShatEmpSE) / ShatEmpSE,
             
-            # # static within scenario
-            # #@2022-3-10 TEMP: COMMENTED OUT BECAUSE I DIDN'T RUN OPTIMX METHODS, SO THIS BREAKS
-            # # ALSO COMMENTED OUT PART OF ANALYSIS.VARS ABOVE
-            # OptimConverged = meanNA(optim.converged),
-            # OptimxNConvergers = meanNA(optimx.Nconvergers),
-            # OptimxNAgreeOfConvergersMhatWinner = meanNA(optimx.Nagree.of.convergers.Mhat.winner),
-            # 
-            # OptimxMhatWinner = meanNA(optimx.Mhat.winner),
-            # OptimxPropAgreeMhatWinner = meanNA(optimx.Pagree.Mhat.winner),
-            # OptimxPropAgreeConvergersMhatWinner = meanNA(optimx.Pagree.of.convergers.Mhat.winner),
-            # 
-            # OptimxShatWinner = meanNA(optimx.Shat.winner),
-            # OptimxPropAgreeShatWinner = meanNA(optimx.Pagree.Shat.winner),
-            # OptimxPropAgreeConvergersShatWinner = meanNA(optimx.Pagree.of.convergers.Shat.winner),
+            # static within scenario
+            #@2022-3-10 TEMP: COMMENTED OUT BECAUSE I DIDN'T RUN OPTIMX METHODS, SO THIS BREAKS
+            # ALSO COMMENTED OUT PART OF ANALYSIS.VARS ABOVE
+            OptimConverged = meanNA(optim.converged),
+            OptimxNConvergers = meanNA(optimx.Nconvergers),
+            OptimxNAgreeOfConvergersMhatWinner = meanNA(optimx.Nagree.of.convergers.Mhat.winner),
+
+            OptimxMhatWinner = meanNA(optimx.Mhat.winner),
+            OptimxPropAgreeMhatWinner = meanNA(optimx.Pagree.Mhat.winner),
+            OptimxPropAgreeConvergersMhatWinner = meanNA(optimx.Pagree.of.convergers.Mhat.winner),
+
+            OptimxShatWinner = meanNA(optimx.Shat.winner),
+            OptimxPropAgreeShatWinner = meanNA(optimx.Pagree.Shat.winner),
+            OptimxPropAgreeConvergersShatWinner = meanNA(optimx.Pagree.of.convergers.Shat.winner),
             
             # static within scenario
             StanWarned = meanNA(stan.warned),

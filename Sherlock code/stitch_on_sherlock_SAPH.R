@@ -30,7 +30,7 @@ setwd(path)
 source("helper_SAPH.R")
 source("analyze_sims_helper_SAPH.R")
 
-######## STITCH LONG FILES ########
+# PRELIMINARIES ----------------------------------------------
 
 library(data.table)
 library(dplyr)
@@ -44,6 +44,9 @@ library(testthat)
 .results.stitched.write.path = "/home/groups/manishad/SAPH/stitched_results"
 .name.prefix = "long_results"
 .stitch.file.name="stitched.csv"
+
+
+# MAKE STITCHED DATA ----------------------------------------------
 
 # get list of all files in folder
 all.files = list.files(.results.singles.path, full.names=TRUE)
@@ -71,35 +74,45 @@ allNames = lapply( tables, names )
 #  will fill in NAs
 s <- do.call(bind_rows, tables)
 
-
-
 names(s) = names( read.csv(keepers[1], header= TRUE) )
 
 if( is.na(s[1,1]) ) s = s[-1,]  # delete annoying NA row
 # write.csv(s, paste(.results.stitched.write.path, .stitch.file.name, sep="/") )
 
-setwd(.results.stitched.write.path)
-fwrite(s, .stitch.file.name)
-
-# # are we there yet?
-# nrow(s) / (1600*500)  # main sims: 1600*500, bias correction sims: 32*3*500
-# length(unique(s$scen.name))  # main sims: 1600; bias correction sims: 26
-
 cat("\n\n nrow(s) =", nrow(s))
 cat("\n nuni(s$scen.name) =", nuni(s$scen.name) )
 
+# ~ Check for Bad Column Names ---------------------------
 
 # not sure why this is needed - has NA columns at end
 names(s)
 any(is.na(names(s)))
-NA.names = which( is.na(names(s) ) )
-s = s[ , -NA.names ]
+
+if ( any(is.na(names(s))) ) {
+  NA.names = which( is.na(names(s) ) )
+  s = s[ , -NA.names ]
+}
 
 s = s %>% filter(!is.na(scen.name))
 
 
-##### Make Agg Data #####
+# ~ Write stitched.csv ---------------------------
 
+setwd(.results.stitched.write.path)
+fwrite(s, .stitch.file.name)
+
+# also make a zipped version
+string = paste("zip -m stitched.zip", .stitch.file.name)
+system(string)
+
+
+# ~ Optional: Quick Look for Failed Iterates ---------------------------
+
+s %>% group_by(Mu, method) %>%
+  summarise( Mhat = meanNA(Mhat),
+             MhatNA = mean(is.na(Mhat)))
+
+# MAKE AGG DATA ----------------------------------------------
 
 path = "/home/groups/manishad/SAPH"
 setwd(path)
@@ -114,7 +127,7 @@ cat("\n\n nrow(agg) =", nrow(agg))
 cat("\n nuni(agg$scen.name) =", nuni(agg$scen.name) )
 
 
-##### Look for Missed Jobs #####
+# LOOK FOR MISSED JOBS ----------------------------------------------
 
 path = "/home/groups/manishad/SAPH"
 setwd(path)
@@ -138,5 +151,4 @@ missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
 
 # # stitched and agg -> local directory
 # scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/stitched_results/* /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Sherlock\ simulation\ results/Pilot\ simulations
-
 
