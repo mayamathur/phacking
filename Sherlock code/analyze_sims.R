@@ -5,6 +5,7 @@
 
 # data-wrangling packages
 library(here)
+library(plotly)  # must be BEFORE dplyr or else plotly::select will take over
 library(dplyr)
 library(tibble)
 library(ggplot2)
@@ -26,7 +27,10 @@ library(truncnorm)
 library(tmvtnorm)
 library(RColorBrewer)
 library(sjmisc)
-library(plotly)
+
+# prevent masking
+select = dplyr::select
+
 
 # ~~ User-specified global vars -------------------------
 # no sci notation
@@ -34,47 +38,6 @@ options(scipen=999)
 
 # control which results should be redone and/or overwritten
 redo.plots = TRUE
-
-
-# ~~ List variable names -------------------------
-
-
-### Names of statistical metrics ###
-# used later to create plots and tables, but needed to check var types 
-#  upon reading in data
-estNames = c("Mhat", "Shat")
-
-mainYNames = c("Bias", "RMSE", "Cover", "Width", "EmpSE")
-                
-otherYNames = c("EstFail", "CIFail", "RhatGt1.01", "RhatGt1.05")
-
-# these ones don't fit in nicely because the "Mhat" is in the middle of string
-#"OptimxPropAgreeConvergersMhatWinner", "OptimxNAgreeOfConvergersMhatWinner"
-MhatMainYNames = paste( "Mhat", c(mainYNames), sep = "" )
-MhatYNames = c( paste( "Mhat", c(mainYNames, otherYNames), sep = "" ),
-                "OptimxPropAgreeConvergersMhatWinner", "OptimxNAgreeOfConvergersMhatWinner" )
-
-
-### Names of parameter variables ###
-# figure out which scen params were actually manipulated
-#@this assumes that "Nmax" is always the first param var and "method" is always the last
-param.vars = names(agg)[ which( names(agg) == "Nmax" ) : which( names(agg) == "method" ) ]
-
-# how many levels does each param var have in dataset?
-n.levels = agg %>% select(param.vars) %>%
-  summarise_all( function(x) nuni(x) )
-
-( param.vars.manip = names(n.levels)[ n.levels > 1 ] )
-( param.vars.manip2 = drop_vec_elements(param.vars.manip, "method") )
-
-
-# eliminate redundant ones
-if ( "t2a" %in% param.vars.manip ) param.vars.manip = drop_vec_elements( param.vars.manip, c("S", "V") )
-
-# sanity check: SDs of all analysis variables should be 0 within unique scenarios
-t = data.frame( s3 %>% group_by(unique.scen) %>%
-                  summarise_at( analysis.vars, sd ) )
-
 
 
 # ~~ Set directories -------------------------
@@ -135,47 +98,53 @@ nuni(agg$scen.name)
 agg = wrangle_agg_local(agg)
 
 
-# MAYBE SAVE? THESE WORK WHEN CONSIDERING 1 SCEN.
-# # ~~ Main results -------------------------
-# 
-# t = agg %>% group_by(k.pub.nonaffirm, true.sei.expr, rho, method) %>%
-#   select(method, 
-#          sim.reps.actual,
-#          all_of(names_with(agg, "Mhat")) ) %>%
-#   mutate_if(is.numeric, function(x) round(x,2))
-# 
-# data.frame(t)
-# View(t)
-# 
-# # look at just certain cols
-# t = agg %>% select(method, 
-#                    sim.reps.actual,
-#                    all_of(names_with(agg, "Mhat")) ) %>%
-#   mutate_if(is.numeric, function(x) round(x,2))
-# 
-# data.frame(t)
-# View(t)
-# 
-# setwd(results.dir)
-# fwrite(t, "results_all_iterates.csv")
-# 
-# 
-# # ~~ Look at sanity checks -------------------------
-# 
-# # scenario diagnostics for scenario
-# agg.checks = agg %>% select( 
-#   all_of(names_with(agg, "sancheck.")) ) %>%
-#   mutate_if(is.numeric, function(x) round(x,2))
-# 
-# # transpose it
-# t = tibble( t(agg.checks[1,]) )
-# t = t %>% add_column( variable = names(agg.checks), .before = 1 )
-# 
-# setwd(results.dir)
-# fwrite(t, "sanity_check_stats.csv")
+
+# ~~ List variable names -------------------------
+
+### Names of statistical metrics ###
+# used later to create plots and tables, but needed to check var types 
+#  upon reading in data
+estNames = c("Mhat", "Shat")
+
+mainYNames = c("Bias", "RMSE", "Cover", "Width", "EmpSE")
+
+otherYNames = c("EstFail", "CIFail", "RhatGt1.01", "RhatGt1.05")
+
+# these ones don't fit in nicely because the "Mhat" is in the middle of string
+#"OptimxPropAgreeConvergersMhatWinner", "OptimxNAgreeOfConvergersMhatWinner"
+MhatMainYNames = paste( "Mhat", c(mainYNames), sep = "" )
+MhatYNames = c( paste( "Mhat", c(mainYNames, otherYNames), sep = "" ),
+                "OptimxPropAgreeConvergersMhatWinner", "OptimxNAgreeOfConvergersMhatWinner" )
 
 
-# 2022-3-8: SORT ROWS BY PERFORMANCE -------------------------
+### Names of parameter variables ###
+# figure out which scen params were actually manipulated
+#@this assumes that "Nmax" is always the first param var and "method" is always the last
+( param.vars = names(agg)[ which( names(agg) == "Nmax" ) : which( names(agg) == "method" ) ] )
+
+# how many levels does each param var have in dataset?
+( n.levels = agg %>% dplyr::select(param.vars) %>%
+    summarise_all( function(x) nuni(x) ) )
+
+( param.vars.manip = names(n.levels)[ n.levels > 1 ] )
+
+
+# eliminate redundant ones
+if ( "t2a" %in% param.vars.manip ) param.vars.manip = drop_vec_elements( param.vars.manip, c("S", "V") )
+
+
+( param.vars.manip2 = drop_vec_elements(param.vars.manip, "method") )
+
+
+# # sanity check: SDs of all analysis variables should be 0 within unique scenarios
+# t = data.frame( s3 %>% group_by(unique.scen) %>%
+#                   summarise_at( analysis.vars, sd ) )
+
+
+
+
+
+# SORT ROWS BY PERFORMANCE -------------------------
 
 
 # ~ Coverage -------------------------
@@ -201,18 +170,29 @@ View(t.sort)
 setwd(results.dir)
 write.xlsx( as.data.frame(t.sort), "agg_sorted_by_method_and_coverage.xlsx")
 
-# 2022-3-9: REGRESS PERFORMANCE ON MANIPULATED SCEN PARS  -------------------------
+# REGRESS PERFORMANCE ON MANIPULATED SCEN PARS  -------------------------
 
+.method = "2psm"
 
+# ~ MhatCover --------------------
 RHS = paste( param.vars.manip2, collapse = " + " )
 formula = paste( "MhatCover", RHS, sep = " ~ ")
-mod = lm( eval( parse( text = formula) ), data = agg )
+mod = lm( eval( parse( text = formula) ),
+          data = agg %>% filter(method == .method) )
+
+summary(mod)
+
+
+# ~ MhatBias --------------------
+RHS = paste( param.vars.manip2, collapse = " + " )
+formula = paste( "abs(MhatBias)", RHS, sep = " ~ ")
+mod = lm( eval( parse( text = formula) ),
+          data = agg %>% filter(method == .method) )
 
 
 summary(mod)
 
-# what's the reference level for this var?
-levels(as.factor(agg$true.sei.expr))
+
 
 # Conclusions
 # Things that HURT 2PSM performance
@@ -222,33 +202,47 @@ levels(as.factor(agg$true.sei.expr))
 # -	k.pub.nonaffirm doesn’t matter
 
 
-# 2022-3-5: SIMPLE PLOTS -------------------------
+# SIMPLE PLOTS -------------------------
 
-# **this is great
+
 Ynames = rev(MhatYNames)
 
 #@temp if not running optimx:
-Ynames = Ynames[3:11]
+#Ynames = Ynames[3:11]
 
 # to help decide which vars to include in plot:
 param.vars.manip2
 
 
 # in case you want to filter scens:
-# aggp = agg
-# aggp = agg %>% filter( Mu == 0.5 &
-#                          true.sei.expr == "rbeta(n = 1, 2, 5)" &
-#                          hack == "favor-best-affirm-wch" )
-aggp = agg %>% filter(hack == "affirm")
+# full set for reference:
+# c("naive", "gold-std", "maon", "2psm", "pcurve", "jeffreys-mcmc-pmean", 
+#   "jeffreys-mcmc-pmed", "jeffreys-mcmc-max-lp-iterate", "jeffreys-sd", 
+#   "jeffreys-var", "mle-sd", "csm-mle-sd", "mle-var", "2psm-csm-dataset", 
+#   "prereg-naive", "ltn-mle-sd")
+method.keepers = c("naive", "gold-std", "maon", "2psm", "pcurve", 
+                   "jeffreys-mcmc-pmed", "jeffreys-sd", 
+                   "jeffreys-var", "mle-sd", "csm-mle-sd", "mle-var", "2psm-csm-dataset", 
+                   "prereg-naive")
+aggp = agg %>% filter(method %in% method.keepers & 
+                        Mu == 0.5 &
+                      hack == "favor-best-affirm-wch")
 # to label the plots
-prefix = "affirm"
+prefix = "Mu=0.5, hack=favor-best-affirm-wch"
 
-# for 2022-3-8 sims
-aggp$tempFacetVar = paste( "pr.hack=", aggp$prob.hacked,
-                          "; Mu=", aggp$Mu,
-                          "; t2a=", aggp$t2a,
-                          sep = "")
-table(aggp$tempFacetVar)
+# for 2022-3-22 sims
+aggp$tempFacetVar2 = paste( "t2a=", aggp$t2a, sep = "")
+table(aggp$tempFacetVar2)
+
+aggp$tempFacetVar1 = paste( "pr.hack=", aggp$prob.hacked, sep = "")
+table(aggp$tempFacetVar1)
+
+# # for 2022-3-8 sims
+# aggp$tempFacetVar = paste( "pr.hack=", aggp$prob.hacked,
+#                            #"; Mu=", aggp$Mu,
+#                            "; t2a=", aggp$t2a,
+#                            sep = "")
+# table(aggp$tempFacetVar)
 
 
 for ( Yname in Ynames) {
@@ -257,16 +251,30 @@ for ( Yname in Ynames) {
   #Yname = "MhatBias"
   #Yname = "MhatCover"
   
-  # for 2022-3-16
+  y.breaks = NULL
+  if ( Yname == "MhatBias") y.breaks = seq(-1, 1, 0.25)
+  
   p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
                           .Yname = Yname,
                           .colorVarName = "method",
-                          .facetVar1Name = "Nmax",
-                          .facetVar2Name = "hack",
+                          .facetVar1Name = "tempFacetVar1",
+                          .facetVar2Name = "tempFacetVar2",
                           .dat = aggp,
-                          .ggtitle = "",
+                          .ggtitle = prefix,
+                          .y.breaks = y.breaks,
                           .writePlot = FALSE,
                           .results.dir = NULL)
+  
+  # # for 2022-3-16
+  # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
+  #                         .Yname = Yname,
+  #                         .colorVarName = "method",
+  #                         .facetVar1Name = "Nmax",
+  #                         .facetVar2Name = "hack",
+  #                         .dat = aggp,
+  #                         .ggtitle = "",
+  #                         .writePlot = FALSE,
+  #                         .results.dir = NULL)
   
   
   # for 2022-3-8 sims
@@ -305,7 +313,7 @@ for ( Yname in Ynames) {
 
 
 
-# 2022-3-7: EFFECT OF SCEN PARAMS ON DATASETS -------------------------
+# EFFECT OF SCEN PARAMS ON DATASETS -------------------------
 
 # look at discrepancy in yi published affirms from hacked vs. unhacked studies
 #  to help understand 2PSM results
@@ -372,8 +380,8 @@ t = s %>% group_by( true.sei.expr, rho ) %>%
                           "sancheck.prob.unhacked.udraws.affirm",
                           "sancheck.prob.hacked.ustudies.published"
                           #"sancheck.prob.published.affirm.is.hacked"
-                          ) ),
-                function(x) meanNA(x) ) %>%
+  ) ),
+  function(x) meanNA(x) ) %>%
   mutate_if( is.numeric, function(x) round(x, 2) )
 
 View(t)
@@ -385,6 +393,107 @@ write.xlsx( as.data.frame(t), "table_underlying_draw_power.xlsx")
 # - why is sancheck.prob.hacked.udraws.affirm != sancheck.prob.unhacked.udraws.affirm even when rho = 0? It's because hacked studies make more draws when they have smaller mui, so small-mui hacked studies are overrepresented.
 # - with these settings, first draws have 13-17% power 
 # - rho has little effect on anything because it hardly changes how many draws the hacked studies make
+
+
+
+
+
+
+# 2022-3-22: WHY JEFFREYS-MCMC-PMED SUDDENLY BAD FOR HACK TYPE AFFIRM (WCH)? -------------------------
+
+agg %>% filter( Mu == 0.5 & 
+                  t2a == 1.5 & 
+                  k.pub.nonaffirm == 50 &
+                  prob.hacked == 0.5 &
+                  method == "jeffreys-mcmc-pmed") %>%
+  select(scen.name,
+         hack,
+         Mhat,
+         MhatBias,
+         MhatCover,
+         MhatWidth) %>%
+  mutate_if(is.numeric, function(x) round(x,2))
+
+
+# compare to 3-8 sims
+setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Sherlock simulation results/Pilot simulations/2022-3-8")
+aggo = fread("agg.csv")
+
+aggo %>% filter( Mu == 0.5 & 
+                  t2a == 1.5 & 
+                  k.pub.nonaffirm == 50 &
+                  prob.hacked == 0.5 &
+                  method == "jeffreys-mcmc-pmed") %>%
+  select(scen.name,
+         true.sei.expr,
+         hack,
+         Mhat,
+         MhatBias,
+         MhatCover,
+         MhatWidth) %>%
+  mutate_if(is.numeric, function(x) round(x,2))
+
+
+# One issue is that you were looking at plots for a diffent hack type.
+# Also, now the CIs are super wide. 
+# Otherwise, I think the difference must be in the sei's.
+# Current sei distribution is much smaller and also less variable.
+# Example:
+
+x1 = 0.1 + rexp(n = 1000, rate = 1.5)
+x2 = rbeta(n = 1000, 2, 5) 
+
+summary(x1); sd(x1)
+summary(x2); sd(x2)
+
+hist(x1)
+hist(x2)
+
+#BM: IDEA TO HELP DIAGNOSE:
+# Add back the previous sei.expr 
+
+# PROBABLY UNUSED (MOVE TO NEW FILE?) -------------------------
+
+
+# MAYBE SAVE? THESE WORK WHEN CONSIDERING 1 SCEN.
+# # ~~ Main results -------------------------
+# 
+# t = agg %>% group_by(k.pub.nonaffirm, true.sei.expr, rho, method) %>%
+#   select(method, 
+#          sim.reps.actual,
+#          all_of(names_with(agg, "Mhat")) ) %>%
+#   mutate_if(is.numeric, function(x) round(x,2))
+# 
+# data.frame(t)
+# View(t)
+# 
+# # look at just certain cols
+# t = agg %>% select(method, 
+#                    sim.reps.actual,
+#                    all_of(names_with(agg, "Mhat")) ) %>%
+#   mutate_if(is.numeric, function(x) round(x,2))
+# 
+# data.frame(t)
+# View(t)
+# 
+# setwd(results.dir)
+# fwrite(t, "results_all_iterates.csv")
+# 
+# 
+# # ~~ Look at sanity checks -------------------------
+# 
+# # scenario diagnostics for scenario
+# agg.checks = agg %>% select( 
+#   all_of(names_with(agg, "sancheck.")) ) %>%
+#   mutate_if(is.numeric, function(x) round(x,2))
+# 
+# # transpose it
+# t = tibble( t(agg.checks[1,]) )
+# t = t %>% add_column( variable = names(agg.checks), .before = 1 )
+# 
+# setwd(results.dir)
+# fwrite(t, "sanity_check_stats.csv")
+
 
 
 # ISOLATE SCENS THAT WERE BAD FOR 2PSM -------------------------
@@ -430,7 +539,7 @@ data.frame( t.affirm %>% filter(scen.name == scen) )
 t = s %>% group_by(scen.name, method) %>%
   summarise(Nmax = Nmax[1],
             hack = hack[1],
-    MhatMn = meanNA(Mhat),
+            MhatMn = meanNA(Mhat),
             MhatMed = median(Mhat),
             Mhat2.5 = quantile(Mhat, 0.025),
             Mhat97.5 = quantile(Mhat, 0.975) ) %>%
@@ -450,7 +559,7 @@ mean(Mhats < 0.4)
 # the issue is NOT that there are too few affirmatives
 s %>% filter(scen.name == 4 &
                method == "csm-mle-sd" &
-             Mhat < -10 ) %>%
+               Mhat < -10 ) %>%
   summarise(sancheck.dp.k.affirm)
 
 

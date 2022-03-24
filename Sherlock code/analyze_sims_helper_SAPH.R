@@ -437,7 +437,8 @@ quick_5var_agg_plot = function(.Xname,
   # ~ Add facetting ----------
   # this block needs to be after adding geom_hlines so that the lines obey the facetting
   if ( !is.null(.facetVar1Name) & !is.null(.facetVar2Name) ) {
-    p = p + facet_wrap(facetVar1 ~ facetVar2) 
+    p = p + facet_wrap(facetVar1 ~ facetVar2,
+                       nrow = length( unique(.dat$facetVar1) ) ) 
   }
   
 
@@ -453,7 +454,7 @@ quick_5var_agg_plot = function(.Xname,
       # otherwise keep the default limits from ggplot
       y.breaks = ggplot_build(p)$layout$panel_params[[1]]$y$breaks
     }
-  }
+  } # end "if ( is.null(.y.breaks) )"
   
   
   # if user provided their own y.breaks

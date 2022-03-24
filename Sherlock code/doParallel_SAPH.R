@@ -1,6 +1,6 @@
 
 # IMPORTANT NOTES -----------------------------
- 
+
 # Important things to remember: 
 #
 # - The returned Vhat is an estimate of T2 + t2w, *not* T2 itself
@@ -75,7 +75,7 @@ if (run.local == FALSE) {
   args = commandArgs(trailingOnly = TRUE)
   
   cat("\n\n args received from sbatch file:", args)
-
+  
   jobname = args[1]
   scen = args[2]  # this will be a number
   
@@ -143,7 +143,7 @@ if (run.local == FALSE) {
                              run.optimx = TRUE)
     scen = 1
   }  # end "if ( interactive.cluster.run == TRUE )"
- 
+  
   
   # locally, with total k = 100, Nmax = 10, and sim.reps = 250, took 93 min total
   # for that I did sim.reps = 100 per doParallel
@@ -163,7 +163,7 @@ if (run.local == FALSE) {
 # FOR LOCAL USE  ------------------------------
 if ( run.local == TRUE ) {
   #rm(list=ls())
- 
+  
   lapply( toLoad,
           require,
           character.only = TRUE)
@@ -180,8 +180,8 @@ if ( run.local == TRUE ) {
   # naive ; gold-std ; 2psm ; maon ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
   # 2022-3-16: CSM, LTMA, RTMA
   scen.params = tidyr::expand_grid(
-    rep.methods = "naive ; 2psm ; mle-sd ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-    
+    #rep.methods = "naive ; 2psm ; mle-sd ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
+    rep.methods = "naive ; csm-mle-sd",
     # args from sim_meta_2
     Nmax = c(1),  
     Mu = c(0.5),
@@ -223,7 +223,7 @@ if ( run.local == TRUE ) {
 # COMPILE STAN MODEL ONCE AT BEGINNING------------------------------
 
 if ( run.local == TRUE ) setwd(code.dir)
-  
+
 if ( run.local == FALSE ) setwd(path)
 
 source("init_stan_model_SAPH.R")
@@ -412,13 +412,13 @@ doParallel.seconds = system.time({
                                 method.fn = function() {
                                   #@later, revisit the decision to use df_obs = 1000
                                   #   to effectively treat yi/sei z-scores
-                                
+                                  
                                   # using all significant studies (that's what pcurve.opt does internally):
                                   Mhat = pcurve.opt( t_obs = dp$Zi,
                                                      df_obs = rep(1000, length(dp$Zi)),
                                                      dmin = -5, #@HARD-CODED and arbitrary
                                                      dmax = 5)
-
+                                  
                                   
                                   # # using only published affirmatives:
                                   # Mhat = pcurve.opt( t_obs = dpa$yi/dpa$sei,
@@ -492,7 +492,7 @@ doParallel.seconds = system.time({
                                                                               #@TEMP
                                                                               run.optimx = TRUE
                                                                               #run.optimx = p$run.optimx
-                                                                              ),
+                                ),
                                 .rep.res = rep.res )
       
       Mhat.MAP = rep.res$Mhat[ rep.res$method == "jeffreys-sd" ]
@@ -563,7 +563,7 @@ doParallel.seconds = system.time({
     
     # discard affirmatives from hacked studies
     dp.csm = dp %>% filter( affirm == FALSE | hack == "no" )
-
+    
     if ( "csm-mle-sd" %in% all.methods &
          nrow(dp.csm) > 0 ) {
       
@@ -571,7 +571,7 @@ doParallel.seconds = system.time({
       # path = "/home/groups/manishad/SAPH"
       # setwd(path)
       # source("helper_SAPH.R")
-
+      
       rep.res = run_method_safe(method.label = c("csm-mle-sd"),
                                 method.fn = function() estimate_jeffreys_RTMA(yi = dp.csm$yi,
                                                                               sei = sqrt(dp.csm$vi),
@@ -582,10 +582,8 @@ doParallel.seconds = system.time({
                                                                               usePrior = FALSE,
                                                                               get.CIs = p$get.CIs,
                                                                               CI.method = "wald",
-                                                                              #@TEMP
-                                                                              run.optimx = TRUE,
-                                                                              #run.optimx = p$run.optimx
-                                                                              ),
+                                                                              run.optimx = p$run.optimx
+                                ),
                                 .rep.res = rep.res )
       
       
@@ -672,22 +670,23 @@ doParallel.seconds = system.time({
     
     
     # ~~ LTMA: MLE *with only* affirms (SD param) ------------------------------
-  
-    # include only affirmatives
-    rep.res = run_method_safe(method.label = c("ltn-mle-sd"),
-                              method.fn = function() estimate_jeffreys_RTMA(yi = dpa$yi,
-                                                                            sei = sqrt(dpa$vi),
-                                                                            par2is = "Tt",
-                                                                            tcrit = qnorm(0.975), 
-                                                                            Mu.start = Mhat.start,
-                                                                            par2.start = Shat.start,
-                                                                            usePrior = FALSE,
-                                                                            get.CIs = p$get.CIs,
-                                                                            CI.method = "wald",
-                                                                            run.optimx = p$run.optimx),
-                              .rep.res = rep.res )
     
- 
+    # include only affirmatives
+    if ( "ltn-mle-sd" %in% all.methods ) {
+      rep.res = run_method_safe(method.label = c("ltn-mle-sd"),
+                                method.fn = function() estimate_jeffreys_RTMA(yi = dpa$yi,
+                                                                              sei = sqrt(dpa$vi),
+                                                                              par2is = "Tt",
+                                                                              tcrit = qnorm(0.975), 
+                                                                              Mu.start = Mhat.start,
+                                                                              par2.start = Shat.start,
+                                                                              usePrior = FALSE,
+                                                                              get.CIs = p$get.CIs,
+                                                                              CI.method = "wald",
+                                                                              run.optimx = p$run.optimx),
+                                .rep.res = rep.res )
+    }
+    
     # ~~ Sanity checks: Prior and NLL Agreement Between Stan and R ------------------------------
     
     if ( FALSE ) {
@@ -736,15 +735,15 @@ doParallel.seconds = system.time({
       ( log.prior.stan = ext$log_prior[best.ind] )
       
       ( log.lkl.R = -1 * joint_nll_2( .yi = dpn$yi,
-                                           .sei = sqrt(dpn$vi),
-                                           .tcrit = dpn$tcrit,
-                                           .Mu = ext$mu[best.ind],
-                                           .Tt = ext$tau[best.ind] ) )
+                                      .sei = sqrt(dpn$vi),
+                                      .tcrit = dpn$tcrit,
+                                      .Mu = ext$mu[best.ind],
+                                      .Tt = ext$tau[best.ind] ) )
       
       ( log.prior.R = lprior( .sei = sqrt(dpn$vi),
-                                   .Mu = ext$mu[best.ind],
-                                   .Tt = ext$tau[best.ind],
-                                   .tcrit = dpn$tcrit ) )
+                              .Mu = ext$mu[best.ind],
+                              .Tt = ext$tau[best.ind],
+                              .tcrit = dpn$tcrit ) )
       
       # THESE AGREE!
       expect_equal( as.numeric(log.lkl.R),
@@ -776,13 +775,13 @@ doParallel.seconds = system.time({
       ext$mu[best.ind]
       ext$tau[best.ind]
       
-  
+      
       # if needed to refresh code
       path = "/home/groups/manishad/SAPH"
       setwd(path)
       source("helper_SAPH.R")
       
-
+      
       
     }
     
@@ -891,7 +890,7 @@ doParallel.seconds = system.time({
     ( sancheck.prob.unhacked.udraws.published =  mean( d$study.draw[ d$hack == "no" ] %in% unique( dp$study.draw[ dp$hack == "no" ] ) ) )
     ( sancheck.prob.hacked.udraws.published =  mean( d$study.draw[ d$hack != "no" ] %in% unique( dp$study.draw[ dp$hack != "no" ] ) ) )
     
-  
+    
     
     #*this one is especially important: under worst-case hacking, it's analogous to prop.retained  in
     #  TNE since it's the proportion of the underlying distribution that's nonaffirmative
@@ -925,7 +924,7 @@ doParallel.seconds = system.time({
                                         sancheck.mean.mui.unhacked.pub.nonaffirm = mean( dp$mui[ dp$hack == "no" & dp$affirm == FALSE ] ),
                                         sancheck.mean.yi.unhacked.pub.nonaffirm = mean( dp$yi[ dp$hack == "no" & dp$affirm == FALSE ] ),
                                         sancheck.mean.yi.unhacked.pub.affirm = mean( dp$yi[ dp$hack == "no" & dp$affirm == TRUE ] ),
-                                      
+                                        
                                         sancheck.mean.yi.hacked.pub.nonaffirm = mean( dp$yi[ dp$hack != "no" & dp$affirm == FALSE ] ),
                                         sancheck.mean.yi.hacked.pub.affirm = mean( dp$yi[ dp$hack != "no" & dp$affirm == TRUE ] ),
                                         
