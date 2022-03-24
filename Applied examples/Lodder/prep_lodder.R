@@ -2,9 +2,9 @@
 
 # PRELIMINARIES ---------------------------------------------
 
-#@SPECIFIC TO HAGGER
-root.dir = setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/Lodder")
-
+#@SPECIFIC TO LODDER
+root.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/Lodder"
+results.dir = paste(root.dir, "Prepped data", sep = "/")
 
 # ~~ Load Data and Packages -----------------------------------------------
 
