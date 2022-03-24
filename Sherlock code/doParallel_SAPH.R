@@ -62,7 +62,7 @@ toLoad = c("crayon",
            "optimx",
            "weightr")
 
-if ( run.local == TRUE ) toLoad = c(toLoad, "here")
+if ( run.local == TRUE | interactive.cluster.run == TRUE ) toLoad = c(toLoad, "here")
 
 
 
@@ -180,27 +180,35 @@ if ( run.local == TRUE ) {
   # naive ; gold-std ; 2psm ; maon ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
   # 2022-3-16: CSM, LTMA, RTMA
   scen.params = tidyr::expand_grid(
-    #rep.methods = "naive ; 2psm ; mle-sd ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-    rep.methods = "naive ; csm-mle-sd",
+    # full list (save):
+    # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
+    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
+    
     # args from sim_meta_2
-    Nmax = c(1),  
+    Nmax = 30,
     Mu = c(0.5),
-    t2a = c(0.05),
-    t2w = 0.05,  
+    t2a = c(0, 0.2^2, 0.3^2, 0.5^2, 0.7^2),
+    t2w = c(0, 0.2^2),
     m = 50,
     
-    true.sei.expr = c("rbeta(n = 1, 2, 5)"),  
-    hack = c( "affirm"),
-    rho = c(0),  
-    k.pub.nonaffirm = c(50),
-    prob.hacked = c(0.8),
+    true.sei.expr = c( #"runif(n = 1, min = 0.1, max = 1)",  # mean=0.55
+      #"runif(n = 1, min = 0.50, max = 0.60)", # mean=0.55 also
+      #"runif(n = 1, min = 0.51, max = 1.5)", # same range as first one, but higher mean
+      #"runif(n = 1, min = 0.1, max = 3)",
+      #"runif(n = 1, min = 1, max = 3)",
+      "0.1 + rexp(n = 1, rate = 1.5)",
+      "rbeta(n = 1, 2, 5)" ),
+    hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
+    rho = c(0),
+    k.pub.nonaffirm = c(5, 10, 20, 50),
+    prob.hacked = c(0.5, 0.8),
     
     # Stan control args
     stan.maxtreedepth = 20,
     stan.adapt_delta = 0.98,
     
     get.CIs = TRUE,
-    run.optimx = FALSE ) 
+    run.optimx = TRUE )
   
   scen.params$scen = 1:nrow(scen.params)
   
@@ -453,7 +461,8 @@ doParallel.seconds = system.time({
                                                                                    .sei = sqrt(dpn$vi),
                                                                                    .tcrit = dpn$tcrit,
                                                                                    .Mu.start = Mhat.start,
-                                                                                   .Tt.start = Shat.start,
+                                                                                   #@DOESN'T SEEM ABLE TO HANDLE START VALUE OF 0
+                                                                                   .Tt.start = max(0.01, Shat.start),
                                                                                    .stan.adapt_delta = p$stan.adapt_delta,
                                                                                    .stan.maxtreedepth = p$stan.maxtreedepth),
                                 .rep.res = rep.res )
@@ -918,7 +927,7 @@ doParallel.seconds = system.time({
                                         sancheck.mean.yi.unhacked.pub.study = mean( dp$yi[ dp$hack == "no"] ),
                                         sancheck.mean.yi.hacked.pub.study = mean( dp$yi[ dp$hack != "no"] ),
                                         
-                                        #bm
+                            
                                         sancheck.mean.mui.unhacked.pub.nonaffirm = mean( dp$mui[ dp$hack == "no" & dp$affirm == FALSE ] ),
                                         sancheck.mean.yi.unhacked.pub.nonaffirm = mean( dp$yi[ dp$hack == "no" & dp$affirm == FALSE ] ),
                                         sancheck.mean.yi.unhacked.pub.affirm = mean( dp$yi[ dp$hack == "no" & dp$affirm == TRUE ] ),
