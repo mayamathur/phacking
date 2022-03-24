@@ -91,7 +91,7 @@ scen.params = tidyr::expand_grid(
     #"runif(n = 1, min = 1, max = 3)",
     "0.1 + rexp(n = 1, rate = 1.5)",
     "rbeta(n = 1, 2, 5)",
-    "rbeta(n = 1, 2, 5)" ),
+    "0.2 + rbeta(n = 1, 2, 5)" ),
   hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
   rho = c(0),
   k.pub.nonaffirm = c(50),
@@ -161,7 +161,7 @@ source("helper_SAPH.R")
 
 # number of sbatches to generate (i.e., iterations within each scenario)
 n.reps.per.scen = 500  
-n.reps.in.doParallel = 25  #@if running optimx, I used 100 here and 5:00:00 below
+n.reps.in.doParallel = 100  #@if running optimx, I used 100 here and 5:00:00 below
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
@@ -179,7 +179,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "2:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
+                            jobtime = "5:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,

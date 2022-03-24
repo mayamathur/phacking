@@ -150,7 +150,7 @@ if (run.local == FALSE) {
   
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
-  sim.reps = 25  #@update this 
+  sim.reps = 100  #@update this 
   
   
   # set the number of cores
@@ -489,9 +489,7 @@ doParallel.seconds = system.time({
                                                                               usePrior = TRUE,
                                                                               get.CIs = p$get.CIs,
                                                                               CI.method = "wald",
-                                                                              #@TEMP
-                                                                              run.optimx = TRUE
-                                                                              #run.optimx = p$run.optimx
+                                                                              run.optimx = p$run.optimx
                                 ),
                                 .rep.res = rep.res )
       
