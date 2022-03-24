@@ -206,6 +206,8 @@ summary(mod)
 
 
 Ynames = rev(MhatYNames)
+# to run just a subset:
+Ynames = c("MhatWidth", "MhatCover", "MhatRMSE", "MhatBias")
 
 #@temp if not running optimx:
 #Ynames = Ynames[3:11]
@@ -226,7 +228,7 @@ method.keepers = c("naive", "gold-std", "maon", "2psm", "pcurve",
                    "prereg-naive")
 aggp = agg %>% filter(method %in% method.keepers & 
                         Mu == 0.5 &
-                      hack == "favor-best-affirm-wch")
+                        hack == "favor-best-affirm-wch")
 # to label the plots
 prefix = "Mu=0.5, hack=favor-best-affirm-wch"
 
@@ -257,10 +259,11 @@ for ( Yname in Ynames) {
   p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
                           .Yname = Yname,
                           .colorVarName = "method",
-                          .facetVar1Name = "tempFacetVar1",
-                          .facetVar2Name = "tempFacetVar2",
+                          #.facetVar1Name = "tempFacetVar1",
+                          .facetVar1Name = "true.sei.expr.pretty",
+                          .facetVar2Name = "hack",
                           .dat = aggp,
-                          .ggtitle = prefix,
+                          #.ggtitle = prefix,
                           .y.breaks = y.breaks,
                           .writePlot = FALSE,
                           .results.dir = NULL)
@@ -395,7 +398,40 @@ write.xlsx( as.data.frame(t), "table_underlying_draw_power.xlsx")
 # - rho has little effect on anything because it hardly changes how many draws the hacked studies make
 
 
+# 2022-3-24: AGAIN TRY TO REPLICATION 2022-3-8 -------------------------
 
+# direct replication of 2022-3-8
+agg %>% filter( Mu == 0.5 & 
+                  t2a == 1.5 & 
+                  k.pub.nonaffirm == 50 &
+                  prob.hacked == 0.5 &
+                  method == "jeffreys-mcmc-pmed" &
+                  true.sei.expr == "0.1 + rexp(n = 1, rate = 1.5)") %>%
+  
+  select(scen.name,
+         hack,
+         Mhat,
+         MhatBias,
+         MhatCover,
+         MhatWidth) %>%
+  mutate_if(is.numeric, function(x) round(x,2))
+
+
+# look at other true.sei.expr as well
+agg %>% filter( Mu == 0.5 & 
+                  t2a == 1.5 & 
+                  k.pub.nonaffirm == 50 &
+                  prob.hacked == 0.5 &
+                  method == "jeffreys-mcmc-pmed") %>%
+  
+  select(scen.name,
+         true.sei.expr,
+         hack,
+         Mhat,
+         MhatBias,
+         MhatCover,
+         MhatWidth) %>%
+  mutate_if(is.numeric, function(x) round(x,2))
 
 
 
@@ -420,10 +456,10 @@ setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis
 aggo = fread("agg.csv")
 
 aggo %>% filter( Mu == 0.5 & 
-                  t2a == 1.5 & 
-                  k.pub.nonaffirm == 50 &
-                  prob.hacked == 0.5 &
-                  method == "jeffreys-mcmc-pmed") %>%
+                   t2a == 1.5 & 
+                   k.pub.nonaffirm == 50 &
+                   prob.hacked == 0.5 &
+                   method == "jeffreys-mcmc-pmed") %>%
   select(scen.name,
          true.sei.expr,
          hack,
