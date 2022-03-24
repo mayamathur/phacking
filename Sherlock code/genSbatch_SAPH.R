@@ -39,70 +39,70 @@ lapply( allPackages,
 #  also from mutate in there
 # I think a similar thing will be true with the Rhats if you omit jeffreys-mcmc?
 
-# ### FULL VERSION ###
-# scen.params = tidyr::expand_grid(
-#   # full list (save):
-#   rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-#   #rep.methods = "naive ; maon ; 2psm ; pcurve ; jeffreys-mcmc",
-# 
-#   # args from sim_meta_2
-#   Nmax = 30,
-#   Mu = c(0.5, 1),
-#   t2a = c(0.05, 0.2, 1, 1.5),
-#   t2w = 0.05,
-#   m = 50,
-# 
-#   true.sei.expr = c( #"runif(n = 1, min = 0.1, max = 1)",  # mean=0.55
-#                      #"runif(n = 1, min = 0.50, max = 0.60)", # mean=0.55 also
-#                      #"runif(n = 1, min = 0.51, max = 1.5)", # same range as first one, but higher mean
-#                      #"runif(n = 1, min = 0.1, max = 3)",
-#                      #"runif(n = 1, min = 1, max = 3)",
-#                      #"0.1 + rexp(n = 1, rate = 1.5)",
-#                      "rbeta(n = 1, 2, 5)" ),
-#   hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
-#   rho = c(0),
-#   k.pub.nonaffirm = c(5, 10, 20, 50),
-#   prob.hacked = c(0.5, 0.8), 
-# 
-#   # Stan control args
-#   stan.maxtreedepth = 20,
-#   stan.adapt_delta = 0.98,
-# 
-#   get.CIs = TRUE,
-#   run.optimx = FALSE )
-
-
-### 2022-3-24: ISOLATE A FEW SCENS ###
+### FULL VERSION ###
 scen.params = tidyr::expand_grid(
+  # full list (save):
+  # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
+  rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
 
-  rep.methods = "naive ; maon ; 2psm ; jeffreys-mcmc ; csm-mle-sd ; 2psm-csm-dataset",
-  
   # args from sim_meta_2
   Nmax = 30,
   Mu = c(0.5),
-  t2a = c(1.5),
-  t2w = 0.05,
+  t2a = c(0, 0.2^2, 0.3^2, 0.5^2, 0.7^2),
+  t2w = c(0, 0.2^2),
   m = 50,
-  
+
   true.sei.expr = c( #"runif(n = 1, min = 0.1, max = 1)",  # mean=0.55
-    #"runif(n = 1, min = 0.50, max = 0.60)", # mean=0.55 also
-    #"runif(n = 1, min = 0.51, max = 1.5)", # same range as first one, but higher mean
-    #"runif(n = 1, min = 0.1, max = 3)",
-    #"runif(n = 1, min = 1, max = 3)",
-    "0.1 + rexp(n = 1, rate = 1.5)",
-    "rbeta(n = 1, 2, 5)",
-    "0.2 + rbeta(n = 1, 2, 5)" ),
+                     #"runif(n = 1, min = 0.50, max = 0.60)", # mean=0.55 also
+                     #"runif(n = 1, min = 0.51, max = 1.5)", # same range as first one, but higher mean
+                     #"runif(n = 1, min = 0.1, max = 3)",
+                     #"runif(n = 1, min = 1, max = 3)",
+                     "0.1 + rexp(n = 1, rate = 1.5)",
+                     "rbeta(n = 1, 2, 5)" ),
   hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
   rho = c(0),
-  k.pub.nonaffirm = c(50),
-  prob.hacked = c(0.5), 
-  
+  k.pub.nonaffirm = c(5, 10, 20, 50),
+  prob.hacked = c(0.5, 0.8),
+
   # Stan control args
   stan.maxtreedepth = 20,
   stan.adapt_delta = 0.98,
-  
+
   get.CIs = TRUE,
   run.optimx = TRUE )
+
+
+# ### 2022-3-24: ISOLATE A FEW SCENS ###
+# scen.params = tidyr::expand_grid(
+# 
+#   rep.methods = "naive ; maon ; 2psm ; jeffreys-mcmc ; csm-mle-sd ; 2psm-csm-dataset",
+#   
+#   # args from sim_meta_2
+#   Nmax = 30,
+#   Mu = c(0.5),
+#   t2a = c(1.5),
+#   t2w = 0.05,
+#   m = 50,
+#   
+#   true.sei.expr = c( #"runif(n = 1, min = 0.1, max = 1)",  # mean=0.55
+#     #"runif(n = 1, min = 0.50, max = 0.60)", # mean=0.55 also
+#     #"runif(n = 1, min = 0.51, max = 1.5)", # same range as first one, but higher mean
+#     #"runif(n = 1, min = 0.1, max = 3)",
+#     #"runif(n = 1, min = 1, max = 3)",
+#     "0.1 + rexp(n = 1, rate = 1.5)",
+#     "rbeta(n = 1, 2, 5)",
+#     "0.2 + rbeta(n = 1, 2, 5)" ),
+#   hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
+#   rho = c(0),
+#   k.pub.nonaffirm = c(50),
+#   prob.hacked = c(0.5), 
+#   
+#   # Stan control args
+#   stan.maxtreedepth = 20,
+#   stan.adapt_delta = 0.98,
+#   
+#   get.CIs = TRUE,
+#   run.optimx = TRUE )
 
 # ### 2022-3-16: CSM, LTMA, RTMA ###
 # scen.params = tidyr::expand_grid(
@@ -203,7 +203,7 @@ n.files
 # 3840
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:3840) {
+for (i in 1:1000) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
