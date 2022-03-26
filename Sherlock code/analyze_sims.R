@@ -106,7 +106,9 @@ agg = wrangle_agg_local(agg)
 #  upon reading in data
 estNames = c("Mhat", "Shat")
 
-mainYNames = c("Bias", "RMSE", "Cover", "Width", "EmpSE")
+# blank entry is to get Mhat itself, which is useful for 
+#  looking at whether MAON>0
+mainYNames = c("Bias", "", "RMSE", "Cover", "Width", "EmpSE")
 
 otherYNames = c("EstFail", "CIFail", "RhatGt1.01", "RhatGt1.05")
 
@@ -172,7 +174,7 @@ write.xlsx( as.data.frame(t.sort), "agg_sorted_by_method_and_coverage.xlsx")
 
 # REGRESS PERFORMANCE ON MANIPULATED SCEN PARS  -------------------------
 
-.method = "2psm"
+.method = "jeffreys-mcmc-pmed"
 
 # ~ MhatCover --------------------
 RHS = paste( param.vars.manip2, collapse = " + " )
@@ -202,12 +204,16 @@ summary(mod)
 # -	k.pub.nonaffirm doesn’t matter
 
 
-# SIMPLE PLOTS -------------------------
+# ******** PLOTS -------------------------
 
 
 Ynames = rev(MhatYNames)
-# to run just a subset:
-Ynames = c("MhatWidth", "MhatCover", "MhatRMSE", "MhatBias")
+
+# alternatively, run just a subset:
+Ynames = c("MhatWidth", "MhatCover", "MLo", "MhatBias",
+           # last 2 are useful for looking at MAON
+           #@LATER ADD MHATTESTREJECT :)
+           "Mhat", "MLo")
 
 #@temp if not running optimx:
 #Ynames = Ynames[3:11]
@@ -222,29 +228,30 @@ param.vars.manip2
 #   "jeffreys-mcmc-pmed", "jeffreys-mcmc-max-lp-iterate", "jeffreys-sd", 
 #   "jeffreys-var", "mle-sd", "csm-mle-sd", "mle-var", "2psm-csm-dataset", 
 #   "prereg-naive", "ltn-mle-sd")
-method.keepers = c("naive", "gold-std", "maon", "2psm", "pcurve", 
-                   "jeffreys-mcmc-pmed", "jeffreys-sd", 
-                   "jeffreys-var", "mle-sd", "csm-mle-sd", "mle-var", "2psm-csm-dataset", 
-                   "prereg-naive")
-aggp = agg %>% filter(method %in% method.keepers & 
-                        Mu == 0.5 &
-                        hack == "favor-best-affirm-wch")
-# to label the plots
-prefix = "Mu=0.5, hack=favor-best-affirm-wch"
+( all.methods = unique(agg$method) )
+toDrop = c("jeffreys-mcmc-pmean", "jeffreys-mcmc-max-lp-iterate")
+method.keepers = all.methods[ !all.methods %in% toDrop ]
 
-# for 2022-3-22 sims
-aggp$tempFacetVar2 = paste( "t2a=", aggp$t2a, sep = "")
+# method.keepers = c("naive", "gold-std", "maon", "2psm", "pcurve", 
+#                    "jeffreys-mcmc-pmed", "jeffreys-sd", 
+#                    "jeffreys-var", "mle-sd", "csm-mle-sd", "mle-var", "2psm-csm-dataset", 
+#                    "prereg-naive")
+
+
+aggp = agg %>% filter(method %in% method.keepers &
+                        Mu == 0.5 &
+                        prob.hacked == 0.8 &
+                        hack == "affirm2")
+# to label the plots
+prefix = "hack=affirm2; pr.hack=0.8"
+
+
+# for 2022-3-25 sims
+aggp$tempFacetVar2 = paste( "t2a=", aggp$t2a, "; t2w=", aggp$t2w, sep = "")
 table(aggp$tempFacetVar2)
 
-aggp$tempFacetVar1 = paste( "pr.hack=", aggp$prob.hacked, sep = "")
-table(aggp$tempFacetVar1)
-
-# # for 2022-3-8 sims
-# aggp$tempFacetVar = paste( "pr.hack=", aggp$prob.hacked,
-#                            #"; Mu=", aggp$Mu,
-#                            "; t2a=", aggp$t2a,
-#                            sep = "")
-# table(aggp$tempFacetVar)
+# aggp$tempFacetVar1 = paste( "pr.hack=", aggp$prob.hacked, sep = "")
+# table(aggp$tempFacetVar1)
 
 
 for ( Yname in Ynames) {
@@ -254,16 +261,17 @@ for ( Yname in Ynames) {
   #Yname = "MhatCover"
   
   y.breaks = NULL
-  if ( Yname == "MhatBias") y.breaks = seq(-1, 1, 0.25)
+  if ( Yname == "MhatBias") y.breaks = seq(-0.5, 0.5, 0.1)
+  if ( Yname == "MhatWidth") y.breaks = seq(0, 10, 0.5)
   
   p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
                           .Yname = Yname,
                           .colorVarName = "method",
                           #.facetVar1Name = "tempFacetVar1",
                           .facetVar1Name = "true.sei.expr.pretty",
-                          .facetVar2Name = "hack",
+                          .facetVar2Name = "tempFacetVar2",
                           .dat = aggp,
-                          #.ggtitle = prefix,
+                          .ggtitle = prefix,
                           .y.breaks = y.breaks,
                           .writePlot = FALSE,
                           .results.dir = NULL)
@@ -304,6 +312,7 @@ for ( Yname in Ynames) {
   
   # this is a great way to view plots!!
   pl = ggplotly(p)
+  pl
   
   # how to save a plotly as html
   # https://www.biostars.org/p/458325/

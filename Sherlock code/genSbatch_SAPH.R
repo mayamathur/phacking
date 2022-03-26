@@ -58,6 +58,7 @@ scen.params = tidyr::expand_grid(
                      #"runif(n = 1, min = 0.1, max = 3)",
                      #"runif(n = 1, min = 1, max = 3)",
                      "0.1 + rexp(n = 1, rate = 1.5)",
+                     #2022-3-26: ADD THIS ONE: 0.1 + rexp(n = 1000, rate = 3)
                      "rbeta(n = 1, 2, 5)" ),
   hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
   rho = c(0),
@@ -200,10 +201,14 @@ n.files
 # run just the first one
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
+
+sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/2.sbatch
+
+
 # 3840
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:1000) {
+for (i in 2001:2500) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 

@@ -126,6 +126,12 @@ fwrite(agg, "agg.csv")
 cat("\n\n nrow(agg) =", nrow(agg))
 cat("\n nuni(agg$scen.name) =", nuni(agg$scen.name) )
 
+# look again at failures
+agg %>% group_by(method) %>%
+  summarise( mean(MhatEstFail),
+             mean(MhatCIFail),
+             meanNA(OptimxNAgreeOfConvergersMhatWinner) )
+
 
 ##### Move to Desktop #####
 
@@ -143,7 +149,7 @@ source("analyze_sims_helper_SAPH.R")
 missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
                               "/home/groups/manishad/SAPH/long_results",
                               .name.prefix = "long",
-                              .max.sbatch.num = 1920)
+                              .max.sbatch.num = 2400)
 
 setwd( paste(path, "/sbatch_files", sep="") )
 for (i in missed.nums) {

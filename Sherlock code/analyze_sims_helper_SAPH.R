@@ -137,7 +137,7 @@ make_agg_data = function( .s,
              "get.CIs",
              "error",
              "rep.name",
-             "doParallel.seconds",
+             #"doParallel.seconds",
              "optim.converged",
              "stan.warned",
              names_with(.dat = .s, .pattern = "optimx") )
@@ -188,6 +188,9 @@ make_agg_data = function( .s,
             MhatWidth = MHi - MLo,
             ShatWidth = SHi - SLo,
             
+            # varies within scenario
+            MhatTestReject = MLo > 0,
+
             # static within scenario
             MhatRMSE = sqrt( meanNA( (Mhat - Mu)^2 ) ),
             ShatRMSE = sqrt( meanNA( ( Shat - S )^2 ) ),
@@ -213,7 +216,6 @@ make_agg_data = function( .s,
             ShatSERelBias = (ShatEstSE - ShatEmpSE) / ShatEmpSE,
             
             # static within scenario
-            #@2022-3-10 TEMP: COMMENTED OUT BECAUSE I DIDN'T RUN OPTIMX METHODS, SO THIS BREAKS
             # ALSO COMMENTED OUT PART OF ANALYSIS.VARS ABOVE
             OptimConverged = meanNA(optim.converged),
             OptimxNConvergers = meanNA(optimx.Nconvergers),
@@ -237,7 +239,14 @@ make_agg_data = function( .s,
             ShatRhatGt1.01 = meanNA(ShatRhat > 1.01),
             ShatRhatGt1.05 = meanNA(ShatRhat > 1.05),
             ShatRhatGt1.10 = meanNA(ShatRhat > 1.10),
-            ShatRhatMax = max(ShatRhat, na.rm = TRUE)
+            ShatRhatMax = max(ShatRhat, na.rm = TRUE),
+            
+            # SLURM timing stats
+            doParallelSeconds = meanNA(doParallel.seconds),
+            # minor note: even within scens, doParallel.seconds is repeated
+            #  for every sim rep within the scen
+            doParallelSecondsQ95 = quantile(doParallel.seconds,
+                                            0.95, na.rm = TRUE),
     ) 
   
   
