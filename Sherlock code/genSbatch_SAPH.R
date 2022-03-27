@@ -43,34 +43,35 @@ lapply( allPackages,
 scen.params = tidyr::expand_grid(
   # full list (save):
   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-  rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-
+  rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; prereg-naive",
+  
   # args from sim_meta_2
   Nmax = 30,
-  Mu = c(0.5),
-  t2a = c(0, 0.2^2, 0.3^2, 0.5^2, 0.7^2),
+  Mu = c(0.5, 0),
+  t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
   t2w = c(0, 0.2^2),
   m = 50,
-
+  
   true.sei.expr = c( #"runif(n = 1, min = 0.1, max = 1)",  # mean=0.55
-                     #"runif(n = 1, min = 0.50, max = 0.60)", # mean=0.55 also
-                     #"runif(n = 1, min = 0.51, max = 1.5)", # same range as first one, but higher mean
-                     #"runif(n = 1, min = 0.1, max = 3)",
-                     #"runif(n = 1, min = 1, max = 3)",
-                     "0.1 + rexp(n = 1, rate = 1.5)",
-                     #2022-3-26: ADD THIS ONE: 0.1 + rexp(n = 1000, rate = 3)
-                     "rbeta(n = 1, 2, 5)" ),
+    #"runif(n = 1, min = 0.50, max = 0.60)", # mean=0.55 also
+    #"runif(n = 1, min = 0.51, max = 1.5)", # same range as first one, but higher mean
+    #"runif(n = 1, min = 0.1, max = 3)",
+    #"runif(n = 1, min = 1, max = 3)",
+    #"0.1 + rexp(n = 1, rate = 1.5)",
+    #2022-3-26: changed above one to this
+    "0.02 + rexp(n = 1, rate = 3)",
+    "rbeta(n = 1, 2, 5)" ),
   hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
   rho = c(0),
-  k.pub.nonaffirm = c(5, 10, 20, 50),
-  prob.hacked = c(0.5, 0.8),
-
+  k.pub.nonaffirm = c(10, 15, 20, 50, 100),
+  prob.hacked = c(0.8),
+  
   # Stan control args
   stan.maxtreedepth = 20,
   stan.adapt_delta = 0.98,
-
+  
   get.CIs = TRUE,
-  run.optimx = TRUE )
+  run.optimx = FALSE )
 
 
 # ### 2022-3-24: ISOLATE A FEW SCENS ###
@@ -161,8 +162,8 @@ write.csv( scen.params, "scen_params.csv", row.names = FALSE )
 source("helper_SAPH.R")
 
 # number of sbatches to generate (i.e., iterations within each scenario)
-n.reps.per.scen = 500  
-n.reps.in.doParallel = 100  #@if running optimx, I used 100 here and 5:00:00 below
+n.reps.per.scen = 1000  
+n.reps.in.doParallel = 200  #@if running optimx, I used 100 here and 5:00:00 below
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
@@ -180,7 +181,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "5:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
+                            jobtime = "6:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -205,10 +206,10 @@ n.files
 sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/2.sbatch
 
 
-# 3840
+# 2400
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 2001:2500) {
+for (i in 1:1000) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 

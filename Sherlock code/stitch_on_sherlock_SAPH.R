@@ -120,6 +120,7 @@ source("helper_SAPH.R")
 source("analyze_sims_helper_SAPH.R")
 
 agg = make_agg_data(s)
+
 setwd(.results.stitched.write.path)
 fwrite(agg, "agg.csv")
 
@@ -130,6 +131,7 @@ cat("\n nuni(agg$scen.name) =", nuni(agg$scen.name) )
 agg %>% group_by(method) %>%
   summarise( mean(MhatEstFail),
              mean(MhatCIFail),
+             mean(MhatTestReject),
              meanNA(OptimxNAgreeOfConvergersMhatWinner) )
 
 
