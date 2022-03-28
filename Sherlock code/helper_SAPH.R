@@ -71,7 +71,6 @@ estimate_jeffreys_RTMA = function( yi,
                                    run.optimx = FALSE ) {
   
   
-  # #bm
   # #@TEST ONLY
   # dpn = dp[ dp$affirm == FALSE, ]
   # yi = dpn$yi
@@ -618,9 +617,57 @@ joint_nll_2 = function(.yi,
   #                                   sigma = .sigma^2 ) ) 
 }
 
+# ### Sanity check #2022-3-28b:
+# # check against theory in paper
+# d = sim_meta_2( Nmax = 1,
+#                 Mu = 0.4,
+#                 t2a = 0.4,
+#                 m = 20,
+#                 t2w = 0.01,
+#                 true.sei.expr = "runif(n=1, 0.03, 1.5)",
+#                 hack = "affirm",
+#                 rho = 0,
+#                 
+#                 k.pub.nonaffirm = 10,
+#                 prob.hacked = 0.8,
+#                 return.only.published = FALSE)
+# 
+# Mu = 0.2
+# Tt = 1
+# ll1 = joint_nll_2(.yi = d$yi,
+#                   .sei = sqrt(d$vi),
+#                   .Mu = Mu,
+#                   .Tt = Tt)
+# # paper notation
+# d$Si = sqrt(d$vi + Tt^2)  
+# d$Vi = d$Si^2
+# d$ctildei = (qnorm(0.975)*sqrt(d$vi) - Mu)/d$Si
+# 
+# 
+# # just the normal itself without truncation
+# # https://www.statlect.com/fundamentals-of-statistics/normal-distribution-maximum-likelihood
+# ll1 = sum( dnorm(x = d$yi,
+#                  mean = Mu, 
+#                  sd = d$Si,
+#                  log = TRUE) )
+# ll2 = sum( -0.5*log(2*pi*d$Vi) - (1/(2*d$Vi))*(d$yi - Mu)^2 )
+# expect_equal(ll1, ll2)
+# 
+# # now check the full RTMA
+# dn = d %>% filter( yi/sqrt(vi) < qnorm(0.975) )
+# ll1 = sum( log( dtruncnorm(x = dn$yi,
+#                           a = -Inf,
+#                           b = qnorm(0.975) * sqrt(dn$vi),
+#                           mean = Mu,
+#                           sd = dn$Si) ) )
+# ll2 = sum( -0.5*log(2*pi*dn$Vi) - 1/(2*dn$Vi)*(dn$yi - Mu)^2 - log( pnorm(dn$ctildei) ) )
+# expect_equal(ll1, ll2)
+# ### end sanity check
+
 
 
 # verbatim from TNE
+# this is what's used in sim studies (through 2022-3-28)
 E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
   
   # prevent infinite cutpoints
@@ -646,6 +693,51 @@ E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
                   nrow = 2,
                   byrow = TRUE ) )
 }
+
+# 2022-3-28: simplify as in paper for right-truncated case
+# this one assumes .n = 1 and .a = -Inf
+# this fn is NOT used in simulations; it's only to check math in sims
+E_fisher_TNE_check = function(.mu, .sigma, .b) {
+  
+  # prevent infinite cutpoints
+  # if either cutpoint is infinite, there are numerical issues because the alpha*Z terms
+  #  below are 0*Inf
+  Zb = min( 99, (.b - .mu) / .sigma )
+  
+  alpha.b = dnorm(Zb) / pnorm(Zb) 
+  
+  k11 = (1/.sigma^2) * (alpha.b^2 + alpha.b*Zb - 1)
+  
+  k12 = (1/.sigma^2) * (alpha.b*(Zb^2) + (alpha.b^2)*Zb + alpha.b)
+  
+  k22 = (1/.sigma^2) * (alpha.b*(Zb^3) + alpha.b*Zb + (alpha.b*Zb)^2 - 2)
+  
+  return( matrix( c(-k11, -k12, -k12, -k22),
+                  nrow = 2,
+                  byrow = TRUE ) )
+}
+
+# ### Sanity check #2022-3-28a:
+# mu = -0.2
+# sigma = 0.02
+# a = -999
+# b = 1
+# n = 1
+# 
+# F1 = E_fisher_TNE( .mu = mu, 
+#                    .sigma = sigma,
+#                    .a = a,
+#                    .b = b,
+#                    .n = 1)
+# 
+# F2 = E_fisher_TNE_check( .mu = mu, 
+#                          .sigma = sigma, 
+#                          .b = b)
+# 
+# expect_equal(F1, F2)
+
+
+
 
 
 # important: note that in this fn, critical value is on t/z scale, NOT raw scale
@@ -1559,7 +1651,6 @@ sim_meta = function(Nmax,  # max draws to try
 #              mean(yi) )
 # 
 # ### Example 2: Affirm2 hacking
-# #bm
 # d = sim_meta(Nmax = 5,
 #              Mu = 0.1,
 #              T2 = 0.1,
@@ -2520,9 +2611,7 @@ res1 = function() {
 #                    #aes(y = .25 * ..count..),  # doesn't work
 #                    lwd = 1.2,
 #                    color = "red") +
-#     
-#     #bm: got histogram to work with density in terms of scaling, but not yet the stat_function
-#     
+#     #     
 #     
 #     ylab("") +
 #     #scale_x_continuous( breaks = seq(xmin, 3, 0.5)) +
@@ -2597,7 +2686,6 @@ res1 = function() {
 #                    lwd = 1.2,
 #                    color = "red") +
 #     
-#     #bm: got histogram to work with density in terms of scaling, but not yet the stat_function
 #     
 #     
 #     ylab("") +
