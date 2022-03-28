@@ -65,19 +65,19 @@ make_agg_data = function( .s,
     "ShatEstFail",
     "ShatCIFail",
     
-    #@2022-3-10 TEMP: COMMENTED OUT BECAUSE I DIDN'T RUN OPTIMX METHODS, SO THIS BREAKS
-    # diagnostics for main Mhat optimizer
-    "OptimConverged",
-
-    #@2022-3-10 TEMP: COMMENTED OUT BECAUSE I DIDN'T RUN OPTIMX METHODS, SO THIS BREAKS
-    # diagnostics for other optimizers
-    "OptimxMhatWinner",
-    "OptimxPropAgreeMhatWinner",
-    "OptimxPropAgreeConvergersMhatWinner",
-
-    "OptimxShatWinner",
-    "OptimxPropAgreeShatWinner",
-    "OptimxPropAgreeConvergersShatWinner",
+    # #@2022-3-10 TEMP: COMMENTED OUT BECAUSE I DIDN'T RUN OPTIMX METHODS, SO THIS BREAKS
+    # # diagnostics for main Mhat optimizer
+    # "OptimConverged",
+    # 
+    # #@2022-3-10 TEMP: COMMENTED OUT BECAUSE I DIDN'T RUN OPTIMX METHODS, SO THIS BREAKS
+    # # diagnostics for other optimizers
+    # "OptimxMhatWinner",
+    # "OptimxPropAgreeMhatWinner",
+    # "OptimxPropAgreeConvergersMhatWinner",
+    # 
+    # "OptimxShatWinner",
+    # "OptimxPropAgreeShatWinner",
+    # "OptimxPropAgreeConvergersShatWinner",
     
     # Stan diagnostics, part 2
     "StanWarned",
@@ -216,18 +216,18 @@ make_agg_data = function( .s,
             ShatSERelBias = (ShatEstSE - ShatEmpSE) / ShatEmpSE,
             
             # static within scenario
-            # ALSO COMMENTED OUT PART OF ANALYSIS.VARS ABOVE
-            OptimConverged = meanNA(optim.converged),
-            OptimxNConvergers = meanNA(optimx.Nconvergers),
-            OptimxNAgreeOfConvergersMhatWinner = meanNA(optimx.Nagree.of.convergers.Mhat.winner),
-
-            OptimxMhatWinner = meanNA(optimx.Mhat.winner),
-            OptimxPropAgreeMhatWinner = meanNA(optimx.Pagree.Mhat.winner),
-            OptimxPropAgreeConvergersMhatWinner = meanNA(optimx.Pagree.of.convergers.Mhat.winner),
-
-            OptimxShatWinner = meanNA(optimx.Shat.winner),
-            OptimxPropAgreeShatWinner = meanNA(optimx.Pagree.Shat.winner),
-            OptimxPropAgreeConvergersShatWinner = meanNA(optimx.Pagree.of.convergers.Shat.winner),
+            # # ALSO COMMENTED OUT PART OF ANALYSIS.VARS ABOVE
+            # OptimConverged = meanNA(optim.converged),
+            # OptimxNConvergers = meanNA(optimx.Nconvergers),
+            # OptimxNAgreeOfConvergersMhatWinner = meanNA(optimx.Nagree.of.convergers.Mhat.winner),
+            # 
+            # OptimxMhatWinner = meanNA(optimx.Mhat.winner),
+            # OptimxPropAgreeMhatWinner = meanNA(optimx.Pagree.Mhat.winner),
+            # OptimxPropAgreeConvergersMhatWinner = meanNA(optimx.Pagree.of.convergers.Mhat.winner),
+            # 
+            # OptimxShatWinner = meanNA(optimx.Shat.winner),
+            # OptimxPropAgreeShatWinner = meanNA(optimx.Pagree.Shat.winner),
+            # OptimxPropAgreeConvergersShatWinner = meanNA(optimx.Pagree.of.convergers.Shat.winner),
             
             # static within scenario
             StanWarned = meanNA(stan.warned),
@@ -353,6 +353,7 @@ wrangle_agg_local = function(agg) {
                                             `runif(n = 1, min = 0.1, max = 3)` = "sei ~ U(0.1, 3)",
                                             `runif(n = 1, min = 1, max = 3)` = "sei ~ U(1, 3)",
                                             `rbeta(n = 1, 2, 5)` = "sei ~ Beta(2, 5)",
+                                            `0.02 + rexp(n = 1, rate = 3)` = "sei ~ Exp(3) + 0.02",
                                             
                                             # by default, retain original factor level
                                             .default = levels(agg$true.sei.expr) )

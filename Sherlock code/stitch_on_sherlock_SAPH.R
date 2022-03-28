@@ -119,6 +119,9 @@ setwd(path)
 source("helper_SAPH.R")
 source("analyze_sims_helper_SAPH.R")
 
+# if this says "problem with column OptimConverged", 
+#  you just need to comment out the optim columns in make_agg_data
+#  because you didn't run those methods
 agg = make_agg_data(s)
 
 setwd(.results.stitched.write.path)
@@ -131,11 +134,12 @@ cat("\n nuni(agg$scen.name) =", nuni(agg$scen.name) )
 agg %>% group_by(method) %>%
   summarise( mean(MhatEstFail),
              mean(MhatCIFail),
-             mean(MhatTestReject),
-             meanNA(OptimxNAgreeOfConvergersMhatWinner) )
+             mean(MhatTestReject)
+             #meanNA(OptimxNAgreeOfConvergersMhatWinner)
+             )
 
 
-##### Move to Desktop #####
+##### Move to Local #####
 
 # # stitched and agg -> local directory
 # scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/stitched_results/* /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Sherlock\ simulation\ results/Pilot\ simulations

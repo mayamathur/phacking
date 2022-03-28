@@ -210,10 +210,9 @@ summary(mod)
 Ynames = rev(MhatYNames)
 
 # alternatively, run just a subset:
-Ynames = c("MhatWidth", "MhatCover", "MLo", "MhatBias",
+Ynames = c("MhatWidth", "MhatCover", "MhatBias",
            # last 2 are useful for looking at MAON
-           #@LATER ADD MHATTESTREJECT :)
-           "Mhat", "MLo")
+           "Mhat", "MhatTestReject")
 
 #@temp if not running optimx:
 #Ynames = Ynames[3:11]
@@ -232,18 +231,14 @@ param.vars.manip2
 toDrop = c("jeffreys-mcmc-pmean", "jeffreys-mcmc-max-lp-iterate")
 method.keepers = all.methods[ !all.methods %in% toDrop ]
 
-# method.keepers = c("naive", "gold-std", "maon", "2psm", "pcurve", 
-#                    "jeffreys-mcmc-pmed", "jeffreys-sd", 
-#                    "jeffreys-var", "mle-sd", "csm-mle-sd", "mle-var", "2psm-csm-dataset", 
-#                    "prereg-naive")
 
 
 aggp = agg %>% filter(method %in% method.keepers &
                         Mu == 0.5 &
                         prob.hacked == 0.8 &
-                        hack == "affirm2")
+                        hack == "favor-best-affirm-wch")
 # to label the plots
-prefix = "hack=affirm2; pr.hack=0.8"
+prefix = "hack=favor-best; pr.hack=0.8"
 
 
 # for 2022-3-25 sims
