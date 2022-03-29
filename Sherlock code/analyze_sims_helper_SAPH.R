@@ -496,6 +496,215 @@ quick_5var_agg_plot = function(.Xname,
   # see helper_TNE::plot_by_n for how to specify the custom color scale
 }
 
+sim_plot_multiple_outcomes = function(.hack, .y.breaks = NULL) {
+  
+  .dat = agg
+  .dat$facetVar = paste( "t2a=", .dat$t2a, "; t2w=", .dat$t2w, sep = "")
+  
+  .dat = .dat %>% filter(method.pretty %in% method.keepers &
+                           Mu == 0.5 &
+                           true.sei.expr == "0.02 + rexp(n = 1, rate = 3)" &
+                           hack == .hack &
+                           facetVar %in% c("t2a=0; t2w=0",
+                                           "t2a=0.04; t2w=0.04",
+                                           "t2a=0.09; t2w=0.04",
+                                           "t2a=0.25; t2w=0.04") )
+  
+  # ~~ Make plot for each outcome in YNamesMain ------------
+  plotList = list()
+  
+  for ( .Yname in YnamesMain ) {
+    
+    i = which(YnamesMain == .Yname)
+    
+    .dat$Y = .dat[[.Yname]]
+    
+    
+    
+    # ~~ Set ggplot color palette ----
+    # to see all palettes:
+    # par(mar=c(3,4,2,2))
+    # display.brewer.all()
+    n.colors.needed = length(unique(.dat$method.pretty))
+    .colors = brewer.pal(n = n.colors.needed, name = "Dark2")
+    if( length(.colors) > n.colors.needed ) .colors = .colors[1:n.colors.needed]
+    # this maps the colors onto levels of the factor
+    names(.colors) = levels( factor(.dat$method.pretty) )
+    
+    # highlight certain methods
+    .colors[ names(.colors) == "RTMA" ] = "red"
+    
+    myColorScale = scale_colour_manual(values = .colors)
+    
+    
+    # ~~ Set ggplot linetype scale ----
+    # by default, dotted lines
+    # but use solid lines for new proposed methods
+    .lty = rep("dashed", nuni(.dat$method.pretty))
+    names(.lty) = names(.colors)
+    
+    newMethods = c("2PSM KH",
+                   "MAN",
+                   "RTMA")
+    
+    .lty[ names(.lty) %in% newMethods ] = "solid"
+    
+    myLtyScale = scale_linetype_manual(values = .lty)
+    
+    
+    # ~~ Set axis titles ---------
+    
+    # only label x-axis in last plot since they'll be combined
+    if ( .Yname == YnamesMain[ length(YnamesMain) ] ) {
+      .xlab = "Number of published nonaffirmative results"
+    } else {
+      .xlab = ""
+    }
+    
+    
+    .ylab = .Yname
+    if ( .Yname == "MhatBias" ) .ylab = "Bias"
+    if ( .Yname == "MhatCover" ) .ylab = "CI Coverage"
+    if ( .Yname == "MhatWidth" ) .ylab = "CI Width"
+    if ( .Yname == "MhatTestReject" ) .ylab = "Power"
+    
+    # ~ Make base plot ----------
+    p = ggplot( data = .dat,
+                aes( x = k.pub.nonaffirm,
+                     y = Y,
+                     color = method.pretty,
+                     lty = method.pretty) ) +
+      
+      #geom_point() +
+      
+      geom_line() +
+      
+      # manually provided colors
+      myColorScale +
+      
+      # manually provided linetypes
+      myLtyScale +
+      
+      # base_size controls all text sizes; default is 11
+      # https://ggplot2.tidyverse.org/reference/ggtheme.html
+      theme_bw(base_size = 20) +
+      
+      # use all values of
+      #scale_x_log10( breaks = unique(.dp$n) )
+      # use only some values
+      #scale_x_log10( breaks = c(500, 1000) ) +
+      
+      xlab(.xlab) +
+      scale_x_continuous( breaks = c(10, 40, 70, 100) ) +
+      
+      ylab(.ylab) +
+      guides( color = guide_legend(title = "Method") ) +
+      ggtitle("") +
+      theme_bw() +
+      theme( text = element_text(face = "bold")
+             # reduce whitespace for combined plot
+             # https://github.com/wilkelab/cowplot/issues/31
+             #plot.margin = unit(c(0, 0, 0, 0), "cm")
+      )
+    
+    # ~ Add reference lines ----------
+    if ( str_contains(x = .Yname, pattern = "Cover") ) {
+      p = p + geom_hline( yintercept = 0.95,
+                          lty = 2,
+                          color = "black" ) 
+      
+    }
+    
+    if ( str_contains(x = .Yname, pattern = "Bias") ) {
+      p = p + geom_hline( yintercept = 0,
+                          lty = 2,
+                          color = "black" ) 
+      
+    }
+    
+    # ~ Add facetting ----------
+    # this block needs to be after adding geom_hlines so that the lines obey the facetting
+    p = p + facet_wrap( ~ facetVar,
+                        ncol = length( unique(.dat$facetVar) ) ) 
+    
+    
+    
+    # ~ Set Y-axis breaks ----------
+    # other outcomes follow rules or can just use default axis breaks
+    # y.breaks are only still null if none of the above applied
+    if ( is.null(.y.breaks) ) {
+      # set default breaks
+      if ( grepl(pattern = "Cover", .Yname) ){
+        y.breaks = seq(0, 1, .1)
+        
+      } else if ( grepl(pattern = "Bias", .Yname) ){
+        y.breaks = seq(-0.4, 0.4, .2)
+        
+      } else if ( grepl(pattern = "Width", .Yname) ){
+        y.breaks = seq(0, 2, .5)
+        
+      } else if ( grepl(pattern = "Reject", .Yname) ){
+        y.breaks = seq(0, 1, .1)
+        
+      }else {
+        # otherwise keep the default limits from ggplot
+        y.breaks = ggplot_build(p)$layout$panel_params[[1]]$y$breaks
+      }
+    } # end "if ( is.null(.y.breaks) )"
+    
+    
+    # if user provided their own y.breaks
+    if ( !is.null(.y.breaks) ) {
+      y.breaks = .y.breaks
+    }
+    
+    
+    # use coord_cartesian so that lines/points that go outside limits look cut off
+    #  rather than completely omitted
+    p = p + coord_cartesian( ylim = c( min(y.breaks), max(y.breaks) ) ) +
+      scale_y_continuous( breaks = y.breaks )
+    
+    
+    # ~ Handle legend ----------------
+    # combine legends into one
+    p = p + labs(color  = "Method", linetype = "Method")
+    
+    # only show legend in the last plot since they'll be combined
+    if ( .Yname == YnamesMain[ length(YnamesMain) ] ) {
+      p = p + theme(legend.position = "bottom")
+    } else {
+      p = p + theme(legend.position = "none")
+    }
+    
+    plotList[[i]] = p
+  }  # end "for ( Y in YnamesMain )"
+  
+  
+  
+  # ~~ Nicely arrange plots as columns ------------
+  
+  # give extra space to last one to accommodate y-axis label
+  nOutcomes = length(YnamesMain)
+  # if nOutcomes = 4, use 1.5 in last slot here
+  rel.heights = c(rep(1, nOutcomes-1), 1.3)
+  pCombined = cowplot::plot_grid(plotlist = plotList,
+                                 nrow = nOutcomes,
+                                 rel_heights = rel.heights)
+  pCombined
+  
+  # ~~ Save plot ------------
+  name = paste( tolower(.hack),
+                "_Mu0.5.pdf",
+                sep = "" )
+  
+  my_ggsave( name = name,
+             .width = 8,
+             .height = 11,
+             .results.dir = NA,
+             .overleaf.dir = overleaf.dir )
+  
+} 
+
 
 # GENERIC SMALL HELPERS -------------------------------------------------------------
 
