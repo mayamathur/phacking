@@ -2168,22 +2168,6 @@ add_method_result_row = function(repRes = NA,
 }
 
 
-my_ggsave = function(name,
-                     width,
-                     height,
-                     .results.dir = results.dir,
-                     .overleaf.dir = overleaf.dir) {
-  setwd(.results.dir)
-  ggsave( name,
-          width = width, 
-          height = height)
-  
-  setwd(.overleaf.dir)
-  ggsave( name,
-          width = width, 
-          height = height)
-}
-
 
 # quickly look at results when running doParallel locally
 srr = function() {

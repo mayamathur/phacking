@@ -203,13 +203,13 @@ n.files
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
 
-sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/2.sbatch
+sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/2235.sbatch
 
 
 # 2400
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 2001:2400) {
+for (i in 2235:2235) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 

@@ -51,8 +51,9 @@ data.dir = str_replace( string = here(),
 
 results.dir = data.dir
 
-# overleaf.dir.general = "/Users/mmathur/Dropbox/Apps/Overleaf/TNE (truncated normal estimation)/R_objects"
-# overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/TNE (truncated normal estimation)/R_objects/figures"
+overleaf.dir = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/figures_SAPH"
+
+
 
 setwd(code.dir)
 source("helper_SAPH.R")
@@ -62,24 +63,20 @@ source("analyze_sims_helper_SAPH.R")
 
 # ~~ Get iterate-level data -------------------------
 
-setwd(data.dir)
-# check when the dataset was last modified to make sure we're working with correct version
-# MAY TAKE A LONG TIME!
-#s = fread( "stitched.csv")
-
-file.info("stitched.csv")$mtime
-
-dim(s)
-nuni(s$scen.name)
-
-#**Check for MCMC errors and similar
-#*# frequent errors for both jeffreys-var and mle-var, but not the corresponding SD param'zations
-s %>% group_by(method) %>%
-  summarise( meanNA(is.na(Mhat)))
-
-# # look at errors
-# unique( s$overall.error[ s$method == "jeffreys-var"] )
-# table(s$method, s$overall.error)
+# setwd(data.dir)
+# # check when the dataset was last modified to make sure we're working with correct version
+# # MAY TAKE A LONG TIME!
+# #s = fread( "stitched.csv")
+# 
+# file.info("stitched.csv")$mtime
+# 
+# dim(s)
+# nuni(s$scen.name)
+# 
+# #**Check for MCMC errors and similar
+# #*# frequent errors for both jeffreys-var and mle-var, but not the corresponding SD param'zations
+# s %>% group_by(method) %>%
+#   summarise( meanNA(is.na(Mhat)))
 
 
 # ~~ Get agg data -------------------------
@@ -136,13 +133,6 @@ if ( "t2a" %in% param.vars.manip ) param.vars.manip = drop_vec_elements( param.v
 
 
 ( param.vars.manip2 = drop_vec_elements(param.vars.manip, "method") )
-
-
-# # sanity check: SDs of all analysis variables should be 0 within unique scenarios
-# t = data.frame( s3 %>% group_by(unique.scen) %>%
-#                   summarise_at( analysis.vars, sd ) )
-
-
 
 
 
@@ -204,7 +194,7 @@ summary(mod)
 # -	k.pub.nonaffirm doesn’t matter
 
 
-# ******** PLOTS -------------------------
+# ******** PLOTS (BIG AND NOT PRETTIFIED) -------------------------
 
 
 Ynames = rev(MhatYNames)
@@ -235,10 +225,11 @@ method.keepers = all.methods[ !all.methods %in% toDrop ]
 
 aggp = agg %>% filter(method %in% method.keepers &
                         Mu == 0.5 &
-                        prob.hacked == 0.8 &
                         hack == "favor-best-affirm-wch")
 # to label the plots
-prefix = "hack=favor-best; pr.hack=0.8"
+prefix = "2022-3-27; Mu=0.5; hack=favor-best"
+# temporarily set wd
+results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Sherlock simulation results/Pilot simulations/*2022-3-27 full set/Mu=0.5/hack=favor-best"
 
 
 # for 2022-3-25 sims
@@ -318,6 +309,272 @@ for ( Yname in Ynames) {
 }
 
 
+# ******** PLOTS (SIMPLE AND PRETTY FOR MAIN TEXT) -------------------------
+
+# Online only:
+#  - plotlys with both true.sei.expr
+#  - Mu=0 cases
+#  - All outcome vars, including Shat, Rhat, etc.
+
+# Main text (2 full-page figures):
+# - Mu=0.5
+# - true.sei.expr = "0.02 + rexp(n = 1, rate = 3)" only
+# - hack=favor-best and affirm2
+
+# Supplement: 
+# - counterpart to main text figure for hack=affirm
+
+# for each hack type, arrange plots so each facet row is an outcome
+
+( all.methods = unique(agg$method.pretty) )
+( method.keepers = all.methods[ !is.na(all.methods) &
+                                  all.methods != "Gold standard"] )
+
+
+
+# outcomes to show in main-text figures
+YnamesMain = c("MhatBias", "MhatCover", "MhatWidth", "MhatTestReject")
+
+
+# this dataset will be one full-page figure in main text or Supp depending on hack type
+
+
+
+sim_plot_main_text = function(.hack) {
+  # TEST ONLY
+  .hack = "favor-best-affirm-wch"
+  .y.breaks = NULL
+  
+  .dat = agg %>% filter(method.pretty %in% method.keepers &
+                          Mu == 0.5 &
+                          true.sei.expr == "0.02 + rexp(n = 1, rate = 3)" &
+                          hack == .hack)
+  
+  # ~~ Make plot for each outcome in YNamesMain ------------
+  plotList = list()
+  
+  for ( .Yname in YnamesMain ) {
+    
+    i = which(YnamesMain == .Yname)
+    
+    .dat$Y = .dat[[.Yname]]
+    .dat$facetVar = paste( "t2a=", .dat$t2a, "; t2w=", .dat$t2w, sep = "")
+    
+    
+    # ~~ Set ggplot color palette ----
+    # to see all palettes:
+    # par(mar=c(3,4,2,2))
+    # display.brewer.all()
+    n.colors.needed = length(unique(.dat$method.pretty))
+    .colors = brewer.pal(n = n.colors.needed, name = "Dark2")
+    if( length(.colors) > n.colors.needed ) .colors = .colors[1:n.colors.needed]
+    # this maps the colors onto levels of the factor
+    names(.colors) = levels( factor(.dat$method.pretty) )
+    
+    # highlight certain methods
+    .colors[ names(.colors) == "RTMA" ] = "red"
+    
+    myColorScale = scale_colour_manual(values = .colors)
+    
+    
+    # ~~ Set ggplot linetype scale ----
+    # by default, dotted lines
+    # but use solid lines for new proposed methods
+    .lty = rep("dashed", nuni(.dat$method.pretty))
+    names(.lty) = names(.colors)
+    
+    newMethods = c("2PSM KH",
+                   "MAN",
+                   "RTMA")
+    
+    .lty[ names(.lty) %in% newMethods ] = "solid"
+    
+    myLtyScale = scale_linetype_manual(values = .lty)
+    
+    
+    # ~~ Set axis titles ---------
+    
+    # only label x-axis in last plot since they'll be combined
+    if ( .Yname == YnamesMain[ length(YnamesMain) ] ) {
+      .xlab = "Number of published nonaffirmative results"
+    } else {
+      .xlab = ""
+    }
+    
+  
+    .ylab = .Yname
+    if ( .Yname == "MhatBias" ) .ylab = "Bias"
+    if ( .Yname == "MhatCover" ) .ylab = "CI Coverage"
+    if ( .Yname == "MhatWidth" ) .ylab = "CI Width"
+    if ( .Yname == "MhatTestReject" ) .ylab = "Power"
+    
+    # ~ Make base plot ----------
+    p = ggplot( data = .dat,
+                aes( x = k.pub.nonaffirm,
+                     y = Y,
+                     color = method.pretty,
+                     lty = method.pretty) ) +
+      
+      #geom_point() +
+      
+      geom_line(lwd = 0.8) +
+      
+      # manually provided colors
+      myColorScale +
+      
+      # manually provided linetypes
+      myLtyScale +
+      
+      # base_size controls all text sizes; default is 11
+      # https://ggplot2.tidyverse.org/reference/ggtheme.html
+      theme_bw(base_size = 25) +
+      
+      # use all values of
+      #scale_x_log10( breaks = unique(.dp$n) )
+      # use only some values
+      #scale_x_log10( breaks = c(500, 1000) ) +
+      
+      xlab(.xlab) +
+      #scale_x_continuous( breaks = c(10, 20, 50, 100) ) +
+      scale_x_continuous( breaks = c(10, 40, 70, 100) ) +
+      
+      ylab(.ylab) +
+      guides( color = guide_legend(title = "Method") ) +
+      ggtitle("") +
+      theme_bw() +
+      theme( text = element_text(face = "bold") )
+    
+    # ~ Add reference lines ----------
+    if ( str_contains(x = .Yname, pattern = "Cover") ) {
+      p = p + geom_hline( yintercept = 0.95,
+                          lty = 2,
+                          color = "black" ) 
+      
+    }
+    
+    if ( str_contains(x = .Yname, pattern = "Bias") ) {
+      p = p + geom_hline( yintercept = 0,
+                          lty = 2,
+                          color = "black" ) 
+      
+    }
+    
+    # ~ Add facetting ----------
+    # this block needs to be after adding geom_hlines so that the lines obey the facetting
+    p = p + facet_wrap( ~ facetVar,
+                        ncol = length( unique(.dat$facetVar) ) ) 
+    
+    
+    
+    # ~ Set Y-axis breaks ----------
+    # other outcomes follow rules or can just use default axis breaks
+    # y.breaks are only still null if none of the above applied
+    if ( is.null(.y.breaks) ) {
+      # set default breaks
+      if ( grepl(pattern = "Cover", .Yname) ){
+        y.breaks = seq(0.5, 1, .1)
+        
+      } else if ( grepl(pattern = "Bias", .Yname) ){
+        y.breaks = seq(-0.5, 0.5, .1)
+        
+      } else if ( grepl(pattern = "Width", .Yname) ){
+        y.breaks = seq(0, 3, .25)
+        
+      } else if ( grepl(pattern = "Reject", .Yname) ){
+        y.breaks = seq(0, 1, .1)
+        
+      }else {
+        # otherwise keep the default limits from ggplot
+        y.breaks = ggplot_build(p)$layout$panel_params[[1]]$y$breaks
+      }
+    } # end "if ( is.null(.y.breaks) )"
+    
+    
+    # if user provided their own y.breaks
+    if ( !is.null(.y.breaks) ) {
+      y.breaks = .y.breaks
+    }
+    
+    
+    # use coord_cartesian so that lines/points that go outside limits look cut off
+    #  rather than completely omitted
+    p = p + coord_cartesian( ylim = c( min(y.breaks), max(y.breaks) ) ) +
+      scale_y_continuous( breaks = y.breaks )
+    
+    
+    # ~ Handle legend ----------------
+    # combine legends into one
+    p = p + labs(color  = "Method", linetype = "Method")
+    
+    # only show legend in the last plot since they'll be combined
+    if ( .Yname == YnamesMain[ length(YnamesMain) ] ) {
+      p = p + theme(legend.position = "bottom")
+    } else {
+      p = p + theme(legend.position = "none")
+    }
+    
+    plotList[[i]] = p
+  }  # end "for ( Y in YnamesMain )"
+  
+  
+  
+  # ~~ Nicely arrange plots as columns ------------
+  
+  # give extra space to leftmost one to accommodate y-axis labels
+  # to check the width of these, export pCombined at dimensions 7 x 12.3
+  # rel.width = 1
+  # if ( nOutcomes == 4 ) rel.width = 1.6
+  # if ( nOutcomes == 3 ) rel.width = 1.5
+  # if ( nOutcomes == 2 ) rel.width = 1.8
+  # 
+  # nOutcomes = length(YnamesMain)
+  # pCombined = cowplot::plot_grid(plotlist = plotList,
+  #                                #align = "v",
+  #                                nrow = nOutcomes,
+  #                                
+  #                                rel_widths = c(rel.width, rep(1, nOutcomes - 1) ) )
+  # 
+  # pCombined
+  
+  
+  nOutcomes = length(YnamesMain)
+  pCombined = cowplot::plot_grid(plotlist = plotList,
+                                 nrow = nOutcomes,
+                                 rel_heights = c(1,1,1,1.5))
+  pCombined
+  
+  # # ~~ Save plot ------------
+  # 
+  # name = paste( tolower(.estName),
+  #               "_",
+  #               .outcomeType,
+  #               "_summaryplot.pdf",
+  #               sep = "" )
+  # 
+  # widthCoef = .6  # controls aspect ratio (larger = more flat; smaller = more tall)
+  # height = 7
+  # 
+  
+  
+  #bm :)
+  my_ggsave( name = "favor-best_Mu0.5.pdf",
+             .width = 11,
+             .height = 8,
+             .results.dir = NA,
+             .overleaf.dir = overleaf.dir )
+  # 
+  # # 
+  # # if ( .writePlot == TRUE ) {
+  # #   my_ggsave( name = paste(.Y, "_plot.pdf", sep=""),
+  # #              .width = 10,
+  # #              .height = 10,
+  # #              .results.dir = .results.dir,
+  # #              .overleaf.dir.general = NA )
+  # # }
+  
+  
+} 
+
 
 
 # EFFECT OF SCEN PARAMS ON DATASETS -------------------------
@@ -374,7 +631,6 @@ agg %>% filter( true.sei.expr == "0.1 + rexp(n = 1, rate = 1.5)" &
 data.frame( t.affirm %>% filter(scen.name == 32 ) )
 
 data.frame( t.nonaffirm %>% filter(scen.name == 32 ) )
-#bm
 #***VERY INTERESTING THAT IN SCEN 32, THE 2PSM IS BIASED DOWNWARD, YET
 # mean.yi.hacked affirm is LARGER in hacked studies than unhacked (2 vs. 1.51)
 
@@ -489,8 +745,6 @@ summary(x2); sd(x2)
 hist(x1)
 hist(x2)
 
-#BM: IDEA TO HELP DIAGNOSE:
-# Add back the previous sei.expr 
 
 # PROBABLY UNUSED (MOVE TO NEW FILE?) -------------------------
 

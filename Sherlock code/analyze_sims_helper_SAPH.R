@@ -314,33 +314,35 @@ make_agg_data = function( .s,
 wrangle_agg_local = function(agg) {
   ##### Make New Variables At Scenario Level ##### 
   # label methods more intelligently for use in plots
-  agg$method.pretty.est = NA
-  agg$method.pretty.est[ agg$method == c("naive") ] = "Naive"
-  agg$method.pretty.est[ agg$method == c("gold-std") ] = "Gold standard"
-  agg$method.pretty.est[ agg$method == c("maon") ] = "MAON"
-  agg$method.pretty.est[ agg$method == c("2PSM") ] = "2PSM"
-  agg$method.pretty.est[ agg$method %in% c("jeffreys-sd") ] = "Jeffreys-SD mode"
-  agg$method.pretty.est[ agg$method %in% c("jeffreys-var") ] = "Jeffreys-var mode"
-  agg$method.pretty.est[ agg$method %in% c("jeffreys-mcmc-pmed") ] = "Jeffreys-SD median"
-  agg$method.pretty.est[ agg$method %in% c("jeffreys-mcmc-pmean") ] = "Jeffreys-SD mean"
-  agg$method.pretty.est[ agg$method %in% c("jeffreys-mcmc-max-lp-iterate") ] = "Jeffreys-SD maxLP"
-  agg$method.pretty.est[ agg$method == c("mle-sd") ] = "MLE-sd"
-  agg$method.pretty.est[ agg$method == c("mle-var") ] = "MLE-var"
-  table(agg$method, agg$method.pretty.est)
+  agg$method.pretty = NA
+  agg$method.pretty[ agg$method == c("naive") ] = "Uncorrected"
+  agg$method.pretty[ agg$method == c("gold-std") ] = "Gold standard"
+  agg$method.pretty[ agg$method == c("maon") ] = "MAN"
+  agg$method.pretty[ agg$method == c("2psm") ] = "2PSM"
+  agg$method.pretty[ agg$method == c("2psm-csm-dataset") ] = "2PSM KH" # "known hacking"
+  agg$method.pretty[ agg$method == c("prereg-naive") ] = "Unhacked only"
+  agg$method.pretty[ agg$method %in% c("jeffreys-mcmc-pmed") ] = "RTMA"
+  # agg$method.pretty[ agg$method %in% c("jeffreys-sd") ] = "Jeffreys-SD mode"
+  # agg$method.pretty[ agg$method %in% c("jeffreys-var") ] = "Jeffreys-var mode"
+  # agg$method.pretty[ agg$method %in% c("jeffreys-mcmc-pmean") ] = "Jeffreys-SD mean"
+  # agg$method.pretty[ agg$method %in% c("jeffreys-mcmc-max-lp-iterate") ] = "Jeffreys-SD maxLP"
+  # agg$method.pretty[ agg$method == c("mle-sd") ] = "MLE-sd"
+  # agg$method.pretty[ agg$method == c("mle-var") ] = "MLE-var"
+  table(agg$method, agg$method.pretty)
   
   
-  agg$method.pretty.inf = NA
-  agg$method.pretty.inf[ agg$method == c("naive") ] = "Naive"
-  agg$method.pretty.inf[ agg$method == c("gold-std") ] = "Gold standard"
-  agg$method.pretty.inf[ agg$method == c("maon") ] = "MAON"
-  agg$method.pretty.inf[ agg$method == c("2PSM") ] = "2PSM"
-  agg$method.pretty.inf[ agg$method %in% c("jeffreys-sd") ] = "Jeffreys-SD mode Wald"
-  agg$method.pretty.inf[ agg$method %in% c("jeffreys-var") ] = "Jeffreys-var mode Wald"
-  agg$method.pretty.inf[ agg$method %in% c("jeffreys-mcmc-pmed", "jeffreys-mcmc-pmean", "jeffreys-mcmc-max-lp-iterate") ] = "Jeffreys posterior quantiles"
-  agg$method.pretty.inf[ agg$method == c("mle-sd") ] = "MLE-sd Wald"
-  agg$method.pretty.inf[ agg$method == c("mle-var") ] = "MLE-var Wald"
-  
-  table(agg$method, agg$method.pretty.inf)
+  # agg$method.pretty.inf = NA
+  # agg$method.pretty.inf[ agg$method == c("naive") ] = "Naive"
+  # agg$method.pretty.inf[ agg$method == c("gold-std") ] = "Gold standard"
+  # agg$method.pretty.inf[ agg$method == c("maon") ] = "MAON"
+  # agg$method.pretty.inf[ agg$method == c("2PSM") ] = "2PSM"
+  # agg$method.pretty.inf[ agg$method %in% c("jeffreys-sd") ] = "Jeffreys-SD mode Wald"
+  # agg$method.pretty.inf[ agg$method %in% c("jeffreys-var") ] = "Jeffreys-var mode Wald"
+  # agg$method.pretty.inf[ agg$method %in% c("jeffreys-mcmc-pmed", "jeffreys-mcmc-pmean", "jeffreys-mcmc-max-lp-iterate") ] = "Jeffreys posterior quantiles"
+  # agg$method.pretty.inf[ agg$method == c("mle-sd") ] = "MLE-sd Wald"
+  # agg$method.pretty.inf[ agg$method == c("mle-var") ] = "MLE-var Wald"
+  # 
+  # table(agg$method, agg$method.pretty.inf)
   
 
   agg$true.sei.expr = as.factor(agg$true.sei.expr)
@@ -531,9 +533,9 @@ my_ggsave = function(name,
                      .width,
                      .height,
                      .results.dir = results.dir,
-                     .overleaf.dir.general = overleaf.dir) {
+                     .overleaf.dir = overleaf.dir) {
   
-  dirs = c(.results.dir, .overleaf.dir.general)
+  dirs = c(.results.dir, .overleaf.dir)
   dirIsNA = sapply(dirs, is.na)
   validDirs = dirs[ !dirIsNA ]
   
