@@ -993,9 +993,22 @@ table(rs$method)
 # use NAs for additional methods so that the SUM of the rep times will be the
 #  total computational time
 nMethods = length( unique(rs$method) )
+
+#bm
+print(nMethods)
+print(unique(rs$method))
+table(rs$method)
+
+print(nrow(rs))
+
 rs$doParallel.seconds = doParallel.seconds
-rs$rep.seconds = rep( c( doParallel.seconds / sim.reps,
-                         rep( NA, nMethods - 1 ) ), sim.reps )
+
+
+rs$rep.seconds = doParallel.seconds/sim.reps
+rs$rep.seconds[ rs$method != unique(rs$method)[1] ] = NA
+
+#rs$rep.seconds = rep( c( doParallel.seconds / sim.reps,
+#                         rep( NA, nMethods - 1 ) ), sim.reps )
 
 expect_equal( as.numeric( sum(rs$rep.seconds, na.rm = TRUE) ),
               as.numeric(doParallel.seconds) )

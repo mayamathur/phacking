@@ -220,12 +220,12 @@ for (i in 2001:2400) {
 # run in Sherlock ml load R
 path = "/home/groups/manishad/SAPH"
 setwd(path)
-source("functions_SAPH.R")
+source("helper_SAPH.R")
 
 missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
                               "/home/groups/manishad/SAPH/long_results",
                               .name.prefix = "long_results",
-                              .max.sbatch.num = 1920 )
+                              .max.sbatch.num = 2400 )
 
 
 
