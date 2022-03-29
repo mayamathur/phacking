@@ -331,9 +331,12 @@ for ( Yname in Ynames) {
                                   all.methods != "Gold standard"] )
 
 
+# outcomes to show in main text figures
+YnamesMain = c("MhatBias", "MhatCover", "MhatWidth")
 
-# outcomes to show in main-text figures
-YnamesMain = c("MhatBias", "MhatCover", "MhatWidth", "MhatTestReject")
+# outcomes to show in supplement figures
+YnamesSupp = c("MhatBias", "MhatCover", "MhatWidth",
+               "MhatTestReject")
 
 
 # this dataset will be one full-page figure in main text or Supp depending on hack type
@@ -427,7 +430,7 @@ sim_plot_main_text = function(.hack) {
       
       # base_size controls all text sizes; default is 11
       # https://ggplot2.tidyverse.org/reference/ggtheme.html
-      theme_bw(base_size = 25) +
+      theme_bw(base_size = 20) +
       
       # use all values of
       #scale_x_log10( breaks = unique(.dp$n) )
@@ -442,7 +445,11 @@ sim_plot_main_text = function(.hack) {
       guides( color = guide_legend(title = "Method") ) +
       ggtitle("") +
       theme_bw() +
-      theme( text = element_text(face = "bold") )
+      theme( text = element_text(face = "bold")
+             # reduce whitespace for combined plot
+             # https://github.com/wilkelab/cowplot/issues/31
+             #plot.margin = unit(c(0, 0, 0, 0), "cm")
+             )
     
     # ~ Add reference lines ----------
     if ( str_contains(x = .Yname, pattern = "Cover") ) {
@@ -475,10 +482,10 @@ sim_plot_main_text = function(.hack) {
         y.breaks = seq(0.5, 1, .1)
         
       } else if ( grepl(pattern = "Bias", .Yname) ){
-        y.breaks = seq(-0.5, 0.5, .1)
+        y.breaks = seq(-0.4, 0.4, .2)
         
       } else if ( grepl(pattern = "Width", .Yname) ){
-        y.breaks = seq(0, 3, .25)
+        y.breaks = seq(0, 2, .5)
         
       } else if ( grepl(pattern = "Reject", .Yname) ){
         y.breaks = seq(0, 1, .1)
@@ -501,7 +508,7 @@ sim_plot_main_text = function(.hack) {
     p = p + coord_cartesian( ylim = c( min(y.breaks), max(y.breaks) ) ) +
       scale_y_continuous( breaks = y.breaks )
     
-    
+
     # ~ Handle legend ----------------
     # combine legends into one
     p = p + labs(color  = "Method", linetype = "Method")
@@ -536,11 +543,12 @@ sim_plot_main_text = function(.hack) {
   # 
   # pCombined
   
-  
   nOutcomes = length(YnamesMain)
+  # if nOutcomes = 4, use 1.5 in last slot here
+  rel.heights = c(rep(1, nOutcomes-1), 1.3)
   pCombined = cowplot::plot_grid(plotlist = plotList,
                                  nrow = nOutcomes,
-                                 rel_heights = c(1,1,1,1.5))
+                                 rel_heights = rel.heights)
   pCombined
   
   # # ~~ Save plot ------------

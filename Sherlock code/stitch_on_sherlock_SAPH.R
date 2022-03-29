@@ -91,10 +91,10 @@ any(is.na(names(s)))
 if ( any(is.na(names(s))) ) {
   NA.names = which( is.na(names(s) ) )
   s = s[ , -NA.names ]
+  
 }
 
 s = s %>% filter(!is.na(scen.name))
-
 
 # ~ Write stitched.csv ---------------------------
 
