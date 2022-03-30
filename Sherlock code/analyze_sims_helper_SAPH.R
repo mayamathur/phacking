@@ -479,7 +479,7 @@ quick_5var_agg_plot = function(.Xname,
   #  rather than completely omitted
   p = p + coord_cartesian( ylim = c( min(y.breaks), max(y.breaks) ) ) +
     scale_y_continuous( breaks = y.breaks )
-  
+   
   if ( .writePlot == TRUE ) {
     my_ggsave( name = paste(.Y, "_plot.pdf", sep=""),
                .width = 10,
