@@ -222,14 +222,14 @@ toDrop = c("jeffreys-mcmc-pmean", "jeffreys-mcmc-max-lp-iterate")
 method.keepers = all.methods[ !all.methods %in% toDrop ]
 
 
-
+.hack = "affirm2"
 aggp = agg %>% filter(method %in% method.keepers &
                         Mu == 0.5 &
-                        hack == "favor-best-affirm-wch")
+                        hack == .hack)
 # to label the plots
-prefix = "2022-3-27; Mu=0.5; hack=favor-best"
+prefix = paste( "2022-3-27; Mu=0.5; hack=", .hack, sep = "")
 # temporarily set wd
-results.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Sherlock simulation results/Pilot simulations/*2022-3-27 full set/Mu=0.5/hack=favor-best"
+results.dir = paste("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Sherlock simulation results/Pilot simulations/*2022-3-27 full set/Mu=0.5/hack=", .hack, sep = "")
 
 
 # for 2022-3-25 sims
@@ -252,7 +252,7 @@ for ( Yname in Ynames) {
   
   p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
                           .Yname = Yname,
-                          .colorVarName = "method",
+                          .colorVarName = "method.pretty",
                           #.facetVar1Name = "tempFacetVar1",
                           .facetVar1Name = "true.sei.expr.pretty",
                           .facetVar2Name = "tempFacetVar2",
