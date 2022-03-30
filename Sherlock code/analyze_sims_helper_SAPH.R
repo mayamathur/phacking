@@ -496,7 +496,9 @@ quick_5var_agg_plot = function(.Xname,
   # see helper_TNE::plot_by_n for how to specify the custom color scale
 }
 
-sim_plot_multiple_outcomes = function(.hack, .y.breaks = NULL) {
+sim_plot_multiple_outcomes = function(.hack,
+                                      .y.breaks = NULL,
+                                      .ggtitle = "") {
   
   .dat = agg
   .dat$facetVar = paste( "t2a=", .dat$t2a, "; t2w=", .dat$t2w, sep = "")
@@ -505,7 +507,7 @@ sim_plot_multiple_outcomes = function(.hack, .y.breaks = NULL) {
                            Mu == 0.5 &
                            true.sei.expr == "0.02 + rexp(n = 1, rate = 3)" &
                            hack == .hack &
-                           facetVar %in% c("t2a=0; t2w=0",
+                           facetVar %in% c("t2a=0.04; t2w=0",
                                            "t2a=0.04; t2w=0.04",
                                            "t2a=0.09; t2w=0.04",
                                            "t2a=0.25; t2w=0.04") )
@@ -564,8 +566,8 @@ sim_plot_multiple_outcomes = function(.hack, .y.breaks = NULL) {
     
     .ylab = .Yname
     if ( .Yname == "MhatBias" ) .ylab = "Bias"
-    if ( .Yname == "MhatCover" ) .ylab = "CI Coverage"
-    if ( .Yname == "MhatWidth" ) .ylab = "CI Width"
+    if ( .Yname == "MhatCover" ) .ylab = "CI coverage"
+    if ( .Yname == "MhatWidth" ) .ylab = "CI width"
     if ( .Yname == "MhatTestReject" ) .ylab = "Power"
     
     # ~ Make base plot ----------
@@ -599,7 +601,6 @@ sim_plot_multiple_outcomes = function(.hack, .y.breaks = NULL) {
       
       ylab(.ylab) +
       guides( color = guide_legend(title = "Method") ) +
-      ggtitle("") +
       theme_bw() +
       theme( text = element_text(face = "bold")
              # reduce whitespace for combined plot
@@ -664,6 +665,13 @@ sim_plot_multiple_outcomes = function(.hack, .y.breaks = NULL) {
     p = p + coord_cartesian( ylim = c( min(y.breaks), max(y.breaks) ) ) +
       scale_y_continuous( breaks = y.breaks )
     
+    
+    # ~ Handle ggtitle ----------------
+    
+    # only show title in the first plot since they'll be combined
+    if ( i == 1 ) {
+      p = p + ggtitle(.ggtitle)
+    }
     
     # ~ Handle legend ----------------
     # combine legends into one

@@ -341,10 +341,15 @@ YnamesSupp = c("MhatBias", "MhatCover", "MhatWidth",
 
 # this dataset will be one full-page figure in main text or Supp depending on hack type
 
+#bm
+sim_plot_multiple_outcomes(.hack = "favor-best-affirm-wch",
+                           .ggtitle = bquote( "Worst-case hacking, favoring best affirmative; " ~ mu ~ "= 0.5" ) )
+                           
+sim_plot_multiple_outcomes(.hack = "affirm",
+                           .ggtitle = bquote( "Worst-case hacking, favoring first affirmative; " ~ mu ~ "= 0.5" ))
 
-sim_plot_multiple_outcomes(.hack = "favor-best-affirm-wch")
-sim_plot_multiple_outcomes(.hack = "affirm")
-sim_plot_multiple_outcomes(.hack = "affirm2")
+sim_plot_multiple_outcomes(.hack = "affirm2",
+                           .ggtitle = bquote( "Limited hacking, favoring first affirmative or last nonaffirmative; " ~ mu ~ "= 0.5" ) )
 
 
 
