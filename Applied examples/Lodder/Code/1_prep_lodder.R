@@ -2,12 +2,7 @@
 
 # PRELIMINARIES ---------------------------------------------
 
-#@SPECIFIC TO LODDER
-root.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (git)/Applied examples/Lodder"
-results.dir = paste(root.dir, "Prepped data", sep = "/")
-
-# ~~ Load Data and Packages -----------------------------------------------
-
+# ~ Load Data and Packages -----------------------------------------------
 
 toLoad = c("crayon",
            "dplyr",
@@ -41,13 +36,15 @@ lapply( toLoad,
 
 
 # helper fns
-code.dir = here("Sherlock code")
-setwd(code.dir)
+general.code.dir = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Linked to OSF (SAPH)/Code (git)/Sherlock code"
+
+setwd(general.code.dir)
 source("helper_SAPH.R")
 
 
 # dataset
-setwd(root.dir)
+raw.data.dir = here("Dataset from their repo")
+setwd(raw.data.dir)
 # for codebook, see the second sheet of xlsx file
 # from their script b/c format is weird:
 dp <-read.xlsx("MoneyPrimingMetaAnalysis_Dataset_FINAL_correction2.xlsx",sheetName="values",keepformulas=FALSE,startRow=2,header=T)
@@ -85,7 +82,7 @@ dp = dp %>% filter( !is.na(yi) & !is.na(vi) )
 
 
 
-setwd(results.dir)
+setwd( here("Prepped data") )
 fwrite(dp, "lodder_prepped.csv")
 
 
