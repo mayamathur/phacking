@@ -506,10 +506,9 @@ sim_plot_multiple_outcomes = function(.hack,
   
   .dat = .dat %>% filter(method.pretty %in% method.keepers &
                            Mu == 0.5 &
-                           
-                           #@TEMP: CHANGED THIS
-                           #true.sei.expr == "0.02 + rexp(n = 1, rate = 3)" &
-                           true.sei.expr.pretty == "sei from Lodder" &
+
+                           true.sei.expr == "0.02 + rexp(n = 1, rate = 3)" &
+                        
                            hack == .hack &
                            facetVar %in% c("t2a=0.04; t2w=0",
                                            "t2a=0.04; t2w=0.04",

@@ -83,29 +83,29 @@ source("analyze_sims_helper_SAPH.R")
 # ~~ Get agg data -------------------------
 
 # if only analyzing a single set of sims (no merging):
-# setwd(data.dir)
-# agg = fread( "agg.csv")
+setwd(data.dir)
+agg = fread( "agg.csv")
+# check when the dataset was last modified to make sure we're working with correct version
+file.info("agg.csv")$mtime
+
+
+# ### Merge two sets of sim results
+# 
+# # 2022-3-27 sims:
+# setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Linked to OSF (SAPH)/Sherlock simulation results/Pilot simulations/*2022-3-27 full set")
+# agg1 = fread( "agg.csv")
 # # check when the dataset was last modified to make sure we're working with correct version
 # file.info("agg.csv")$mtime
-
-
-### Merge two sets of sim results
-
-# 2022-3-27 sims:
-setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Linked to OSF (SAPH)/Sherlock simulation results/Pilot simulations/*2022-3-27 full set")
-agg1 = fread( "agg.csv")
-# check when the dataset was last modified to make sure we're working with correct version
-file.info("agg.csv")$mtime
-
-# 2022-4-1 sims:
-setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Linked to OSF (SAPH)/Sherlock simulation results/Pilot simulations/*2022-4-1 full set with Lodder SEs/Datasets before merging with 2022-3-27")
-agg2 = fread( "agg.csv")
-# check when the dataset was last modified to make sure we're working with correct version
-file.info("agg.csv")$mtime
-
-# merge them
-dim(agg1); dim(agg2)
-agg = bind_rows(agg1, agg2)
+# 
+# # 2022-4-1 sims:
+# setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Linked to OSF (SAPH)/Sherlock simulation results/Pilot simulations/*2022-4-1 full set with Lodder SEs/Datasets before merging with 2022-3-27")
+# agg2 = fread( "agg.csv")
+# # check when the dataset was last modified to make sure we're working with correct version
+# file.info("agg.csv")$mtime
+# 
+# # merge them
+# dim(agg1); dim(agg2)
+# agg = bind_rows(agg1, agg2)
 
 
 dim(agg)
