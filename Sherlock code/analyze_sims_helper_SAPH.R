@@ -356,6 +356,7 @@ wrangle_agg_local = function(agg) {
                                             `runif(n = 1, min = 1, max = 3)` = "sei ~ U(1, 3)",
                                             `rbeta(n = 1, 2, 5)` = "sei ~ Beta(2, 5)",
                                             `0.02 + rexp(n = 1, rate = 3)` = "sei ~ Exp(3) + 0.02",
+                                            `draw_lodder_se()` = "sei from Lodder",
                                             
                                             # by default, retain original factor level
                                             .default = levels(agg$true.sei.expr) )
@@ -505,7 +506,10 @@ sim_plot_multiple_outcomes = function(.hack,
   
   .dat = .dat %>% filter(method.pretty %in% method.keepers &
                            Mu == 0.5 &
-                           true.sei.expr == "0.02 + rexp(n = 1, rate = 3)" &
+                           
+                           #@TEMP: CHANGED THIS
+                           #true.sei.expr == "0.02 + rexp(n = 1, rate = 3)" &
+                           true.sei.expr.pretty == "sei from Lodder" &
                            hack == .hack &
                            facetVar %in% c("t2a=0.04; t2w=0",
                                            "t2a=0.04; t2w=0.04",
@@ -698,19 +702,24 @@ sim_plot_multiple_outcomes = function(.hack,
   pCombined = cowplot::plot_grid(plotlist = plotList,
                                  nrow = nOutcomes,
                                  rel_heights = rel.heights)
-  pCombined
+  
   
   # ~~ Save plot ------------
   name = paste( tolower(.hack),
                 "_Mu0.5.pdf",
                 sep = "" )
   
-  my_ggsave( name = name,
-             .width = 8,
-             .height = 11,
-             .results.dir = NA,
-             .overleaf.dir = overleaf.dir )
-  
+  if ( overwrite.res == TRUE ) {
+    my_ggsave( name = name,
+               .width = 8,
+               .height = 11,
+               .results.dir = NA,
+               .overleaf.dir = overleaf.dir )
+  } else {
+    message("\n\nNot writing the plot to local dir or Overleaf because overwrite.res = FALSE")
+  }
+
+  return(pCombined)
 } 
 
 

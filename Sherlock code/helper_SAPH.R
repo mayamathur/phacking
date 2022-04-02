@@ -2142,7 +2142,14 @@ make_one_draw = function(mui,  # mean for this study set
 # # look at autocorrelation of yi's (<rho because of SE>0)
 # acf(.d$yi, lag = 1)$acf
 
-
+# draw SE from Lodder distribution (with replacement)
+#  this assumes that Lodder dataset has already been read in (by doParallel)
+#  and there's global vector called "lodder.ses"
+draw_lodder_se = function() {
+  sample(x = lodder.ses,
+         size = 1, 
+         replace = TRUE)
+}
 
 
 # DATA WRANGLING ---------------------------------------------------------------

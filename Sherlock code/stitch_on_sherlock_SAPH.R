@@ -142,7 +142,7 @@ agg %>% group_by(method) %>%
 ##### Move to Local #####
 
 # # stitched and agg -> local directory
-# scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/stitched_results/* /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Sherlock\ simulation\ results/Pilot\ simulations
+# scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/stitched_results/* /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Linked\ to\ OSF\ \(SAPH\)/Sherlock\ simulation\ results/Pilot\ simulations
 
 # LOOK FOR MISSED JOBS ----------------------------------------------
 

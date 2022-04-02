@@ -226,6 +226,15 @@ if ( run.local == TRUE ) {
   i = 1
 }
 
+# READ IN LODDER SEs ONCE AT BEGINNING ------------------------------
+
+setwd("/home/groups/manishad/SAPH/applied_examples/data")
+d.lodder = fread("lodder_prepped.csv")
+lodder.ses = sqrt(d.lodder$vi)
+
+cat("\n\ndoParallel: just read in Lodder SEs:")
+summary(lodder.ses)
+
 
 
 # COMPILE STAN MODEL ONCE AT BEGINNING------------------------------

@@ -52,15 +52,7 @@ scen.params = tidyr::expand_grid(
   t2w = c(0, 0.2^2),
   m = 50,
   
-  true.sei.expr = c( #"runif(n = 1, min = 0.1, max = 1)",  # mean=0.55
-    #"runif(n = 1, min = 0.50, max = 0.60)", # mean=0.55 also
-    #"runif(n = 1, min = 0.51, max = 1.5)", # same range as first one, but higher mean
-    #"runif(n = 1, min = 0.1, max = 3)",
-    #"runif(n = 1, min = 1, max = 3)",
-    #"0.1 + rexp(n = 1, rate = 1.5)",
-    #2022-3-26: changed above one to this
-    "0.02 + rexp(n = 1, rate = 3)",
-    "rbeta(n = 1, 2, 5)" ),
+  true.sei.expr = c("draw_lodder_se()"), # 2022-4-1: only change from last round
   hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
   rho = c(0),
   k.pub.nonaffirm = c(10, 15, 20, 50, 100),
@@ -203,13 +195,10 @@ n.files
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
 
-sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/2235.sbatch
-
-
-# 2400
+# 1200
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 2235:2235) {
+for (i in 1001:1200) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 

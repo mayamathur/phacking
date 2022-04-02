@@ -37,7 +37,8 @@ select = dplyr::select
 options(scipen=999)
 
 # control which results should be redone and/or overwritten
-redo.plots = TRUE
+#@ not all fns respect this setting
+overwrite.res = FALSE
 
 
 # ~~ Set directories -------------------------
@@ -81,16 +82,34 @@ source("analyze_sims_helper_SAPH.R")
 
 # ~~ Get agg data -------------------------
 
-#agg = make_agg_data(s)
+# if only analyzing a single set of sims (no merging):
+# setwd(data.dir)
+# agg = fread( "agg.csv")
+# # check when the dataset was last modified to make sure we're working with correct version
+# file.info("agg.csv")$mtime
 
 
-setwd(data.dir)
-agg = fread( "agg.csv")
+### Merge two sets of sim results
+
+# 2022-3-27 sims:
+setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Linked to OSF (SAPH)/Sherlock simulation results/Pilot simulations/*2022-3-27 full set")
+agg1 = fread( "agg.csv")
 # check when the dataset was last modified to make sure we're working with correct version
 file.info("agg.csv")$mtime
 
+# 2022-4-1 sims:
+setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Linked to OSF (SAPH)/Sherlock simulation results/Pilot simulations/*2022-4-1 full set with Lodder SEs/Datasets before merging with 2022-3-27")
+agg2 = fread( "agg.csv")
+# check when the dataset was last modified to make sure we're working with correct version
+file.info("agg.csv")$mtime
+
+# merge them
+dim(agg1); dim(agg2)
+agg = bind_rows(agg1, agg2)
+
+
 dim(agg)
-nuni(agg$scen.name)
+expect_equal( 720, nuni(agg$scen.name) )
 
 agg = wrangle_agg_local(agg)
 
@@ -345,8 +364,12 @@ YnamesSupp = c("MhatBias", "MhatCover", "MhatWidth",
 sim_plot_multiple_outcomes(.hack = "favor-best-affirm-wch",
                            .ggtitle = bquote( "Worst-case hacking, favoring best affirmative; " ~ mu ~ "= 0.5" ) )
                            
+
+
 sim_plot_multiple_outcomes(.hack = "affirm",
                            .ggtitle = bquote( "Worst-case hacking, favoring first affirmative; " ~ mu ~ "= 0.5" ))
+
+
 
 sim_plot_multiple_outcomes(.hack = "affirm2",
                            .ggtitle = bquote( "Limited hacking, favoring first affirmative or last nonaffirmative; " ~ mu ~ "= 0.5" ) )

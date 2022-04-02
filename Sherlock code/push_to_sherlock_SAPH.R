@@ -34,7 +34,7 @@ nano /home/groups/manishad/SAPH/sim_results/overall_stitched/sti*
 # CODE -> SHERLOCK ----------------------------------
 
 # push all Sherlock code
-scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Code\ \(git\)/Sherlock\ code/* mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH
+scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Linked\ to\ OSF\ \(SAPH\)/Code\ \(git\)/Sherlock\ code/* mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH
 
 
 # push helper.SAPH
