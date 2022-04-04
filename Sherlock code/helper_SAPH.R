@@ -1254,6 +1254,10 @@ yi_cdf = function(yi,
 }
 
 
+# yi: published nonaffirmative estimates
+# sei: their SEs
+# Mhat: estimated Mu from RTMA
+# Shat: estimated tau from RTMA
 yi_qqplot = function(yi,
                      sei,
                      Mhat,
