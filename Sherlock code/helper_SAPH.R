@@ -206,9 +206,17 @@ estimate_jeffreys_RTMA = function( yi,
 # Because these fns are run inside run_method_safe, the latter will handle editing rep.res
 #  All of these fns should take get.CIs as an argument and return CIs as c(NA, NA) if not wanted
 
+# .yi: published point estimates
+# .sei: their SEs
+# .tcrit: critical values on t or z scale for each study; can just use qnorm(.975) by default
+# .Mu.start: optimizer starting value for meta-analysis Mu
+# .Tt.start: optimizer starting value for meta-analysis tau
+# .stan.adapt_delta: passed to rstan
+# .stan.maxtreedepth: same
+#  we should later use ellipsis to allow passing arbitrary args to rstan
 estimate_jeffreys_mcmc_RTMA = function(.yi,
                                        .sei,
-                                       .tcrit, #VECTOR
+                                       .tcrit, 
                                        .Mu.start,
                                        .Tt.start,
                                        .stan.adapt_delta = 0.8,
@@ -225,7 +233,7 @@ estimate_jeffreys_mcmc_RTMA = function(.yi,
   stan.warning = NA
   
   # set start values for sampler
-  init.fcn <- function(o){ list(mu = .Mu.start,
+  init.fcn = function(o){ list(mu = .Mu.start,
                                 tau = .Tt.start ) }
   
   # like tryCatch, but captures warnings without stopping the function from
@@ -321,7 +329,6 @@ estimate_jeffreys_mcmc_RTMA = function(.yi,
     MhatRhat = postSumm["mu", "Rhat"],
     ShatRhat = postSumm["tau", "Rhat"] ),
     
-    #@NEW
     post = post,
     postSumm = postSumm ) )
   
