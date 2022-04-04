@@ -359,8 +359,6 @@ YnamesSupp = c("MhatBias", "MhatCover", "MhatWidth",
 
 
 # this dataset will be one full-page figure in main text or Supp depending on hack type
-
-#bm
 sim_plot_multiple_outcomes(.hack = "favor-best-affirm-wch",
                            .ggtitle = bquote( "Worst-case hacking, favoring best affirmative; " ~ mu ~ "= 0.5" ) )
                            
@@ -375,8 +373,23 @@ sim_plot_multiple_outcomes(.hack = "affirm2",
                            .ggtitle = bquote( "Limited hacking, favoring first affirmative or last nonaffirmative; " ~ mu ~ "= 0.5" ) )
 
 
+# 2022-4-4: EFFECT OF SCEN PARAMS ON DATASETS -------------------------
 
-# EFFECT OF SCEN PARAMS ON DATASETS -------------------------
+param.vars.manip2 = drop_vec_elements(param.vars.manip, "method")
+
+t = agg %>% group_by_at( param.vars.manip2 ) %>%
+  # keep only scens in main text
+  filter(Mu == 0.5 & true.sei.expr == "0.02 + rexp(n = 1, rate = 3)") %>%
+  select( all_of( contains("sancheck") ) ) %>%
+  mutate_if( is.numeric, function(x) round(x, 2) )
+
+setwd(results.dir)
+write.xlsx( as.data.frame(t), "table_sanchecks.xlsx")
+
+
+# OLD: EFFECT OF SCEN PARAMS ON DATASETS -------------------------
+
+#@this whole section of code only works if you have "s" dataset read in
 
 # look at discrepancy in yi published affirms from hacked vs. unhacked studies
 #  to help understand 2PSM results
@@ -457,7 +470,67 @@ write.xlsx( as.data.frame(t), "table_underlying_draw_power.xlsx")
 # - rho has little effect on anything because it hardly changes how many draws the hacked studies make
 
 
-# 2022-3-24: AGAIN TRY TO REPLICATION 2022-3-8 -------------------------
+# 2022-4-3: EFFECT OF COR(YI, SEI) ON MAN -------------------------
+
+
+t = agg %>% filter(method == "maon" &
+                     hack == "affirm") %>%
+  select(Mu,
+         Mhat,
+         t2a,
+         t2w,
+         sancheck.mean.yi.unhacked.pub.nonaffirm,
+         sancheck.mean.mui.unhacked.pub.nonaffirm) %>%
+  mutate_if( is.numeric, function(x) round(x,2) )
+
+View(t)
+
+setwd(results.dir)
+write.xlsx(t, "Table MAN underestimation.xlsx")
+
+
+#**note that mean.yi.unhacked.pub.nonaffirm differs from mui counterpart
+#  simply as a result of selection on nonaffirmatives; 
+#  we would expect Mhat in MAN (if correlation weren't an issue) to 
+#  approximate the mean yi rather than the mean mui
+
+
+agg.temp = agg  %>% filter(method == "maon" &
+                             hack == "affirm" &
+                             Mu == 0.5)
+ggplot( data = agg.temp,
+        aes( x = sancheck.mean.yi.unhacked.pub.nonaffirm,
+             y = Mhat,
+             color = t2a,
+             shape = as.factor(t2w) ) ) +
+  
+  geom_abline(intercept = 0,
+              slope = 1,
+              lty = 2,
+              color = "gray") +
+  geom_point( size = 2,
+             alpha = 0.7) + 
+  
+  scale_x_continuous( breaks = seq(0, 0.4, 0.05),
+                      limits = c(0, 0.4) ) +
+  
+  scale_y_continuous( breaks = seq(0, 0.4, 0.05),
+                      limits = c(0, 0.4) ) +
+  
+  ggtitle("Mhat from MAN, hack=affirm, Mu=0.5") +
+
+  theme_classic()
+
+
+ggsave("Plot MAN underestimation.pdf",
+       width = 6,
+       height = 6)
+
+
+
+          
+
+# 2022-3-24: AGAIN TRY TO REPLICATE 2022-3-8 -------------------------
 
 # direct replication of 2022-3-8
 agg %>% filter( Mu == 0.5 & 
