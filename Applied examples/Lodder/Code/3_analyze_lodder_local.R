@@ -145,16 +145,25 @@ levels(rsp$method.pretty)
 
 my.shapes = c(16, 2)
 
-# have colors and shapes match sim study
-# taken from inside analyze_sims_helper::sim_plot_multiple_outcomes
-n.colors.needed = length(unique(rsp$method.pretty))
-.colors = brewer.pal(n = n.colors.needed, name = "Dark2")
-if( length(.colors) > n.colors.needed ) .colors = .colors[1:n.colors.needed]
-# this maps the colors onto levels of the factor
-names(.colors) = levels( factor(rsp$method.pretty) )
+# SAVE: this is to set colors automatically
+# # have colors and shapes match sim study
+# # taken from inside analyze_sims_helper::sim_plot_multiple_outcomes
+# n.colors.needed = length(unique(rsp$method.pretty))
+# .colors = brewer.pal(n = n.colors.needed, name = "Dark2")
+# if( length(.colors) > n.colors.needed ) .colors = .colors[1:n.colors.needed]
+# # this maps the colors onto levels of the factor
+# names(.colors) = levels( factor(rsp$method.pretty) )
+# 
+# # highlight certain methods
+# .colors[ names(.colors) == "RTMA" ] = "red"
 
-# highlight certain methods
-.colors[ names(.colors) == "RTMA" ] = "red"
+# hard-code colors to match simulations
+.colors = c(SMKH = "#1B9E77",
+            MAN = "#ff9900",
+            RTMA = "red",
+            `Preregistered only` = "#3399ff",
+            SM = "#00cc00",
+            Uncorrected = "black")
 
 
 # ~~ Set ggplot linetype scale ----
@@ -173,7 +182,6 @@ newMethods = c("SMKH",
 
 # ~ Make plot ----------------------
 
-#@legend looks dumb because shape and color are separate
 p = ggplot( data = rsp,
             aes( x = Mhat,
                 y = method.pretty, 

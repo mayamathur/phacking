@@ -318,31 +318,11 @@ wrangle_agg_local = function(agg) {
   agg$method.pretty[ agg$method == c("naive") ] = "Uncorrected"
   agg$method.pretty[ agg$method == c("gold-std") ] = "Gold standard"
   agg$method.pretty[ agg$method == c("maon") ] = "MAN"
-  agg$method.pretty[ agg$method == c("2psm") ] = "2PSM"
-  agg$method.pretty[ agg$method == c("2psm-csm-dataset") ] = "2PSM KH" # "known hacking"
+  agg$method.pretty[ agg$method == c("2psm") ] = "SM"
+  agg$method.pretty[ agg$method == c("2psm-csm-dataset") ] = "SMKH" # "known hacking"
   agg$method.pretty[ agg$method == c("prereg-naive") ] = "Unhacked only"
   agg$method.pretty[ agg$method %in% c("jeffreys-mcmc-pmed") ] = "RTMA"
-  # agg$method.pretty[ agg$method %in% c("jeffreys-sd") ] = "Jeffreys-SD mode"
-  # agg$method.pretty[ agg$method %in% c("jeffreys-var") ] = "Jeffreys-var mode"
-  # agg$method.pretty[ agg$method %in% c("jeffreys-mcmc-pmean") ] = "Jeffreys-SD mean"
-  # agg$method.pretty[ agg$method %in% c("jeffreys-mcmc-max-lp-iterate") ] = "Jeffreys-SD maxLP"
-  # agg$method.pretty[ agg$method == c("mle-sd") ] = "MLE-sd"
-  # agg$method.pretty[ agg$method == c("mle-var") ] = "MLE-var"
   table(agg$method, agg$method.pretty)
-  
-  
-  # agg$method.pretty.inf = NA
-  # agg$method.pretty.inf[ agg$method == c("naive") ] = "Naive"
-  # agg$method.pretty.inf[ agg$method == c("gold-std") ] = "Gold standard"
-  # agg$method.pretty.inf[ agg$method == c("maon") ] = "MAON"
-  # agg$method.pretty.inf[ agg$method == c("2PSM") ] = "2PSM"
-  # agg$method.pretty.inf[ agg$method %in% c("jeffreys-sd") ] = "Jeffreys-SD mode Wald"
-  # agg$method.pretty.inf[ agg$method %in% c("jeffreys-var") ] = "Jeffreys-var mode Wald"
-  # agg$method.pretty.inf[ agg$method %in% c("jeffreys-mcmc-pmed", "jeffreys-mcmc-pmean", "jeffreys-mcmc-max-lp-iterate") ] = "Jeffreys posterior quantiles"
-  # agg$method.pretty.inf[ agg$method == c("mle-sd") ] = "MLE-sd Wald"
-  # agg$method.pretty.inf[ agg$method == c("mle-var") ] = "MLE-var Wald"
-  # 
-  # table(agg$method, agg$method.pretty.inf)
   
 
   agg$true.sei.expr = as.factor(agg$true.sei.expr)
@@ -515,6 +495,24 @@ sim_plot_multiple_outcomes = function(.hack,
                                            "t2a=0.09; t2w=0.04",
                                            "t2a=0.25; t2w=0.04") )
   
+  
+  
+
+  # force ordering of methods to match 3_analyze_lodder.R
+  correct.order = c("Uncorrected",
+                    "SM",
+                    "Unhacked only",
+                    
+                    "RTMA",
+                    "MAN",
+                    "SMKH")
+  
+  
+  
+ 
+  .dat$method.pretty = factor(.dat$method.pretty, levels = rev(correct.order))
+  
+  
   # ~~ Make plot for each outcome in YNamesMain ------------
   plotList = list()
   
@@ -530,17 +528,26 @@ sim_plot_multiple_outcomes = function(.hack,
     # to see all palettes:
     # par(mar=c(3,4,2,2))
     # display.brewer.all()
-    n.colors.needed = length(unique(.dat$method.pretty))
-    .colors = brewer.pal(n = n.colors.needed, name = "Dark2")
-    if( length(.colors) > n.colors.needed ) .colors = .colors[1:n.colors.needed]
-    # this maps the colors onto levels of the factor
-    names(.colors) = levels( factor(.dat$method.pretty) )
     
-    # highlight certain methods
-    .colors[ names(.colors) == "RTMA" ] = "red"
+    # # SAVE - this is if you want to get colors automatically
+    # n.colors.needed = length(unique(.dat$method.pretty))
+    # .colors = brewer.pal(n = n.colors.needed, name = "Dark2")
+    # if( length(.colors) > n.colors.needed ) .colors = .colors[1:n.colors.needed]
+    # # this maps the colors onto levels of the factor
+    # names(.colors) = levels( factor(.dat$method.pretty) )
+    # # highlight certain methods
+    # .colors[ names(.colors) == "RTMA" ] = "red"
+    
+    
+    # set color palette to match 3_analyze_lodder.R
+    .colors = c(SMKH = "#1B9E77",
+                MAN = "#ff9900",
+                RTMA = "red",
+                `Unhacked only` = "#3399ff",
+                SM = "#00cc00",
+                Uncorrected = "black")
     
     myColorScale = scale_colour_manual(values = .colors)
-    
     
     # ~~ Set ggplot linetype scale ----
     # by default, dotted lines
@@ -548,14 +555,13 @@ sim_plot_multiple_outcomes = function(.hack,
     .lty = rep("dashed", nuni(.dat$method.pretty))
     names(.lty) = names(.colors)
     
-    newMethods = c("2PSM KH",
+    newMethods = c("SMKH",
                    "MAN",
                    "RTMA")
     
     .lty[ names(.lty) %in% newMethods ] = "solid"
     
     myLtyScale = scale_linetype_manual(values = .lty)
-    
     
     # ~~ Set axis titles ---------
     
@@ -605,7 +611,10 @@ sim_plot_multiple_outcomes = function(.hack,
       ylab(.ylab) +
       guides( color = guide_legend(title = "Method") ) +
       theme_bw() +
-      theme( text = element_text(face = "bold")
+      theme( text = element_text(face = "bold"),
+             
+             panel.grid.major = element_blank(),
+             panel.grid.minor = element_blank()
              # reduce whitespace for combined plot
              # https://github.com/wilkelab/cowplot/issues/31
              #plot.margin = unit(c(0, 0, 0, 0), "cm")
@@ -614,15 +623,15 @@ sim_plot_multiple_outcomes = function(.hack,
     # ~ Add reference lines ----------
     if ( str_contains(x = .Yname, pattern = "Cover") ) {
       p = p + geom_hline( yintercept = 0.95,
-                          lty = 2,
-                          color = "black" ) 
+                          lty = 1,
+                          color = "gray" ) 
       
     }
     
     if ( str_contains(x = .Yname, pattern = "Bias") ) {
       p = p + geom_hline( yintercept = 0,
-                          lty = 2,
-                          color = "black" ) 
+                          lty = 1,
+                          color = "gray" ) 
       
     }
     
@@ -679,10 +688,13 @@ sim_plot_multiple_outcomes = function(.hack,
     # ~ Handle legend ----------------
     # combine legends into one
     p = p + labs(color  = "Method", linetype = "Method")
-    
+
     # only show legend in the last plot since they'll be combined
     if ( .Yname == YnamesMain[ length(YnamesMain) ] ) {
-      p = p + theme(legend.position = "bottom")
+      p = p + theme(legend.position = "bottom") +
+        # fix order of legend items
+        guides(colour = guide_legend(reverse = TRUE),
+               linetype = guide_legend(reverse = TRUE) )
     } else {
       p = p + theme(legend.position = "none")
     }
@@ -713,7 +725,7 @@ sim_plot_multiple_outcomes = function(.hack,
                .width = 8,
                .height = 11,
                .results.dir = NA,
-               .overleaf.dir = overleaf.dir )
+               .overleaf.dir = overleaf.dir.figs )
   } else {
     message("\n\nNot writing the plot to local dir or Overleaf because overwrite.res = FALSE")
   }

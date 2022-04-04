@@ -47,12 +47,12 @@ code.dir = here("Sherlock code")
 
 data.dir = str_replace( string = here(),
                         pattern = "Code \\(git\\)",
-                        replacement = "Sherlock simulation results/Pilot simulations" )
+                        replacement = "Sherlock simulation results/Pilot simulations/*2022-3-27 full set" )
 
 
 results.dir = data.dir
 
-overleaf.dir = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/figures_SAPH"
+overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/figures_SAPH/sims"
 
 
 
@@ -109,7 +109,7 @@ file.info("agg.csv")$mtime
 
 
 dim(agg)
-expect_equal( 720, nuni(agg$scen.name) )
+expect_equal( 480, nuni(agg$scen.name) )
 
 agg = wrangle_agg_local(agg)
 
@@ -214,7 +214,6 @@ summary(mod)
 
 
 # ******** PLOTS (BIG AND NOT PRETTIFIED) -------------------------
-
 
 Ynames = rev(MhatYNames)
 
@@ -343,8 +342,11 @@ for ( Yname in Ynames) {
 # Supplement: 
 # - counterpart to main text figure for hack=affirm
 
-# for each hack type, arrange plots so each facet row is an outcome
+rsp$method.pretty = factor(rsp$method.pretty, levels = rev(correct.order))
+levels(rsp$method.pretty)
 
+
+# for each hack type, arrange plots so each facet row is an outcome
 ( all.methods = unique(agg$method.pretty) )
 ( method.keepers = all.methods[ !is.na(all.methods) &
                                   all.methods != "Gold standard"] )
@@ -357,7 +359,7 @@ YnamesMain = c("MhatBias", "MhatCover", "MhatWidth")
 YnamesSupp = c("MhatBias", "MhatCover", "MhatWidth",
                "MhatTestReject")
 
-
+#bm
 # this dataset will be one full-page figure in main text or Supp depending on hack type
 sim_plot_multiple_outcomes(.hack = "favor-best-affirm-wch",
                            .ggtitle = bquote( "Worst-case hacking, favoring best affirmative; " ~ mu ~ "= 0.5" ) )
@@ -472,7 +474,7 @@ write.xlsx( as.data.frame(t), "table_underlying_draw_power.xlsx")
 
 # 2022-4-3: EFFECT OF COR(YI, SEI) ON MAN -------------------------
 
-
+# ~ Table ------------
 t = agg %>% filter(method == "maon" &
                      hack == "affirm") %>%
   select(Mu,
@@ -489,12 +491,7 @@ setwd(results.dir)
 write.xlsx(t, "Table MAN underestimation.xlsx")
 
 
-#**note that mean.yi.unhacked.pub.nonaffirm differs from mui counterpart
-#  simply as a result of selection on nonaffirmatives; 
-#  we would expect Mhat in MAN (if correlation weren't an issue) to 
-#  approximate the mean yi rather than the mean mui
-
-
+# ~ Plot ----------
 agg.temp = agg  %>% filter(method == "maon" &
                              hack == "affirm" &
                              Mu == 0.5)
