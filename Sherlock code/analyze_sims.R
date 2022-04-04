@@ -342,9 +342,6 @@ for ( Yname in Ynames) {
 # Supplement: 
 # - counterpart to main text figure for hack=affirm
 
-rsp$method.pretty = factor(rsp$method.pretty, levels = rev(correct.order))
-levels(rsp$method.pretty)
-
 
 # for each hack type, arrange plots so each facet row is an outcome
 ( all.methods = unique(agg$method.pretty) )
@@ -359,11 +356,9 @@ YnamesMain = c("MhatBias", "MhatCover", "MhatWidth")
 YnamesSupp = c("MhatBias", "MhatCover", "MhatWidth",
                "MhatTestReject")
 
-#bm
 # this dataset will be one full-page figure in main text or Supp depending on hack type
 sim_plot_multiple_outcomes(.hack = "favor-best-affirm-wch",
                            .ggtitle = bquote( "Worst-case hacking, favoring best affirmative; " ~ mu ~ "= 0.5" ) )
-                           
 
 
 sim_plot_multiple_outcomes(.hack = "affirm",
@@ -373,6 +368,9 @@ sim_plot_multiple_outcomes(.hack = "affirm",
 
 sim_plot_multiple_outcomes(.hack = "affirm2",
                            .ggtitle = bquote( "Limited hacking, favoring first affirmative or last nonaffirmative; " ~ mu ~ "= 0.5" ) )
+
+
+
 
 
 # 2022-4-4: EFFECT OF SCEN PARAMS ON DATASETS -------------------------

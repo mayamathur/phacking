@@ -190,7 +190,7 @@ make_agg_data = function( .s,
             
             # varies within scenario
             MhatTestReject = MLo > 0,
-
+            
             # static within scenario
             MhatRMSE = sqrt( meanNA( (Mhat - Mu)^2 ) ),
             ShatRMSE = sqrt( meanNA( ( Shat - S )^2 ) ),
@@ -324,9 +324,9 @@ wrangle_agg_local = function(agg) {
   agg$method.pretty[ agg$method %in% c("jeffreys-mcmc-pmed") ] = "RTMA"
   table(agg$method, agg$method.pretty)
   
-
+  
   agg$true.sei.expr = as.factor(agg$true.sei.expr)
-
+  
   agg$true.sei.expr.pretty = dplyr::recode( agg$true.sei.expr,
                                             `0.1 + rexp(n = 1, rate = 1.5)` = "sei ~ Exp(1.5)",
                                             `runif(n = 1, min = 0.1, max = 1)` = "sei ~ U(0.1, 1)",
@@ -341,7 +341,7 @@ wrangle_agg_local = function(agg) {
                                             # by default, retain original factor level
                                             .default = levels(agg$true.sei.expr) )
   print( table(agg$true.sei.expr, agg$true.sei.expr.pretty ) )
-
+  
   agg$rho.pretty = paste("rho = ", agg$rho, sep = "")
   
   return(agg)
@@ -434,7 +434,7 @@ quick_5var_agg_plot = function(.Xname,
                        nrow = length( unique(.dat$facetVar1) ) ) 
   }
   
-
+  
   # ~ Set Y-axis breaks ----------
   # other outcomes follow rules or can just use default axis breaks
   # y.breaks are only still null if none of the above applied
@@ -460,7 +460,7 @@ quick_5var_agg_plot = function(.Xname,
   #  rather than completely omitted
   p = p + coord_cartesian( ylim = c( min(y.breaks), max(y.breaks) ) ) +
     scale_y_continuous( breaks = y.breaks )
-   
+  
   if ( .writePlot == TRUE ) {
     my_ggsave( name = paste(.Y, "_plot.pdf", sep=""),
                .width = 10,
@@ -477,6 +477,14 @@ quick_5var_agg_plot = function(.Xname,
   # see helper_TNE::plot_by_n for how to specify the custom color scale
 }
 
+
+# major fn for making the main-text figs (1 row per outcome, 3 outcomes per figure)
+#  AND supplement figs (1 entire plot per outcome)
+# important: to show some outcomes ONLY in supp (e.g., MhatTestReject), you should have global vars like this:
+# YnamesMain = c("MhatBias", "MhatCover", "MhatWidth")
+# YnamesSupp = c("MhatBias", "MhatCover", "MhatWidth",
+#                "MhatTestReject")
+# the outcome(s) that only go in supp should be at the end of list
 sim_plot_multiple_outcomes = function(.hack,
                                       .y.breaks = NULL,
                                       .ggtitle = "") {
@@ -486,9 +494,9 @@ sim_plot_multiple_outcomes = function(.hack,
   
   .dat = .dat %>% filter(method.pretty %in% method.keepers &
                            Mu == 0.5 &
-
+                           
                            true.sei.expr == "0.02 + rexp(n = 1, rate = 3)" &
-                        
+                           
                            hack == .hack &
                            facetVar %in% c("t2a=0.04; t2w=0",
                                            "t2a=0.04; t2w=0.04",
@@ -497,7 +505,7 @@ sim_plot_multiple_outcomes = function(.hack,
   
   
   
-
+  
   # force ordering of methods to match 3_analyze_lodder.R
   correct.order = c("Uncorrected",
                     "SM",
@@ -509,16 +517,17 @@ sim_plot_multiple_outcomes = function(.hack,
   
   
   
- 
+  
   .dat$method.pretty = factor(.dat$method.pretty, levels = rev(correct.order))
   
   
   # ~~ Make plot for each outcome in YNamesMain ------------
   plotList = list()
+  plotListSupp = list()
   
-  for ( .Yname in YnamesMain ) {
+  for ( .Yname in YnamesSupp ) {
     
-    i = which(YnamesMain == .Yname)
+    i = which(YnamesSupp == .Yname)
     
     .dat$Y = .dat[[.Yname]]
     
@@ -649,15 +658,20 @@ sim_plot_multiple_outcomes = function(.hack,
       # set default breaks
       if ( grepl(pattern = "Cover", .Yname) ){
         y.breaks = seq(0, 1, .1)
+        # possibly expanded breaks for supplement version
+        y.breaks.supp = seq(0, 1, .1)
         
       } else if ( grepl(pattern = "Bias", .Yname) ){
         y.breaks = seq(-0.4, 0.4, .2)
+        y.breaks.supp = seq(-1, 1, 0.2)
         
       } else if ( grepl(pattern = "Width", .Yname) ){
         y.breaks = seq(0, 2, .5)
+        y.breaks.supp = seq(0, 3, 0.25)
         
       } else if ( grepl(pattern = "Reject", .Yname) ){
         y.breaks = seq(0, 1, .1)
+        y.breaks.supp = y.breaks
         
       }else {
         # otherwise keep the default limits from ggplot
@@ -678,6 +692,7 @@ sim_plot_multiple_outcomes = function(.hack,
       scale_y_continuous( breaks = y.breaks )
     
     
+    
     # ~ Handle ggtitle ----------------
     
     # only show title in the first plot since they'll be combined
@@ -688,7 +703,7 @@ sim_plot_multiple_outcomes = function(.hack,
     # ~ Handle legend ----------------
     # combine legends into one
     p = p + labs(color  = "Method", linetype = "Method")
-
+    
     # only show legend in the last plot since they'll be combined
     if ( .Yname == YnamesMain[ length(YnamesMain) ] ) {
       p = p + theme(legend.position = "bottom") +
@@ -699,10 +714,39 @@ sim_plot_multiple_outcomes = function(.hack,
       p = p + theme(legend.position = "none")
     }
     
-    plotList[[i]] = p
+    # some outcomes are being plotted only for supp
+    #  don't include those in the plot list for the combined figure
+    
+    if ( .Yname %in% YnamesMain ) plotList[[i]] = p
+    
+    
+    
+    # ~ Modify plot for supplement --------------
+    
+    # expand axis limits and have 2 rows per outcome
+    p = suppressMessages( p + coord_cartesian( ylim = c( min(y.breaks.supp), max(y.breaks.supp) ) ) +
+      scale_y_continuous( breaks = y.breaks.supp) +
+
+      facet_wrap( ~ facetVar,
+                  ncol = 2 ) + 
+
+      # theme_bw(base_size=21) +
+      # theme(text = element_text(face = "bold"),
+      #       legend.position = "bottom") +
+      
+      # always show legend
+      theme(legend.position = "bottom") +
+        
+      # always show title
+      ggtitle(.ggtitle) +
+      # fix order of legend items
+      guides(colour = guide_legend(reverse = TRUE),
+             linetype = guide_legend(reverse = TRUE) ) ) 
+    
+    
+    plotListSupp[[i]] = p 
+    
   }  # end "for ( Y in YnamesMain )"
-  
-  
   
   # ~~ Nicely arrange plots as columns ------------
   
@@ -715,13 +759,14 @@ sim_plot_multiple_outcomes = function(.hack,
                                  rel_heights = rel.heights)
   
   
-  # ~~ Save plot ------------
+  # ~~ Save combined plot ------------
   name = paste( tolower(.hack),
                 "_Mu0.5.pdf",
                 sep = "" )
   
   if ( overwrite.res == TRUE ) {
     my_ggsave( name = name,
+               .plot = pCombined,
                .width = 8,
                .height = 11,
                .results.dir = NA,
@@ -729,8 +774,34 @@ sim_plot_multiple_outcomes = function(.hack,
   } else {
     message("\n\nNot writing the plot to local dir or Overleaf because overwrite.res = FALSE")
   }
-
-  return(pCombined)
+  
+  # ~~ Save each individual supplement plot ------------
+  
+  if ( overwrite.res == TRUE ) {
+  
+    for ( .Yname in YnamesSupp ) {
+      name = paste( "supp_",
+                    tolower(.hack),
+                    "_",
+                    tolower(.Yname),
+                    "_Mu0.5.pdf",
+                    sep = "" )
+      my_ggsave( name = name,
+                 .plot = plotListSupp[[ which(YnamesSupp == .Yname) ]],
+                 .width = 8,
+                 .height = 11,
+                 .results.dir = NA,
+                 .overleaf.dir = overleaf.dir.figs )
+      
+    }
+    
+  } else {
+    message("\n\nNot writing the plot to local dir or Overleaf because overwrite.res = FALSE")
+  }
+  
+  # ~~ Print plot and return the list --------------
+  pCombined
+  return(plotListSupp)
 } 
 
 
@@ -767,6 +838,7 @@ names_with = function(.dat, .pattern) {
 
 # one or both dirs can be NA
 my_ggsave = function(name,
+                     .plot = last_plot(),
                      .width,
                      .height,
                      .results.dir = results.dir,
@@ -780,6 +852,7 @@ my_ggsave = function(name,
   for ( dir in validDirs ) {
     setwd(dir)
     ggsave( name,
+            plot = .plot,
             width = .width,
             height = .height,
             device = "pdf" )
