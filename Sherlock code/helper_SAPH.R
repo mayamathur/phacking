@@ -253,7 +253,7 @@ estimate_jeffreys_mcmc_RTMA = function(.yi,
                                  sei = .sei,
                                  tcrit = .tcrit,
                                  #@2022-4-5: HANDLE AFFIRMATIVES FOR CSM CASE
-                                 affirm = (.yi/.sei) > .tcrit,
+                                 affirm = as.numeric( (.yi/.sei) > .tcrit ),
                                  y = .yi ),
                     
                     #iter = p$stan.iter,   

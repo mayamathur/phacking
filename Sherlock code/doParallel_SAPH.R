@@ -34,7 +34,8 @@ rm( list = ls() )
 run.local = FALSE
 
 # should we set scen params interactively on cluster?
-interactive.cluster.run = FALSE
+#@remember to change this back
+interactive.cluster.run = TRUE
 
 # ~~ Packages -----------------------------------------------
 toLoad = c("crayon",
@@ -118,29 +119,30 @@ if (run.local == FALSE) {
     path = "/home/groups/manishad/SAPH"
     setwd(path)
     source("helper_SAPH.R")
-    scen.params = data.frame(scen = 1,
-                             
-                             #rep.methods = "naive ; gold-std ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var",
-                             rep.methods = "jeffreys-mcmc ; jeffreys-sd",
-                             
-                             # args from sim_meta_2
-                             Nmax = 10,
-                             Mu = 0.1,
-                             t2a = 0.25,
-                             t2w = 0.25,
-                             m = 50,
-                             true.sei.expr = "runif(n = 1, min = 0.1, max = 1)",
-                             hack = "affirm",
-                             rho = 0,
-                             k.pub.nonaffirm = 50,
-                             prob.hacked = 0.2,
-                             
-                             # Stan control args
-                             stan.maxtreedepth = 20,
-                             stan.adapt_delta = 0.98,
-                             
-                             get.CIs = TRUE,
-                             run.optimx = TRUE)
+    scen.params = tidyr::expand_grid(
+      # full list (save):
+      # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
+      rep.methods = "2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; csm-mle-sd ; prereg-naive",
+      
+      # args from sim_meta_2
+      Nmax = 30,
+      Mu = c(0.5),
+      t2a = c(.09),
+      t2w = c(0.04),
+      m = 50,
+      
+      true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
+      hack = c("affirm"),
+      rho = c(0),
+      k.pub.nonaffirm = c(50),
+      prob.hacked = c(0.8),
+      
+      # Stan control args
+      stan.maxtreedepth = 20,
+      stan.adapt_delta = 0.98,
+      
+      get.CIs = TRUE,
+      run.optimx = TRUE )
     scen = 1
   }  # end "if ( interactive.cluster.run == TRUE )"
   
@@ -469,6 +471,7 @@ doParallel.seconds = system.time({
                                 method.fn = function() estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
                                                                                    .sei = sqrt(dpn$vi),
                                                                                    .tcrit = dpn$tcrit,
+                                                                                   .affirm =  dpn$affirm,
                                                                                    .Mu.start = Mhat.start,
                                                                                    #@DOESN'T SEEM ABLE TO HANDLE START VALUE OF 0
                                                                                    .Tt.start = max(0.01, Shat.start),
@@ -606,28 +609,34 @@ doParallel.seconds = system.time({
       cat("\n doParallel flag: Done csm-mle-sd if applicable")
     }
     
-    # ~~ MLE (Var param) ------------------------------
     
-    if ( "mle-var" %in% all.methods ) {
-      rep.res = run_method_safe(method.label = c("mle-var"),
-                                method.fn = function() estimate_jeffreys_RTMA(yi = dpn$yi,
-                                                                              sei = sqrt(dpn$vi),
-                                                                              par2is = "T2t",
-                                                                              tcrit = dpn$tcrit, 
-                                                                              Mu.start = Mhat.start,
-                                                                              par2.start = Shat.start^2,
-                                                                              usePrior = FALSE,
-                                                                              get.CIs = p$get.CIs,
-                                                                              CI.method = "wald",
-                                                                              run.optimx = p$run.optimx),
+    
+    # ~~ CSM MCMC ------------------------------
+    
+    if ( "csm-mcmc" %in% all.methods ) {
+      # # temp for refreshing code
+      # path = "/home/groups/manishad/SAPH"
+      # setwd(path)
+      # source("helper_SAPH.R")
+      
+      # this one has two labels in method arg because a single call to estimate_jeffreys_mcmc
+      #  returns 2 lines of output, one for posterior mean and one for posterior median
+      # order of labels in method arg needs to match return structure of estimate_jeffreys_mcmc
+      rep.res = run_method_safe(method.label = c("csm-mcmc-pmean",
+                                                 "csm-mcmc-pmed",
+                                                 "csm-mcmc-max-lp-iterate"),
+                                method.fn = function() estimate_jeffreys_mcmc_RTMA(.yi = dp.csm$yi,
+                                                                                   .sei = sqrt(dp.csm$vi),
+                                                                                   .tcrit = dp.csm$tcrit,
+                                                                                   .affirm =  dp.csm$affirm,
+                                                                                   .Mu.start = Mhat.start,
+                                                                                   .Tt.start = max(0.01, Shat.start),
+                                                                                   .stan.adapt_delta = p$stan.adapt_delta,
+                                                                                   .stan.maxtreedepth = p$stan.maxtreedepth),
                                 .rep.res = rep.res )
       
-      
-      
-      cat("\n doParallel flag: Done mle-var if applicable")
-      
+      cat("\n doParallel flag: Done csm-mcmc if applicable")
     }
-    
     
     # ~ Secondary/Sanity-Check Methods ------------------------------
     # ~~ 2PSM With CSM Dataset ------------------------------
@@ -935,7 +944,7 @@ doParallel.seconds = system.time({
                                         sancheck.mean.yi.unhacked.pub.study = mean( dp$yi[ dp$hack == "no"] ),
                                         sancheck.mean.yi.hacked.pub.study = mean( dp$yi[ dp$hack != "no"] ),
                                         
-                            
+                                        
                                         sancheck.mean.mui.unhacked.pub.nonaffirm = mean( dp$mui[ dp$hack == "no" & dp$affirm == FALSE ] ),
                                         sancheck.mean.yi.unhacked.pub.nonaffirm = mean( dp$yi[ dp$hack == "no" & dp$affirm == FALSE ] ),
                                         sancheck.mean.yi.unhacked.pub.affirm = mean( dp$yi[ dp$hack == "no" & dp$affirm == TRUE ] ),

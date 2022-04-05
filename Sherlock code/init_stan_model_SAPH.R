@@ -42,10 +42,10 @@ functions{
 
 		  // depending on whether study is affirmative, set truncation limits
 		  // for THIS study, given its SE
-		  if ( affirm[i] == FALSE ) {
+		  if ( affirm[i] == 0 ) {
 		  	  LL = -999;
 		  		UU = tcrit[i] * sei[i];
-		  } else if ( affirm[i] == TRUE ) {
+		  } else if ( affirm[i] == 1 ) {
 		      LL = tcrit[i] * sei[i];
 		  		UU = 999;
 		  }
@@ -94,6 +94,7 @@ data{
 	int<lower=0> k;
   real sei[k];
   real tcrit[k];
+  real affirm[k];
 	real y[k];
 }
 
@@ -109,9 +110,9 @@ model{
   //see 'foundational ideas' here: https://vasishth.github.io/bayescogsci/book/sec-firststan.html
 	target += log( jeffreys_prior(mu, tau, k, sei, tcrit, affirm) );
 	for(i in 1:k) {
-      if ( affirm[i] == FALSE ) {
+      if ( affirm[i] == 0 ) {
         y[i] ~ normal( mu, sqrt(tau^2 + sei[i]^2) ) T[ , tcrit[i] * sei[i] ];
-      } else if ( affirm[i] == TRUE ) {
+      } else if ( affirm[i] == 1 ) {
         y[i] ~ normal( mu, sqrt(tau^2 + sei[i]^2) ) T[ tcrit[i] * sei[i] , ];
       }
 	}
