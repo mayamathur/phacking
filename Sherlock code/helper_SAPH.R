@@ -540,6 +540,8 @@ estimate_mle = function( x,
 
 # ~ Jeffreys prior fns ---------------
 
+
+# This fn can handle both nonaffirm and affirm results.
 # agrees with weightr per "Repurpose TNE code.R"
 # RTMA log-likelihood - now uses TNE version
 # carefully structured for use with Deriv()
@@ -747,6 +749,8 @@ E_fisher_TNE_check = function(.mu, .sigma, .b) {
 
 
 
+# This fn ONLY handles nonaffirm results, but could easily be adapted to handle
+#  affirms by changing tcrit.
 # important: note that in this fn, critical value is on t/z scale, NOT raw scale
 #  vs. in E_fisher_TNE, .b is on raw scale
 E_fisher_RTMA = function( .sei, .Mu, .Tt, .tcrit = qnorm(0.975) ) {

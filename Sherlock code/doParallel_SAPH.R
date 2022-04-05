@@ -576,7 +576,6 @@ doParallel.seconds = system.time({
     
     # ~~ CSM: MLE with known hacking status (SD param) ------------------------------
     
-    
     # discard affirmatives from hacked studies
     dp.csm = dp %>% filter( affirm == FALSE | hack == "no" )
     

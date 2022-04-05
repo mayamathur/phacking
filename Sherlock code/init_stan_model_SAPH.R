@@ -8,9 +8,10 @@ model.text <- "
 
 functions{
 
-	real jeffreys_prior(real mu, real tau, int k, real[] sei, real[] tcrit){
+	real jeffreys_prior(real mu, real tau, int k, real[] sei, real[] tcrit, real[] affirm){
 	
 	  // these will be overwritten for EACH observation
+		real critScaled;
 		real mustarL;
 		real mustarU;
 		real alphaL;
@@ -39,13 +40,19 @@ functions{
 		
 		  // marginal SD for this one observation
 		  sigma = sqrt(tau^2 + sei[i]^2);
+
+		  // depending on whether study is affirmative, set truncation limits
+		  // for THIS study, given its SE
+		  if ( affirm[i] == FALSE ) {
+		  	  LL = -999;
+		  		UU = tcrit[i] * sei[i];
+		  } else if ( affirm[i] == TRUE ) {
+		      LL = tcrit[i] * sei[i];
+		  		UU = 999;
+		  }
 		  
-		  // upper truncation limit (i.e., affirmative threshold)
-		  //   for THIS study, given its SE
-		  UU = tcrit[i] * sei[i];
-		
 		  // standardized truncation limits
-  		mustarL = -999;
+  		mustarL = (LL - mu) / sigma;
   		mustarU = (UU - mu) / sigma;
   		
   		// because EACH fisher info below has n=1 only
