@@ -579,7 +579,7 @@ joint_nll_2 = function(.yi,
                                   sigma = .T2t + sei^2 ) ),
             
             # this term applies if the study is affirmative
-            term3 = log( pmvnorm( lower = crit * sei,
+            term3 = log( 1 - pmvnorm( lower = crit * sei,
                                   upper = 99,
                                   mean = .Mu,
                                   sigma = .T2t + sei^2 ) ),

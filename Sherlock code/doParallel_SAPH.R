@@ -857,8 +857,9 @@ doParallel.seconds = system.time({
                     as.numeric(log.prior.sanity.stan),
                     tolerance = 0.001 )
       
-      ### Sanity Check #2A: Agreement at Fixed Params, Affirms Only ###
+      ### Sanity Check #3A: Agreement at Fixed Params, Affirms Only ###
       
+      #bm
       
       dpa = dp %>% filter(affirm == TRUE)
       
