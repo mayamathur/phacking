@@ -1,4 +1,8 @@
 
+# version that assumes only nonaffirmative results:
+# https://github.com/mayamathur/phacking/blob/e335a054aedc448d9a1bc0f6e82300a0fb876583/Sherlock%20code/init_stan_model_SAPH.R
+
+
 # LL and UU: cutpoints on RAW scale, not Z-scores
 # tau: SD, not variance
 # to do:
@@ -43,17 +47,17 @@ functions{
 		  // depending on whether study is affirmative, set truncation limits
 		  // for THIS study, given its SE
 		  if ( affirm[i] == 0 ) {
-		  	  LL = -999;
 		  		UU = tcrit[i] * sei[i];
+		  		// standardized truncation limits
+		  		mustarL = -999;
+  		    mustarU = (UU - mu) / sigma;
 		  } else if ( affirm[i] == 1 ) {
 		      LL = tcrit[i] * sei[i];
-		  		UU = 999;
+		      // standardized truncation limits
+		  		mustarL = (LL - mu) / sigma;
+  		    mustarU = 999;
 		  }
 		  
-		  // standardized truncation limits
-  		mustarL = (LL - mu) / sigma;
-  		mustarU = (UU - mu) / sigma;
-  		
   		// because EACH fisher info below has n=1 only
   		n = 1; 
   		
@@ -127,33 +131,76 @@ generated quantities{
   real log_prior = log( jeffreys_prior(mu, tau, k, sei, tcrit, affirm) );
   real log_post;
   // this is just an intermediate quantity for log_lik
-  real UU;
-  
-  // versions that are evaluated at a SPECIFIC (mu=2, tau=2) so that we can compare 
+  // will be equal to UU or LL above, depending on affirm status
+  real critScaled;
+
+  // versions that are evaluated at a SPECIFIC (mu=2, tau=2) so that we can compare
   //  to R functions for MAP, MLE, etc.
   real log_lik_sanity = 0;
   real log_prior_sanity = log( jeffreys_prior(2, 2, k, sei, tcrit, affirm) );
-  
+
   for ( i in 1:k ){
-  //@2022-4-5: I HAVE NOT EDITED THIS TO HANDLE CASE OF AFFIRMATIVES
-      log_lik += normal_lpdf( y[i] | mu, sqrt(tau^2 + sei[i]^2) );
-      log_lik_sanity += normal_lpdf( y[i] | 2, sqrt(2^2 + sei[i]^2) );
-      
-      UU = tcrit[i] * sei[i];
-      
-      // https://mc-stan.org/docs/2_20/reference-manual/sampling-statements-section.html
-      // see 'Truncation with upper bounds in Stan' section
-	      if ( y[i] > UU ) {
-          log_lik += negative_infinity();
-          log_lik_sanity += negative_infinity();
-	      } else {
-          log_lik += -1 * normal_lcdf(UU | mu, sqrt(tau^2 + sei[i]^2) ); 
-          log_lik_sanity += -1 * normal_lcdf(UU | 2, sqrt(2^2 + sei[i]^2) );
-	      }
+    //@2022-4-5: I HAVE NOT EDITED THIS TO HANDLE CASE OF AFFIRMATIVES
+    log_lik += normal_lpdf( y[i] | mu, sqrt(tau^2 + sei[i]^2) );
+    log_lik_sanity += normal_lpdf( y[i] | 2, sqrt(2^2 + sei[i]^2) );
+
+    critScaled = tcrit[i] * sei[i];
+
+    // https://mc-stan.org/docs/2_20/reference-manual/sampling-statements-section.html
+    // see 'Truncation with upper bounds in Stan' section
+    // nonaffirm case:
+    if ( y[i] <= critScaled ) {
+      log_lik += -1 * normal_lcdf(critScaled | mu, sqrt(tau^2 + sei[i]^2) );
+      log_lik_sanity += -1 * normal_lcdf(critScaled | 2, sqrt(2^2 + sei[i]^2) );
+
+    // affirm case:
+    } else if ( y[i] > critScaled ) {
+      log_lik += -1 * ( 1 - normal_lcdf(critScaled | mu, sqrt(tau^2 + sei[i]^2) ) );
+      log_lik_sanity += -1 * ( 1 - normal_lcdf(critScaled | 2, sqrt(2^2 + sei[i]^2) ) );
+    }
   }
   log_post = log_prior + log_lik;
 }
 "
+
+
+
+
+# previous generated_quantities block
+# doesn't handle having affirms
+# generated quantities{
+#   real log_lik = 0;
+#   real log_prior = log( jeffreys_prior(mu, tau, k, sei, tcrit, affirm) );
+#   real log_post;
+#   // this is just an intermediate quantity for log_lik
+#   real UU;
+#   
+#   // versions that are evaluated at a SPECIFIC (mu=2, tau=2) so that we can compare 
+#   //  to R functions for MAP, MLE, etc.
+#   real log_lik_sanity = 0;
+#   real log_prior_sanity = log( jeffreys_prior(2, 2, k, sei, tcrit, affirm) );
+#   
+#   for ( i in 1:k ){
+#     //@2022-4-5: I HAVE NOT EDITED THIS TO HANDLE CASE OF AFFIRMATIVES
+#     log_lik += normal_lpdf( y[i] | mu, sqrt(tau^2 + sei[i]^2) );
+#     log_lik_sanity += normal_lpdf( y[i] | 2, sqrt(2^2 + sei[i]^2) );
+#     
+#     UU = tcrit[i] * sei[i];
+#     
+#     // https://mc-stan.org/docs/2_20/reference-manual/sampling-statements-section.html
+#     // see 'Truncation with upper bounds in Stan' section
+#     if ( y[i] > UU ) {
+#       log_lik += negative_infinity();
+#       log_lik_sanity += negative_infinity();
+#     } else {
+#       log_lik += -1 * normal_lcdf(UU | mu, sqrt(tau^2 + sei[i]^2) ); 
+#       log_lik_sanity += -1 * normal_lcdf(UU | 2, sqrt(2^2 + sei[i]^2) );
+#     }
+#   }
+#   log_post = log_prior + log_lik;
+# }
+
+
 
 
 # necessary to prevent ReadRDS errors in which cores try to work with other cores' intermediate results

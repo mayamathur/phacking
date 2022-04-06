@@ -146,13 +146,14 @@ if (run.local == FALSE) {
     scen = 1
   }  # end "if ( interactive.cluster.run == TRUE )"
   
+  scen.params$scen = 1:nrow(scen.params)
   
   # locally, with total k = 100, Nmax = 10, and sim.reps = 250, took 93 min total
   # for that I did sim.reps = 100 per doParallel
   
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
-  sim.reps = 200  #@update this 
+  sim.reps = 1  #@update this 
   
   
   # set the number of cores
@@ -230,12 +231,18 @@ if ( run.local == TRUE ) {
 
 # READ IN LODDER SEs ONCE AT BEGINNING ------------------------------
 
-setwd("/home/groups/manishad/SAPH/applied_examples/data")
-d.lodder = fread("lodder_prepped.csv")
-lodder.ses = sqrt(d.lodder$vi)
+# only needed if using "draw_lodder_se()" as one of the true.sei.expr
 
-cat("\n\ndoParallel: just read in Lodder SEs:")
-summary(lodder.ses)
+if ( "draw_lodder_se()" %in% scen.params$true.sei.expr ) {
+  
+  setwd("/home/groups/manishad/SAPH/applied_examples/data")
+  d.lodder = fread("lodder_prepped.csv")
+  lodder.ses = sqrt(d.lodder$vi)
+  
+  cat("\n\ndoParallel: just read in Lodder SEs:")
+  summary(lodder.ses)
+  
+}
 
 
 
@@ -459,8 +466,21 @@ doParallel.seconds = system.time({
     if ( "jeffreys-mcmc" %in% all.methods ) {
       # # temp for refreshing code
       # path = "/home/groups/manishad/SAPH"
-      # setwd(path)
+      setwd(path)
       # source("helper_SAPH.R")
+      #@temp
+      # source("init_stan_model_SAPH.R")
+      # 
+      # 
+      # #@TEMP
+      # estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
+      #                             .sei = sqrt(dpn$vi),
+      #                             .tcrit = dpn$tcrit,
+      #                             .Mu.start = Mhat.start,
+      #                             #@DOESN'T SEEM ABLE TO HANDLE START VALUE OF 0
+      #                             .Tt.start = max(0.01, Shat.start),
+      #                             .stan.adapt_delta = p$stan.adapt_delta,
+      #                             .stan.maxtreedepth = p$stan.maxtreedepth)
       
       # this one has two labels in method arg because a single call to estimate_jeffreys_mcmc
       #  returns 2 lines of output, one for posterior mean and one for posterior median
@@ -471,13 +491,11 @@ doParallel.seconds = system.time({
                                 method.fn = function() estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
                                                                                    .sei = sqrt(dpn$vi),
                                                                                    .tcrit = dpn$tcrit,
-                                                                                   .affirm =  dpn$affirm,
                                                                                    .Mu.start = Mhat.start,
                                                                                    #@DOESN'T SEEM ABLE TO HANDLE START VALUE OF 0
                                                                                    .Tt.start = max(0.01, Shat.start),
                                                                                    .stan.adapt_delta = p$stan.adapt_delta,
-                                                                                   .stan.maxtreedepth = p$stan.maxtreedepth),
-                                .rep.res = rep.res )
+                                                                                   .stan.maxtreedepth = p$stan.maxtreedepth), .rep.res = rep.res )
       
       
       Mhat.MaxLP = rep.res$Mhat[ rep.res$method == "jeffreys-mcmc-max-lp-iterate" ]
@@ -628,7 +646,7 @@ doParallel.seconds = system.time({
                                 method.fn = function() estimate_jeffreys_mcmc_RTMA(.yi = dp.csm$yi,
                                                                                    .sei = sqrt(dp.csm$vi),
                                                                                    .tcrit = dp.csm$tcrit,
-                                                                                   .affirm =  dp.csm$affirm,
+
                                                                                    .Mu.start = Mhat.start,
                                                                                    .Tt.start = max(0.01, Shat.start),
                                                                                    .stan.adapt_delta = p$stan.adapt_delta,
