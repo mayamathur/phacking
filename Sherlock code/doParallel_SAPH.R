@@ -35,7 +35,7 @@ run.local = FALSE
 
 # should we set scen params interactively on cluster?
 #@remember to change this back
-interactive.cluster.run = TRUE
+interactive.cluster.run = FALSE
 
 # ~~ Packages -----------------------------------------------
 toLoad = c("crayon",
@@ -318,6 +318,9 @@ doParallel.seconds = system.time({
     # published affirmatives only
     dpa = dp[ dp$affirm == TRUE, ]
     
+    # discard affirmatives from hacked studies
+    dp.csm = dp %>% filter( affirm == FALSE | hack == "no" )
+    
     if ( i == 1 ) cat("\n\nHEAD OF DP:\n")
     if ( i == 1 ) print(head(dp))
     
@@ -468,11 +471,10 @@ doParallel.seconds = system.time({
       # path = "/home/groups/manishad/SAPH"
       setwd(path)
       # source("helper_SAPH.R")
-      #@temp
       # source("init_stan_model_SAPH.R")
       # 
       # 
-      # #@TEMP
+      # #TEMP
       # estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
       #                             .sei = sqrt(dpn$vi),
       #                             .tcrit = dpn$tcrit,
@@ -597,8 +599,7 @@ doParallel.seconds = system.time({
     
     # ~~ CSM: MLE with known hacking status (SD param) ------------------------------
     
-    # discard affirmatives from hacked studies
-    dp.csm = dp %>% filter( affirm == FALSE | hack == "no" )
+ 
     
     if ( "csm-mle-sd" %in% all.methods &
          nrow(dp.csm) > 0 ) {
@@ -953,6 +954,11 @@ doParallel.seconds = system.time({
     rep.res = rep.res %>% add_column(   sancheck.dp.k = nrow(dp),
                                         sancheck.dp.k.affirm = sum(dp$affirm == TRUE),
                                         sancheck.dp.k.nonaffirm = sum(dp$affirm == FALSE),
+                                        
+                                        sancheck.dp.k.affirm.unhacked = sum(dp$affirm == TRUE & dp$hack == "no"),
+                                        sancheck.dp.k.affirm.hacked = sum(dp$affirm == TRUE & dp$hack != "no"),
+                                        sancheck.dp.k.nonaffirm.unhacked = sum(dp$affirm == FALSE & dp$hack == "no"),
+                                        sancheck.dp.k.nonaffirm.hacked = sum(dp$affirm == FALSE & dp$hack != "no"),
                                         
                                         # means draws per HACKED, published study
                                         sancheck.dp.meanN.hacked = mean( dp$N[dp$hack != "no"] ),
