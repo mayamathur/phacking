@@ -543,7 +543,7 @@ estimate_mle = function( x,
 # ~ Jeffreys prior fns ---------------
 
 
-# This fn can handle both nonaffirm and affirm results.
+# **This fn can handle both nonaffirm and affirm results.
 # agrees with weightr per "Repurpose TNE code.R"
 # RTMA log-likelihood - now uses TNE version
 # carefully structured for use with Deriv()

@@ -153,7 +153,7 @@ if (run.local == FALSE) {
   
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
-  sim.reps = 1  #@update this 
+  sim.reps = 100  #@update this 
   
   
   # set the number of cores
@@ -734,7 +734,7 @@ doParallel.seconds = system.time({
     
     if ( FALSE ) {
       
-      ### Sanity Check #1: Agreement at Fixed Params ###
+      ### Sanity Check #1A: Agreement at Fixed Params, Nonaffirms Only ###
       # these are calculated for a FIXED (mu=2, tau=2) to match the sanity checks embedded in 
       #  stan.model above (see "generated quantities")
       # these calls are as in nlpost_jeffreys_RTMA
@@ -751,6 +751,7 @@ doParallel.seconds = system.time({
       
       #@wastefully re-run MCMC in order to capture its full output (which isn't preserved
       #  when it's run inside run_method_safe)
+      # with only nonaffirms:
       temp = estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
                                          .sei = sqrt(dpn$vi),
                                          .tcrit = dpn$tcrit,
@@ -771,9 +772,9 @@ doParallel.seconds = system.time({
                     tolerance = 0.001 )
       
       
-      ### Sanity Check #2: Agreement at MaxLPIterate Params ###
+      ### Sanity Check #1B: Agreement at MaxLPIterate Params ###
       # look at nlpost at the maxLPiterate vs. the MAP
-      best.ind = which.max(ext$lp__)
+      best.ind = which.max(ext$log_post)
       ( log.lkl.stan = ext$log_lik[best.ind] )
       ( log.prior.stan = ext$log_prior[best.ind] )
       
@@ -797,7 +798,6 @@ doParallel.seconds = system.time({
                     tolerance = 0.001 )
       
       
-      # BUT THESE 3 ALL DISAGREE! THIS IS THE PROBLEM!!
       ( log.post.R = -1 * nlpost_jeffreys_RTMA(.pars = c(ext$mu[best.ind],
                                                          ext$tau[best.ind]),
                                                .par2is = "Tt",
@@ -806,23 +806,105 @@ doParallel.seconds = system.time({
                                                .tcrit = dpn$tcrit,
                                                .usePrior = TRUE) )
       
-      #@WHY DIFFERENT FROM LP__??
+      
       ( log.post.stan = ext$log_post[best.ind] )
-      ext$lp__[best.ind]
-      # lp__ matches NEITHER log_post NOR log_prior
-      #  so what is it??????
+      
+      # MATCHES :)
+      expect_equal( as.numeric(log.post.R),
+                    as.numeric(log.post.stan),
+                    tolerance = 0.001 )
       
       
-      # max LP iterate values
-      # BUT NOTE THIS IS USING MAX LP__
-      ext$mu[best.ind]
-      ext$tau[best.ind]
+      
+ 
+
+      ### Sanity Check #2A: Agreement at Fixed Params, CSM Dataset (Includes Affirms) ###
+      # these are calculated for a FIXED (mu=2, tau=2) to match the sanity checks embedded in 
+      #  stan.model above (see "generated quantities")
+      # these calls are as in nlpost_jeffreys_RTMA
+  
+      log.lkl.sanity.R = -1 * joint_nll_2( .yi = dp.csm$yi,
+                                           .sei = sqrt(dp.csm$vi),
+                                           .tcrit = dp.csm$tcrit,
+                                           .Mu = 2,
+                                           .Tt = 2 )
+      
+      log.prior.sanity.R = lprior( .sei = sqrt(dp.csm$vi),
+                                   .Mu = 2,
+                                   .Tt = 2,
+                                   .tcrit = dp.csm$tcrit )
+      
+      #@wastefully re-run MCMC in order to capture its full output (which isn't preserved
+      #  when it's run inside run_method_safe)
+      # with only nonaffirms:
+      temp = estimate_jeffreys_mcmc_RTMA(.yi = dp.csm$yi,
+                                         .sei = sqrt(dp.csm$vi),
+                                         .tcrit = dp.csm$tcrit,
+                                         .Mu.start = Mhat.start,
+                                         .Tt.start = Shat.start,
+                                         .stan.adapt_delta = p$stan.adapt_delta,
+                                         .stan.maxtreedepth = p$stan.maxtreedepth)
+      ext = rstan::extract(temp$post)
+      # "unique" because these have a fixed value across all iterates
+      log.lkl.sanity.stan = unique(ext$log_lik_sanity)
+      log.prior.sanity.stan = unique(ext$log_prior_sanity)
+      
+      #@ALL OF THESE NOW DISAGREE!! SO THERE'S SOMETHING ABOUT THE AFFIRMATIVES
+      expect_equal( as.numeric(log.lkl.sanity.R),
+                    as.numeric(log.lkl.sanity.stan),
+                    tolerance = 0.001 )
+      expect_equal( as.numeric(log.prior.sanity.R),
+                    as.numeric(log.prior.sanity.stan),
+                    tolerance = 0.001 )
+      
+      ### Sanity Check #2A: Agreement at Fixed Params, Affirms Only ###
       
       
-      # if needed to refresh code
-      path = "/home/groups/manishad/SAPH"
-      setwd(path)
-      source("helper_SAPH.R")
+      dpa = dp %>% filter(affirm == TRUE)
+      
+      
+      log.lkl.sanity.R = -1 * joint_nll_2( .yi = dpa$yi,
+                                           .sei = sqrt(dpa$vi),
+                                           .tcrit = dpa$tcrit,
+                                           .Mu = 2,
+                                           .Tt = 2 )
+      
+      log.prior.sanity.R = lprior( .sei = sqrt(dpa$vi),
+                                   .Mu = 2,
+                                   .Tt = 2,
+                                   .tcrit = dpa$tcrit )
+      
+      #@wastefully re-run MCMC in order to capture its full output (which isn't preserved
+      #  when it's run inside run_method_safe)
+      # with only nonaffirms:
+      temp = estimate_jeffreys_mcmc_RTMA(.yi = dpa$yi,
+                                         .sei = sqrt(dpa$vi),
+                                         .tcrit = dpa$tcrit,
+                                         .Mu.start = Mhat.start,
+                                         .Tt.start = Shat.start,
+                                         .stan.adapt_delta = p$stan.adapt_delta,
+                                         .stan.maxtreedepth = p$stan.maxtreedepth)
+      ext = rstan::extract(temp$post)
+      # "unique" because these have a fixed value across all iterates
+      log.lkl.sanity.stan = unique(ext$log_lik_sanity)
+      log.prior.sanity.stan = unique(ext$log_prior_sanity)
+      
+      #@ALL OF THESE NOW DISAGREE!! SO THERE'S SOMETHING ABOUT THE AFFIRMATIVES
+      expect_equal( as.numeric(log.lkl.sanity.R),
+                    as.numeric(log.lkl.sanity.stan),
+                    tolerance = 0.001 )
+      expect_equal( as.numeric(log.prior.sanity.R),
+                    as.numeric(log.prior.sanity.stan),
+                    tolerance = 0.001 )
+      
+      
+      
+      
+      
+      # # if needed to refresh code
+      # path = "/home/groups/manishad/SAPH"
+      # setwd(path)
+      # source("helper_SAPH.R")
       
       
       
