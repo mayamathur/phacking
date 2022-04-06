@@ -31,7 +31,7 @@ rm( list = ls() )
 
 
 # are we running locally?
-run.local = FALSE
+run.local = TRUE
 
 # should we set scen params interactively on cluster?
 #@remember to change this back
@@ -185,26 +185,20 @@ if ( run.local == TRUE ) {
   scen.params = tidyr::expand_grid(
     # full list (save):
     # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
+    rep.methods = "2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; csm-mle-sd ; prereg-naive",
     
     # args from sim_meta_2
     Nmax = 30,
     Mu = c(0.5),
-    t2a = c(0, 0.2^2, 0.3^2, 0.5^2, 0.7^2),
-    t2w = c(0, 0.2^2),
+    t2a = c(.09),
+    t2w = c(0.04),
     m = 50,
     
-    true.sei.expr = c( #"runif(n = 1, min = 0.1, max = 1)",  # mean=0.55
-      #"runif(n = 1, min = 0.50, max = 0.60)", # mean=0.55 also
-      #"runif(n = 1, min = 0.51, max = 1.5)", # same range as first one, but higher mean
-      #"runif(n = 1, min = 0.1, max = 3)",
-      #"runif(n = 1, min = 1, max = 3)",
-      "0.1 + rexp(n = 1, rate = 1.5)",
-      "rbeta(n = 1, 2, 5)" ),
-    hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
+    true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
+    hack = c("affirm"),
     rho = c(0),
-    k.pub.nonaffirm = c(5, 10, 20, 50),
-    prob.hacked = c(0.5, 0.8),
+    k.pub.nonaffirm = c(50),
+    prob.hacked = c(0.8),
     
     # Stan control args
     stan.maxtreedepth = 20,
@@ -734,7 +728,7 @@ doParallel.seconds = system.time({
     
     if ( FALSE ) {
       
-      ### Sanity Check #1A: Agreement at Fixed Params, Nonaffirms Only ###
+      # ~~~ Sanity Check #1A: Agreement at Fixed Params, Nonaffirms Only -----------
       # these are calculated for a FIXED (mu=2, tau=2) to match the sanity checks embedded in 
       #  stan.model above (see "generated quantities")
       # these calls are as in nlpost_jeffreys_RTMA
@@ -743,6 +737,7 @@ doParallel.seconds = system.time({
                                            .tcrit = dpn$tcrit,
                                            .Mu = 2,
                                            .Tt = 2 )
+
       
       log.prior.sanity.R = lprior( .sei = sqrt(dpn$vi),
                                    .Mu = 2,
@@ -818,7 +813,7 @@ doParallel.seconds = system.time({
       
  
 
-      ### Sanity Check #2A: Agreement at Fixed Params, CSM Dataset (Includes Affirms) ###
+      # ~~~ Sanity Check #2A: Agreement at Fixed Params, CSM Dataset (Includes Affirms) -------
       # these are calculated for a FIXED (mu=2, tau=2) to match the sanity checks embedded in 
       #  stan.model above (see "generated quantities")
       # these calls are as in nlpost_jeffreys_RTMA
@@ -828,11 +823,6 @@ doParallel.seconds = system.time({
                                            .tcrit = dp.csm$tcrit,
                                            .Mu = 2,
                                            .Tt = 2 )
-      
-      log.prior.sanity.R = lprior( .sei = sqrt(dp.csm$vi),
-                                   .Mu = 2,
-                                   .Tt = 2,
-                                   .tcrit = dp.csm$tcrit )
       
       #@wastefully re-run MCMC in order to capture its full output (which isn't preserved
       #  when it's run inside run_method_safe)
@@ -847,33 +837,51 @@ doParallel.seconds = system.time({
       ext = rstan::extract(temp$post)
       # "unique" because these have a fixed value across all iterates
       log.lkl.sanity.stan = unique(ext$log_lik_sanity)
-      log.prior.sanity.stan = unique(ext$log_prior_sanity)
       
-      #@ALL OF THESE NOW DISAGREE!! SO THERE'S SOMETHING ABOUT THE AFFIRMATIVES
+      # agrees :)
       expect_equal( as.numeric(log.lkl.sanity.R),
                     as.numeric(log.lkl.sanity.stan),
                     tolerance = 0.001 )
-      expect_equal( as.numeric(log.prior.sanity.R),
-                    as.numeric(log.prior.sanity.stan),
-                    tolerance = 0.001 )
       
-      ### Sanity Check #3A: Agreement at Fixed Params, Affirms Only ###
+      # not checking prior because helper_SAPH::lprior doesn't handle affirms
       
-      #bm
+      
+      
+      # ~~~ Sanity Check #3A: Agreement at Fixed Params, Affirms Only --------
       
       dpa = dp %>% filter(affirm == TRUE)
       
       
-      log.lkl.sanity.R = -1 * joint_nll_2( .yi = dpa$yi,
+      ( log.lkl.sanity.R = -1 * joint_nll_2( .yi = dpa$yi,
                                            .sei = sqrt(dpa$vi),
                                            .tcrit = dpa$tcrit,
                                            .Mu = 2,
-                                           .Tt = 2 )
+                                           .Tt = 2 ) )
       
-      log.prior.sanity.R = lprior( .sei = sqrt(dpa$vi),
-                                   .Mu = 2,
-                                   .Tt = 2,
-                                   .tcrit = dpa$tcrit )
+      
+      # write my own simpler lkl
+      library(truncnorm)
+      log.lkl.sanity.R.2 = sum( log( dtruncnorm( x = dpa$yi,
+                                  mean = 2,
+                                  sd = sqrt(2^2 + dpa$vi),
+                                  a = dpa$tcrit * sqrt(dpa$vi),
+                                  b = 99 ) ) )
+      
+      expect_equal(log.lkl.sanity.R, log.lkl.sanity.R.2)
+      
+      # another one, closer to init_stan_model's generated_quantities block
+      term1 = dnorm(x = dpa$yi,
+                    mean = 2,
+                    sd = sqrt(2^2 + dpa$vi),
+                    log = TRUE )
+      critScaled = dpa$tcrit * sqrt(dpa$vi)
+      term2 = log( 1 - pnorm(q = critScaled,
+                        mean = 2,
+                        sd = sqrt(2^2 + dpa$vi) ) )
+      # agrees!!!!!
+      expect_equal( sum( term1 - term2 ),
+                    log.lkl.sanity.R )
+      
       
       #@wastefully re-run MCMC in order to capture its full output (which isn't preserved
       #  when it's run inside run_method_safe)
@@ -887,28 +895,19 @@ doParallel.seconds = system.time({
                                          .stan.maxtreedepth = p$stan.maxtreedepth)
       ext = rstan::extract(temp$post)
       # "unique" because these have a fixed value across all iterates
-      log.lkl.sanity.stan = unique(ext$log_lik_sanity)
-      log.prior.sanity.stan = unique(ext$log_prior_sanity)
-      
-      #@ALL OF THESE NOW DISAGREE!! SO THERE'S SOMETHING ABOUT THE AFFIRMATIVES
+      ( log.lkl.sanity.stan = unique(ext$log_lik_sanity) )
+  
+      # agrees
       expect_equal( as.numeric(log.lkl.sanity.R),
                     as.numeric(log.lkl.sanity.stan),
                     tolerance = 0.001 )
-      expect_equal( as.numeric(log.prior.sanity.R),
-                    as.numeric(log.prior.sanity.stan),
-                    tolerance = 0.001 )
       
-      
-      
-      
+      # not checking prior because helper_SAPH::lprior doesn't handle affirms
       
       # # if needed to refresh code
-      # path = "/home/groups/manishad/SAPH"
-      # setwd(path)
-      # source("helper_SAPH.R")
-      
-      
-      
+      path = "/home/groups/manishad/SAPH"
+      setwd(path)
+      source("helper_SAPH.R")
     }
     
     # # SAVE 

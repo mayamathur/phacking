@@ -41,7 +41,7 @@ functions{
 		// MM: build a Fisher info matrix for EACH observation
 		for (i in 1:k) {
 		
-		  // marginal SD for this one observation
+		  // MARGINAL SD for this one observation
 		  sigma = sqrt(tau^2 + sei[i]^2);
 
 		  // depending on whether study is affirmative, set truncation limits
@@ -140,7 +140,6 @@ generated quantities{
   real log_prior_sanity = log( jeffreys_prior(2, 2, k, sei, tcrit, affirm) );
 
   for ( i in 1:k ){
-    //@2022-4-5: I HAVE NOT EDITED THIS TO HANDLE CASE OF AFFIRMATIVES
     log_lik += normal_lpdf( y[i] | mu, sqrt(tau^2 + sei[i]^2) );
     log_lik_sanity += normal_lpdf( y[i] | 2, sqrt(2^2 + sei[i]^2) );
 
@@ -150,18 +149,29 @@ generated quantities{
     // see 'Truncation with upper bounds in Stan' section
     // nonaffirm case:
     if ( y[i] <= critScaled ) {
+    // from sanity checks in doParallel, I know this matches joint_nll_2
       log_lik += -1 * normal_lcdf(critScaled | mu, sqrt(tau^2 + sei[i]^2) );
       log_lik_sanity += -1 * normal_lcdf(critScaled | 2, sqrt(2^2 + sei[i]^2) );
 
     // affirm case:
     } else if ( y[i] > critScaled ) {
-      log_lik += -1 * ( 1 - normal_lcdf(critScaled | mu, sqrt(tau^2 + sei[i]^2) ) );
-      log_lik_sanity += -1 * ( 1 - normal_lcdf(critScaled | 2, sqrt(2^2 + sei[i]^2) ) );
+      log_lik += -1 * log( 1 - normal_cdf( critScaled, mu, sqrt(tau^2 + sei[i]^2) ) );
+      log_lik_sanity += -1 * log( 1 - normal_cdf( critScaled, 2, sqrt(2^2 + sei[i]^2) ) );
     }
   }
   log_post = log_prior + log_lik;
 }
 "
+
+# R implementation of affirm part that I know matches joint_nll2 and dtruncnorm:
+# term1 = dnorm(x = dpa$yi,
+#               mean = 2,
+#               sd = sqrt(2^2 + dpa$vi),
+#               log = TRUE )
+# critScaled = dpa$tcrit * sqrt(dpa$vi)
+# term2 = log( 1 - pnorm(q = critScaled,
+#                        mean = 2,
+#                        sd = sqrt(2^2 + dpa$vi) ) )
 
 
 
