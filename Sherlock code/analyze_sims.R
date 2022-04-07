@@ -45,9 +45,13 @@ overwrite.res = FALSE
 code.dir = here("Sherlock code")
 
 
+# data.dir = str_replace( string = here(),
+#                         pattern = "Code \\(git\\)",
+#                         replacement = "Sherlock simulation results/Pilot simulations/*2022-3-27 full set" )
+
 data.dir = str_replace( string = here(),
                         pattern = "Code \\(git\\)",
-                        replacement = "Sherlock simulation results/Pilot simulations/*2022-3-27 full set" )
+                        replacement = "Sherlock simulation results/Pilot simulations" )
 
 
 results.dir = data.dir
@@ -89,6 +93,9 @@ agg = fread( "agg.csv")
 file.info("agg.csv")$mtime
 
 
+
+
+
 # ### Merge two sets of sim results
 # 
 # # 2022-3-27 sims:
@@ -113,6 +120,8 @@ expect_equal( 480, nuni(agg$scen.name) )
 
 agg = wrangle_agg_local(agg)
 
+# look at number of actual sim reps
+table(agg$sim.reps.actual)
 
 
 # ~~ List variable names -------------------------
@@ -268,17 +277,31 @@ for ( Yname in Ynames) {
   if ( Yname == "MhatBias") y.breaks = seq(-0.5, 0.5, 0.1)
   if ( Yname == "MhatWidth") y.breaks = seq(0, 10, 0.5)
   
-  p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
-                          .Yname = Yname,
-                          .colorVarName = "method.pretty",
-                          #.facetVar1Name = "tempFacetVar1",
-                          .facetVar1Name = "true.sei.expr.pretty",
-                          .facetVar2Name = "tempFacetVar2",
-                          .dat = aggp,
-                          .ggtitle = prefix,
-                          .y.breaks = y.breaks,
-                          .writePlot = FALSE,
-                          .results.dir = NULL)
+  # MAIN VERSION
+  # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
+  #                         .Yname = Yname,
+  #                         .colorVarName = "method.pretty",
+  #                         #.facetVar1Name = "tempFacetVar1",
+  #                         .facetVar1Name = "true.sei.expr.pretty",
+  #                         .facetVar2Name = "tempFacetVar2",
+  #                         .dat = aggp,
+  #                         .ggtitle = prefix,
+  #                         .y.breaks = y.breaks,
+  #                         .writePlot = FALSE,
+  #                         .results.dir = NULL)
+  
+  # for 2022-4-6
+  p  = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
+                                .Yname = Yname,
+                                .colorVarName = "method",
+                                #.facetVar1Name = "tempFacetVar1",
+                                .facetVar1Name = "true.sei.expr",
+                                .facetVar2Name = "tempFacetVar2",
+                                .dat = aggp,
+                                .ggtitle = prefix,
+                                .y.breaks = y.breaks,
+                                .writePlot = FALSE,
+                                .results.dir = NULL)
   
   # # for 2022-3-16
   # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
@@ -385,6 +408,19 @@ t = agg %>% group_by_at( param.vars.manip2 ) %>%
 
 setwd(results.dir)
 write.xlsx( as.data.frame(t), "table_sanchecks.xlsx")
+
+
+# 2022-4-7: temporarily look at number of hacked nonaffirms for CSM
+keepers = c("sancheck.dp.k.nonaffirm",
+            "sancheck.prob.published.nonaffirm.is.hacked")
+
+
+t = agg %>% group_by_at( param.vars.manip2 ) %>%
+  filter(hack == "affirm2" & true.sei.expr == "0.02 + rexp(n = 1, rate = 3)") %>%
+  select( all_of(keepers) ) %>%
+  #select( all_of( contains("sancheck") ) ) %>%
+  mutate_if( is.numeric, function(x) round(x, 2) )
+View(t)
 
 
 # OLD: EFFECT OF SCEN PARAMS ON DATASETS -------------------------

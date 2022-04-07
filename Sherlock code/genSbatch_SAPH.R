@@ -81,7 +81,7 @@ scen.params = tidyr::expand_grid(
   m = 50,
   
   true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
-  hack = c("affirm"),
+  hack = c("affirm2"),
   rho = c(0),
   k.pub.nonaffirm = c(10, 20, 50, 100),
   prob.hacked = c(0.8),
@@ -92,7 +92,7 @@ scen.params = tidyr::expand_grid(
   
   get.CIs = TRUE,
   #@YOU SHOULD GET OPTIMX FOR THIS RUN
-  run.optimx = TRUE )
+  run.optimx = FALSE )
 
 # ### 2022-3-24: ISOLATE A FEW SCENS ###
 # scen.params = tidyr::expand_grid(
@@ -163,7 +163,8 @@ scen.params = tidyr::expand_grid(
 # scen.params = scen.params %>% dplyr::filter( !(rho > 0 & Nmax == 1) )
 
 # add scen numbers
-scen.params = scen.params %>% add_column( scen = 1:nrow(scen.params),
+start.at = 5
+scen.params = scen.params %>% add_column( scen = start.at : ( nrow(scen.params) + (start.at - 1) ),
                                           .before = 1 )
 
 
@@ -203,7 +204,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "05:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
+                            jobtime = "00:30:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,

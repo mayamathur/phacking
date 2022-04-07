@@ -31,7 +31,7 @@ rm( list = ls() )
 
 
 # are we running locally?
-run.local = TRUE
+run.local = FALSE
 
 # should we set scen params interactively on cluster?
 #@remember to change this back
@@ -110,6 +110,8 @@ if (run.local == FALSE) {
     setwd(path)
     scen.params = read.csv( "scen_params.csv" )
     p <<- scen.params[ scen.params$scen == scen, ]
+    
+    cat("\n\nHEAD OF ENTIRE SCEN.PARAMS:\n")
     print(p)
   }
   
@@ -143,10 +145,14 @@ if (run.local == FALSE) {
       
       get.CIs = TRUE,
       run.optimx = TRUE )
+    
+    
+    scen.params$scen = 1:nrow(scen.params)
+    
     scen = 1
   }  # end "if ( interactive.cluster.run == TRUE )"
   
-  scen.params$scen = 1:nrow(scen.params)
+
   
   # locally, with total k = 100, Nmax = 10, and sim.reps = 250, took 93 min total
   # for that I did sim.reps = 100 per doParallel
@@ -269,13 +275,19 @@ doParallel.seconds = system.time({
     
     # extract simulation params for this scenario (row)
     # exclude the column with the scenario name itself (col) 
+    cat("\n\n scen variable:\n")
+    print(scen)
+    
+    cat("\n\n scen.params again:\n")
+    print(scen.params)
+    
     p = scen.params[ scen.params$scen == scen, names(scen.params) != "scen"]
     
     # calculate TOTAL heterogeneity
     p$V = p$t2a + p$t2w
     p$S = sqrt(p$V)
     
-    if ( i == 1 ) cat("\n\nHEAD OF SCEN.PARAMS:\n")
+    if ( i == 1 ) cat("\n\nHEAD OF P (SINGLE ROW OF SCEN.PARAMS):\n")
     if ( i == 1 ) print(p)
     
     # parse methods string
