@@ -55,6 +55,39 @@ results.dir = here("Results from local analysis")
 overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/figures_SAPH/lodder"
 overleaf.dir.nums = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/results_from_R_SAPH"
 
+# INFO ABOUT DATASET  ------------------------------
+
+# ~ Number of studies of each type   ------------------------------
+
+update_result_csv( name = "Lodder k total",
+                   value = nrow(dp),
+                   .overleaf.dir = overleaf.dir.nums )
+
+update_result_csv( name = "Lodder k prereg",
+                   value = sum(dp$Preregistered == 1),
+                   .overleaf.dir = overleaf.dir.nums )
+
+update_result_csv( name = "Lodder k non-prereg",
+                   value = sum(dp$Preregistered == 0),
+                   .overleaf.dir = overleaf.dir.nums )
+
+update_result_csv( name = "Lodder k prereg affirm",
+                   value = sum(dp$Preregistered == 1 & dp$affirm == 1),
+                   .overleaf.dir = overleaf.dir.nums )
+
+update_result_csv( name = "Lodder k prereg nonaffirm",
+                   value = sum(dp$Preregistered == 1 & dp$affirm == 0),
+                   .overleaf.dir = overleaf.dir.nums )
+
+update_result_csv( name = "Lodder k non-prereg affirm",
+                   value = sum(dp$Preregistered == 0 & dp$affirm == 1),
+                   .overleaf.dir = overleaf.dir.nums )
+
+update_result_csv( name = "Lodder k non-prereg nonaffirm",
+                   value = sum(dp$Preregistered == 0 & dp$affirm == 0),
+                   .overleaf.dir = overleaf.dir.nums )
+
+
 # Z-SCORE DENSITY  ------------------------------
 
 
