@@ -40,22 +40,51 @@ lapply( allPackages,
 # I think a similar thing will be true with the Rhats if you omit jeffreys-mcmc?
 
 # ### FULL VERSION ###
+scen.params = tidyr::expand_grid(
+  # full list (save):
+  # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
+  rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; prereg-naive",
+
+  # args from sim_meta_2
+  Nmax = 30,
+  Mu = c(0.5, 0),
+  t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
+  t2w = c(0, 0.2^2),
+  m = 50,
+
+  true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
+                    "rbeta(n = 1, 2, 5)"), 
+  hack = c("affirm2", "favor-best-affirm-wch", "affirm"),
+  rho = c(0),
+  k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
+  prob.hacked = c(0.8),
+
+  # Stan control args
+  stan.maxtreedepth = 20,
+  stan.adapt_delta = 0.98,
+
+  get.CIs = TRUE,
+  run.optimx = FALSE )
+
+
+### 2022-4-5: ISOLATE SCEN FOR CSM AND SMKH ###
+
 # scen.params = tidyr::expand_grid(
 #   # full list (save):
 #   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-#   rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; prereg-naive",
+#   rep.methods = "2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; csm-mle-sd ; prereg-naive",
 #   
 #   # args from sim_meta_2
 #   Nmax = 30,
-#   Mu = c(0.5, 0),
-#   t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
-#   t2w = c(0, 0.2^2),
+#   Mu = c(0.5),
+#   t2a = c(.09),
+#   t2w = c(0.04),
 #   m = 50,
 #   
-#   true.sei.expr = c("draw_lodder_se()"), # 2022-4-1: only change from last round
-#   hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
+#   true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
+#   hack = c("affirm2"),
 #   rho = c(0),
-#   k.pub.nonaffirm = c(10, 15, 20, 50, 100),
+#   k.pub.nonaffirm = c(10, 20, 50, 100),
 #   prob.hacked = c(0.8),
 #   
 #   # Stan control args
@@ -63,36 +92,8 @@ lapply( allPackages,
 #   stan.adapt_delta = 0.98,
 #   
 #   get.CIs = TRUE,
+#   #@YOU SHOULD GET OPTIMX FOR THIS RUN
 #   run.optimx = FALSE )
-
-
-### 2022-4-5: ISOLATE SCEN FOR CSM AND SMKH ###
-
-scen.params = tidyr::expand_grid(
-  # full list (save):
-  # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-  rep.methods = "2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; csm-mle-sd ; prereg-naive",
-  
-  # args from sim_meta_2
-  Nmax = 30,
-  Mu = c(0.5),
-  t2a = c(.09),
-  t2w = c(0.04),
-  m = 50,
-  
-  true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
-  hack = c("affirm2"),
-  rho = c(0),
-  k.pub.nonaffirm = c(10, 20, 50, 100),
-  prob.hacked = c(0.8),
-  
-  # Stan control args
-  stan.maxtreedepth = 20,
-  stan.adapt_delta = 0.98,
-  
-  get.CIs = TRUE,
-  #@YOU SHOULD GET OPTIMX FOR THIS RUN
-  run.optimx = FALSE )
 
 # ### 2022-3-24: ISOLATE A FEW SCENS ###
 # scen.params = tidyr::expand_grid(
@@ -163,7 +164,7 @@ scen.params = tidyr::expand_grid(
 # scen.params = scen.params %>% dplyr::filter( !(rho > 0 & Nmax == 1) )
 
 # add scen numbers
-start.at = 5
+start.at = 1
 scen.params = scen.params %>% add_column( scen = start.at : ( nrow(scen.params) + (start.at - 1) ),
                                           .before = 1 )
 
@@ -185,7 +186,7 @@ source("helper_SAPH.R")
 # number of sbatches to generate (i.e., iterations within each scenario)
 # n.reps.per.scen = 1000  
 # n.reps.in.doParallel = 200  #@if running optimx, I used 100 here and 5:00:00 below
-n.reps.per.scen = 1000
+n.reps.per.scen = 2000
 n.reps.in.doParallel = 100
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
@@ -204,7 +205,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "00:30:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
+                            jobtime = "06:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -226,10 +227,10 @@ n.files
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
 
-# 40
+# 13,440
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:40) {
+for (i in 2400:3400) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 

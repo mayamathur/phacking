@@ -327,6 +327,9 @@ doParallel.seconds = system.time({
     # discard affirmatives from hacked studies
     dp.csm = dp %>% filter( affirm == FALSE | hack == "no" )
     
+    # this is like analyzing only preregistered studies
+    dp.unhacked = dp %>% filter(hack == "no")
+    
     if ( i == 1 ) cat("\n\nHEAD OF DP:\n")
     if ( i == 1 ) print(head(dp))
     
@@ -696,10 +699,7 @@ doParallel.seconds = system.time({
     }
     
     # ~~ Naive (Unhacked Only) ------------------------------
-    
-    # this is like analyzing only preregistered studies
-    dp.unhacked = dp %>% filter(hack == "no")
-    
+  
     if ( "prereg-naive" %in% all.methods &
          nrow(dp.unhacked) > 0 ) {
       rep.res = run_method_safe(method.label = c("prereg-naive"),
