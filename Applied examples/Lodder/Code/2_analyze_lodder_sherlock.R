@@ -6,7 +6,11 @@
 #  To analyze multiple metas, use the script 2022-3-11 applied doParallel SAPH.R
 
 # To quickly run this script in high-mem interactive session:
-# setwd("/home/groups/manishad/SAPH/applied_examples/code"); source("analyze_lodder_sherlock.R")
+# setwd("/home/groups/manishad/SAPH/applied_examples/code"); source("2_analyze_lodder_sherlock.R")
+
+# To update this code on Sherlock, need to upload it manually since it's not in the dir
+#  that pushes with my existing command.
+
 
 # This is very similar to doParallel.R.
 # The only real additions/changes are:
@@ -52,7 +56,7 @@ local.results.dir = NULL
 
 # specify which methods to run, as in doParallel
 # but obviously can't run gold-std on a non-simulated meta-analysis
-all.methods = "naive ; maon ; pcurve ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc"
+all.methods = "naive ; maon ; pcurve ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; prereg-naive"
 #all.methods = "naive ; maon ; 2psm ; mle-sd; csm-mle-sd"
 # parse methods string
 all.methods = unlist( strsplit( x = all.methods,
@@ -751,48 +755,48 @@ rep.res %>% select(method, Mhat, MLo, MHi, MhatRhat, optimx.Nagree.of.convergers
   mutate_if(is.numeric, function(x) round(x,2) )
 
 
-# QQ Plot: RTMA ------------------
-
-p = yi_qqplot(yi = dpn$yi,
-              sei = dpn$sei,
-              Mhat = Mhat,
-              Shat = Shat)
-
-
-# QQ Plot: CSM -------------------
-
-# this will be a bad fit because of hacking
-p = yi_qqplot(yi = dp.csm$yi,
-              sei = dp.csm$sei,
-              Mhat = Mhat,
-              Shat = Shat)
-
-# QQ Plot: All Results -------------------
-
-# this will be a bad fit because of hacking
-p = yi_qqplot(yi = dp$yi,
-              sei = dp$sei,
-              Mhat = Mhat,
-              Shat = Shat)
-
-
-### Make RTMA Density Plot 
-
-plot.method = "jeffreys-mcmc-pmed"
-
-# catch possibility that we didn't run this method
-if ( length( rep.res$Mhat[ rep.res$method == plot.method ] ) > 0 ) {
-  p = plot_trunc_densities_RTMA(d = dp,
-                                Mhat = rep.res$Mhat[ rep.res$method == plot.method ],
-                                Shat = rep.res$Shat[ rep.res$method == plot.method ],
-                                showAffirms  = FALSE)
-  
-  setwd(sherlock.results.dir)
-  ggsave( filename = paste( "density_plot", meta.name, ".pdf", sep="_" ),
-          width = 10, 
-          height = 10)
-  
-}
+# # QQ Plot: RTMA ------------------
+# 
+# p = yi_qqplot(yi = dpn$yi,
+#               sei = dpn$sei,
+#               Mhat = Mhat,
+#               Shat = Shat)
+# 
+# 
+# # QQ Plot: CSM -------------------
+# 
+# # this will be a bad fit because of hacking
+# p = yi_qqplot(yi = dp.csm$yi,
+#               sei = dp.csm$sei,
+#               Mhat = Mhat,
+#               Shat = Shat)
+# 
+# # QQ Plot: All Results -------------------
+# 
+# # this will be a bad fit because of hacking
+# p = yi_qqplot(yi = dp$yi,
+#               sei = dp$sei,
+#               Mhat = Mhat,
+#               Shat = Shat)
+# 
+# 
+# ### Make RTMA Density Plot 
+# 
+# plot.method = "jeffreys-mcmc-pmed"
+# 
+# # catch possibility that we didn't run this method
+# if ( length( rep.res$Mhat[ rep.res$method == plot.method ] ) > 0 ) {
+#   p = plot_trunc_densities_RTMA(d = dp,
+#                                 Mhat = rep.res$Mhat[ rep.res$method == plot.method ],
+#                                 Shat = rep.res$Shat[ rep.res$method == plot.method ],
+#                                 showAffirms  = FALSE)
+#   
+#   setwd(sherlock.results.dir)
+#   ggsave( filename = paste( "density_plot", meta.name, ".pdf", sep="_" ),
+#           width = 10, 
+#           height = 10)
+#   
+# }
 
 
 # ~ WRITE LONG RESULTS ------------------------------
@@ -800,6 +804,3 @@ if ( length( rep.res$Mhat[ rep.res$method == plot.method ] ) > 0 ) {
 setwd(sherlock.results.dir)
 fwrite( rep.res, paste( "results_", meta.name, ".csv", sep="" ) )
 
-
-
-fwrite( rep.res, paste( "results2_", meta.name, ".csv", sep="" ) )

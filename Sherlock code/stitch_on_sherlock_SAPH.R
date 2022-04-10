@@ -108,9 +108,14 @@ system(string)
 
 # ~ Optional: Quick Look for Failed Iterates ---------------------------
 
-s %>% group_by(Mu, method) %>%
+t = s %>% group_by(Mu, method) %>%
   summarise( Mhat = meanNA(Mhat),
              MhatNA = mean(is.na(Mhat)))
+
+as.data.frame(t)
+
+# ~ Optional: Which Scens Have Run? ---------------------------
+
 
 # MAKE AGG DATA ----------------------------------------------
 
