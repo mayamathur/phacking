@@ -52,7 +52,7 @@ local.results.dir = NULL
 
 # specify which methods to run, as in doParallel
 # but obviously can't run gold-std on a non-simulated meta-analysis
-all.methods = "naive ; maon ; pcurve ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; csm-mle-sd ; mle-var"
+all.methods = "naive ; maon ; pcurve ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc"
 #all.methods = "naive ; maon ; 2psm ; mle-sd; csm-mle-sd"
 # parse methods string
 all.methods = unlist( strsplit( x = all.methods,
@@ -139,13 +139,10 @@ if ( run.local == FALSE ) {
 
 
 head(dp)
+expect_equal( nrow(dp), 236 )
 
 
-# PREP DATASET ------------------------------
-
-# exclude missing data because estimate_jeffreys_RTMA, etc., aren't designed to handle that
-dp = dp %>% filter( !is.na(yi) & !is.na(vi) )
-
+# MAKE DATA SUBSETS ------------------------------
 
 # published nonaffirmatives only
 dpn = dp[ dp$affirm == FALSE, ]
@@ -157,8 +154,14 @@ dp.csm = dp %>% filter( Preregistered == TRUE | affirm == FALSE )
 dp.csm %>% group_by(Preregistered, affirm) %>%
   summarise(n())
 
+# unhacked only
+dp.prereg = dp %>% filter(Preregistered == TRUE)
+dpn.prereg = dpn %>% filter(Preregistered == TRUE)
+
+
 # COMPILE STAN MODEL ONCE AT BEGINNING ------------------------------
 
+#@NEED TO USE CSM VERSION HERE!
 if ( "jeffreys-mcmc" %in% all.methods ) {
   setwd(sherlock.code.dir)
   source("init_stan_model_applied_SAPH.R")
@@ -472,6 +475,68 @@ rep.res = run_method_safe(method.label = c("ltn-mle-sd"),
                           .rep.res = rep.res )
 
 
+
+# ~~ CSM MCMC ------------------------------
+
+if ( "csm-mcmc" %in% all.methods ) {
+  # # temp for refreshing code
+  # path = "/home/groups/manishad/SAPH"
+  # setwd(path)
+  # source("helper_SAPH.R")
+  
+  # this one has two labels in method arg because a single call to estimate_jeffreys_mcmc
+  #  returns 2 lines of output, one for posterior mean and one for posterior median
+  # order of labels in method arg needs to match return structure of estimate_jeffreys_mcmc
+  rep.res = run_method_safe(method.label = c("csm-mcmc-pmean",
+                                             "csm-mcmc-pmed",
+                                             "csm-mcmc-max-lp-iterate"),
+                            method.fn = function() estimate_jeffreys_mcmc_RTMA(.yi = dp.csm$yi,
+                                                                               .sei = sqrt(dp.csm$vi),
+                                                                               .tcrit = dp.csm$tcrit,
+                                                                               
+                                                                               .Mu.start = Mhat.start,
+                                                                               .Tt.start = max(0.01, Shat.start),
+                                                                               .stan.adapt_delta = stan.adapt_delta,
+                                                                               .stan.maxtreedepth = stan.maxtreedepth),
+                            .rep.res = rep.res )
+  
+  cat("\n doParallel flag: Done csm-mcmc if applicable")
+}
+
+
+# ~~ 2PSM With CSM Dataset ------------------------------
+
+if ( "2psm-csm-dataset" %in% all.methods &
+     nrow(dp.csm) > 0 ) {
+  
+  rep.res = run_method_safe(method.label = c("2psm-csm-dataset"),
+                            method.fn = function() {
+                              mod = weightfunct( effect = dp.csm$yi,
+                                                 v = dp.csm$vi,
+                                                 steps = c(0.025, 1),
+                                                 table = TRUE ) 
+                              
+                              H = mod[[2]]$hessian
+                              ses = sqrt( diag( solve(H) ) )
+                              
+                              # follow the same return structure as report_meta
+                              list( stats = data.frame( Mhat = mod[[2]]$par[2],
+                                                        MLo = mod[[2]]$par[2] - qnorm(.975) * ses[2],
+                                                        MHi = mod[[2]]$par[2] + qnorm(.975) * ses[2],
+                                                        
+                                                        Shat = sqrt( mod[[2]]$par[1] ),
+                                                        # truncate lower limit at 0
+                                                        SLo = sqrt( max( 0, mod[[2]]$par[1] - qnorm(.975) * ses[1] ) ),
+                                                        SHi = sqrt( mod[[2]]$par[1] + qnorm(.975) * ses[1] ) ) ) 
+                            },
+                            .rep.res = rep.res )
+  
+  cat("\n doParallel flag: Done 2psm-csm-dataset if applicable")
+  
+}
+
+
+
 # ~~ MLE (Var param) ------------------------------
 
 if ( "mle-var" %in% all.methods ) {
@@ -501,9 +566,6 @@ srr()
 # ANALYSES OF PREREG STUDIES (SPECIFIC TO LODDER) ------------------
 
 # ~~ Fit Naive (Prereg Only) ------------------------------
-
-dp.prereg = dp %>% filter(Preregistered == TRUE)
-dpn.prereg = dpn %>% filter(Preregistered == TRUE)
 
 if ( "prereg-naive" %in% all.methods ) {
   rep.res = run_method_safe(method.label = c("prereg-naive"),
