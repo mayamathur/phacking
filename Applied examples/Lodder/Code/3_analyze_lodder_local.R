@@ -55,6 +55,24 @@ results.dir = here("Results from local analysis")
 overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/figures_SAPH/lodder"
 overleaf.dir.nums = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/results_from_R_SAPH"
 
+
+
+# MAKE DATA SUBSETS ------------------------------
+
+# published nonaffirmatives only
+dpn = dp[ dp$affirm == FALSE, ]
+
+# special dataset for CSM: 
+# throws away affirmatives from hacked studies (i.e., all non-prereg studies)
+dp.csm = dp %>% filter( Preregistered == TRUE | affirm == FALSE )
+
+dp.csm %>% group_by(Preregistered, affirm) %>%
+  summarise(n())
+
+# unhacked only
+dp.prereg = dp %>% filter(Preregistered == TRUE)
+dpn.prereg = dpn %>% filter(Preregistered == TRUE)
+
 # INFO ABOUT DATASET  ------------------------------
 
 # ~ Number of studies of each type   ------------------------------
@@ -141,16 +159,15 @@ my_ggsave( name = paste( "lodder_z_density.pdf", sep="_" ),
 
 # ~ Recode method ------------------------
 
+# only name the methods we're going to show in paper
 rs$method.pretty = NA
 rs$method.pretty[ rs$method == c("naive") ] = "Uncorrected"
-rs$method.pretty[ rs$method == c("gold-std") ] = "Gold standard"
 rs$method.pretty[ rs$method == c("maon") ] = "MAN"
 rs$method.pretty[ rs$method == c("2psm") ] = "SM"
-rs$method.pretty[ rs$method == c("csm-dataset-2psm") ] = "SMKH" # "known hacking"
+#rs$method.pretty[ rs$method == c("2psm-csm-dataset") ] = "SMKH" # "known hacking"
 rs$method.pretty[ rs$method == c("prereg-naive") ] = "Preregistered only"
 rs$method.pretty[ rs$method %in% c("jeffreys-mcmc-pmed") ] = "RTMA"
 table(rs$method, rs$method.pretty)
-
 
 
 
@@ -168,8 +185,7 @@ correct.order = c("Uncorrected",
                   "Preregistered only",
                   
                   "RTMA",
-                  "MAN",
-                  "SMKH")
+                  "MAN")
 
 rsp$method.pretty = factor(rsp$method.pretty, levels = rev(correct.order))
 levels(rsp$method.pretty)
@@ -191,7 +207,7 @@ my.shapes = c(16, 2)
 # .colors[ names(.colors) == "RTMA" ] = "red"
 
 # hard-code colors to match simulations
-.colors = c(SMKH = "#1B9E77",
+.colors = c(#SMKH = "#1B9E77",
             MAN = "#ff9900",
             RTMA = "red",
             `Preregistered only` = "#3399ff",
@@ -205,8 +221,7 @@ my.shapes = c(16, 2)
 .lty = rep("dashed", nuni(rsp$method.pretty))
 names(.lty) = names(.colors)
 
-newMethods = c("SMKH",
-               "MAN",
+newMethods = c("MAN",
                "RTMA")
 
 .lty[ names(.lty) %in% newMethods ] = "solid"
@@ -249,7 +264,7 @@ scale_colour_manual(values = .colors ) +
   ylab("") +
   labs(color  = "Method", linetype = "Method", shape = "Method") +
   # manually set shapes in color legend to match the second legend
-  guides(colour = guide_legend( override.aes = list( shape = c(2,16,16,16,16,16) ),
+  guides(colour = guide_legend( override.aes = list( shape = c(2,16,16,16,16) ),
                                 reverse = TRUE) ) +
   
   theme_bw() +
@@ -270,38 +285,41 @@ my_ggsave( name = paste( "lodder_forest.pdf", sep="_" ),
 
 # QQ PLOTS FOR RTMA FIT  ------------------
 
-#@need to edit these
-
 # QQ Plot: RTMA ------------------
+
+
+Mhat = rs$Mhat[ rs$method == "jeffreys-mcmc-pmed" ]
+Shat = rs$Shat[ rs$method == "jeffreys-mcmc-pmed" ]
 
 p = yi_qqplot(yi = dpn$yi,
               sei = dpn$sei,
               Mhat = Mhat,
               Shat = Shat)
 
-
-# QQ Plot: CSM -------------------
-
-# this will be a bad fit because of hacking
-p = yi_qqplot(yi = dp.csm$yi,
-              sei = dp.csm$sei,
-              Mhat = Mhat,
-              Shat = Shat)
-
-# QQ Plot: All Results -------------------
-
-# this will be a bad fit because of hacking
-p = yi_qqplot(yi = dp$yi,
-              sei = dp$sei,
-              Mhat = Mhat,
-              Shat = Shat)
-
-# LOOK AT SEI DISTRIBUTION TO INFORM SIMS ------------------------------
-
-# seems like I already have a folder to this effect?
+setwd(results.dir)
+my_ggsave( name = paste( "lodder_rtma_qqplot.pdf", sep="_" ),
+           .width = 7, 
+           .height = 7,
+           .results.dir = results.dir,
+           .overleaf.dir = overleaf.dir.figs )
 
 
 
+# # QQ Plot: CSM -------------------
+# 
+# # this will be a bad fit because of hacking
+# p = yi_qqplot(yi = dp.csm$yi,
+#               sei = dp.csm$sei,
+#               Mhat = Mhat,
+#               Shat = Shat)
+# 
+# # QQ Plot: All Results -------------------
+# 
+# # this will be a bad fit because of hacking
+# p = yi_qqplot(yi = dp$yi,
+#               sei = dp$sei,
+#               Mhat = Mhat,
+#               Shat = Shat)
 
 
 

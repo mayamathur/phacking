@@ -950,15 +950,15 @@ whichStrings = function(pattern, x){
 
 # stands for "wipe results"
 wr = function(){
-  setwd(results.dir)
-  if( "stats_for_paper.csv" %in% list.files() ) system("rm stats_for_paper.csv")
-  setwd(overleaf.dir)
+  #setwd(results.dir)
+  #if( "stats_for_paper.csv" %in% list.files() ) system("rm stats_for_paper.csv")
+  setwd(overleaf.dir.nums)
   if( "stats_for_paper.csv" %in% list.files() ) system("rm stats_for_paper.csv")
 }
 
 # stands for "view results"
 vr = function(){
-  setwd(results.dir)
+  setwd(overleaf.dir.nums)
   View( read.csv("stats_for_paper.csv") )
 }
 
