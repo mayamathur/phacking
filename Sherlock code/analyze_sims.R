@@ -93,7 +93,8 @@ agg = fread( "agg.csv")
 file.info("agg.csv")$mtime
 
 
-
+#@temp only
+agg = make_agg_data(.s = s)
 
 
 # ### Merge two sets of sim results
