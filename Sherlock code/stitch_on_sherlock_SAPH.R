@@ -17,6 +17,8 @@
 
 
 # to be run by stitch.sbatch or manually
+# To quickly run this script in high-mem interactive session:
+# setwd("/home/groups/manishad/SAPH"); source("stitch_on_sherlock_SAPH.R")
 
 # # load command line arguments
 # args = commandArgs(trailingOnly = TRUE)
@@ -151,19 +153,19 @@ agg %>% group_by(method) %>%
 
 # LOOK FOR MISSED JOBS ----------------------------------------------
 
-path = "/home/groups/manishad/SAPH"
-setwd(path)
-source("helper_SAPH.R")
-source("analyze_sims_helper_SAPH.R")
-
-# look for missed jobs
-missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
-                              "/home/groups/manishad/SAPH/long_results",
-                              .name.prefix = "long",
-                              .max.sbatch.num = 2400)
-
-setwd( paste(path, "/sbatch_files", sep="") )
-for (i in missed.nums) {
-  system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
-}
+# path = "/home/groups/manishad/SAPH"
+# setwd(path)
+# source("helper_SAPH.R")
+# source("analyze_sims_helper_SAPH.R")
+# 
+# # look for missed jobs
+# missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
+#                               "/home/groups/manishad/SAPH/long_results",
+#                               .name.prefix = "long",
+#                               .max.sbatch.num = 2400)
+# 
+# setwd( paste(path, "/sbatch_files", sep="") )
+# for (i in missed.nums) {
+#   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
+# }
 

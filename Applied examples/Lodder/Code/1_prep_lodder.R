@@ -85,7 +85,7 @@ fwrite(dp, "lodder_raw_uncorrected.csv")
 #  new dataset, since they didn't report stats for the corrected dataset. 
 
 # ~ Appendix A: including all interaction rows -----------------
-# this is NOT the main analysis
+
 expect_equal( nrow(dp.old), 289 )
 expect_equal( sum(dp.old$Preregistered == 1), 51 )
 
@@ -109,20 +109,12 @@ expect_equal( sum(dp.old$Preregistered == 1), 47 )
 # matches :)
 
 
-# FILTER DATASET TO REPRODUCE MAIN ANALYSES ------------------------------
-
-# filter the new, corrected dataset in same way as above
-
-dp = dp %>% filter( Interaction. == 0 |
-                              (Interaction. == 1 &
-                                 Interaction.Identification..1.Largest.predicted.effect.==1 ) )
-
-
 # PREP DATASET ------------------------------
 
+# their code:
 # Add standard error and p-value of Hedges' g
-metdat<-cbind(metdat,gse=sqrt(metdat$var.of.g))
-metdat<-cbind(metdat,gp=round(1-pnorm(metdat$g/metdat$gse),4))
+# metdat<-cbind(metdat,gse=sqrt(metdat$var.of.g))
+# metdat<-cbind(metdat,gp=round(1-pnorm(metdat$g/metdat$gse),4))
 
 dp$yi = dp$g
 dp$vi = dp$var.of.g
@@ -142,8 +134,23 @@ dp = dp %>% filter( !is.na(yi) & !is.na(vi) )
 
 
 
+# FILTER DATASET TO REPRODUCE FIG 1 ANALYSES ------------------------------
+
+# filter the new, corrected dataset in same way as above
+
+dp2 = dp
+dp2 = dp2 %>% filter( Interaction. == 0 |
+                      (Interaction. == 1 &
+                         Interaction.Identification..1.Largest.predicted.effect.==1 ) )
+
+
+
 setwd( here("Prepped data") )
+# we'll use this larger dataset for our own analyses
 fwrite(dp, "lodder_prepped.csv")
+
+# but also save the Figure 1-equivalent dataset:
+fwrite(dp2, "lodder_prepped_fig1.csv")
 
 
 

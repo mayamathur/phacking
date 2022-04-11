@@ -1038,50 +1038,13 @@ update_result_csv = function( name,
 }
 
 
+quick_ci = function( est, var ) {
+  c( est - qnorm(.975) * sqrt(var),
+     est + qnorm(.975) * sqrt(var) )
+}
 
-# writes estimate, CI, and pval to results file
-# and returns them as a df
-#**if using RRs, must pass log-RR, not RR itself
-write_est_inf = function( est,
-                          var,
-                          prefix,
-                          takeExp,
-                          .results.dir = NULL,
-                          .overleaf.dir = NULL ) {
-  
-  CIs = quick_ci( est = est, var = var )
-  pval = quick_pval( est = est, 
-                     var = var)
-  
-  transf = function(x) x
-  if (takeExp == TRUE ) transf = function(x) exp(x)
-  
-  # write results
-  update_result_csv( name = paste( prefix, "est" ),
-                     value = round( transf(est), 2),
-                     .results.dir = .results.dir,
-                     .overleaf.dir = .overleaf.dir )
-  
-  update_result_csv( name = paste( prefix, "lo" ),
-                     value = round( transf(CIs[1]), 2),
-                     .results.dir = .results.dir,
-                     .overleaf.dir = .overleaf.dir )
-  
-  update_result_csv( name = paste( prefix, "hi" ),
-                     value = round( transf(CIs[2]), 2),
-                     .results.dir = .results.dir,
-                     .overleaf.dir = .overleaf.dir )
-  
-  update_result_csv( name = paste( prefix, "pval" ),
-                     value = format.pval( pval, eps=0.0001),
-                     .results.dir = .results.dir,
-                     .overleaf.dir = .overleaf.dir )
-  
-  # also return results as (unrounded) df
-  res = data.frame( est = transf(est),
-                    lo = transf(CIs[1]),
-                    hi = transf(CIs[2]),
-                    pval = pval )
+quick_pval = function( est, var ) {
+  2 * ( 1 - pnorm( abs( est / sqrt(var) ) ) )
 }
 
 

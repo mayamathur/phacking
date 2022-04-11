@@ -143,7 +143,8 @@ if ( run.local == FALSE ) {
 
 
 head(dp)
-expect_equal( nrow(dp), 236 )
+# for the full dataset that includes all interaction rows
+expect_equal( nrow(dp), 287 )
 
 
 # MAKE DATA SUBSETS ------------------------------
@@ -165,7 +166,6 @@ dpn.prereg = dpn %>% filter(Preregistered == TRUE)
 
 # COMPILE STAN MODEL ONCE AT BEGINNING ------------------------------
 
-#@NEED TO USE CSM VERSION HERE!
 if ( "jeffreys-mcmc" %in% all.methods ) {
   setwd(sherlock.code.dir)
   source("init_stan_model_applied_SAPH.R")

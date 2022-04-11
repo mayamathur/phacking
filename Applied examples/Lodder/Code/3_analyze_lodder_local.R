@@ -105,6 +105,13 @@ update_result_csv( name = "Lodder k non-prereg nonaffirm",
                    value = sum(dp$Preregistered == 0 & dp$affirm == 0),
                    .overleaf.dir = overleaf.dir.nums )
 
+update_result_csv( name = "Lodder k affirm",
+                   value = sum(dp$affirm == 1),
+                   .overleaf.dir = overleaf.dir.nums )
+
+update_result_csv( name = "Lodder k nonaffirm",
+                   value = sum(dp$affirm == 0),
+                   .overleaf.dir = overleaf.dir.nums )
 
 # Z-SCORE DENSITY  ------------------------------
 
@@ -140,8 +147,9 @@ p = ggplot(data = data.frame(x = c(xmin, 3)),
   xlab("Z-score") +
   theme_minimal() +
   scale_y_continuous(breaks = NULL) +
-  theme(text = element_text(size=16),
-        axis.text.x = element_text(size=16))
+  theme( text = element_text(size = 16, face = "bold"),
+         panel.grid.major.y = element_blank(),
+         panel.grid.minor.y = element_blank() )
 
 
 
@@ -154,6 +162,28 @@ my_ggsave( name = paste( "lodder_z_density.pdf", sep="_" ),
 
 
 
+
+
+# QQ PLOT FOR RTMA FIT  ------------------
+
+Mhat = rs$Mhat[ rs$method == "jeffreys-mcmc-pmed" ]
+Shat = rs$Shat[ rs$method == "jeffreys-mcmc-pmed" ]
+
+p = yi_qqplot(yi = dpn$yi,
+              sei = dpn$sei,
+              Mhat = Mhat,
+              Shat = Shat) + 
+  theme_bw() +
+  theme( text = element_text(size = 16, face = "bold"),
+         panel.grid.major.y = element_blank(),
+         panel.grid.minor.y = element_blank() )
+
+setwd(results.dir)
+my_ggsave( name = paste( "lodder_rtma_qqplot.pdf", sep="_" ),
+           .width = 7, 
+           .height = 7,
+           .results.dir = results.dir,
+           .overleaf.dir = overleaf.dir.figs )
 
 # FOREST PLOT OF ESTIMATES BY METHOD ------------------------------
 
@@ -283,50 +313,24 @@ my_ggsave( name = paste( "lodder_forest.pdf", sep="_" ),
 
 
 
-# QQ PLOTS FOR RTMA FIT  ------------------
-
-# QQ Plot: RTMA ------------------
 
 
-Mhat = rs$Mhat[ rs$method == "jeffreys-mcmc-pmed" ]
-Shat = rs$Shat[ rs$method == "jeffreys-mcmc-pmed" ]
+# WRITE INDIVIDUAL NUMERICAL ESTIMATES ------------------
 
-p = yi_qqplot(yi = dpn$yi,
-              sei = dpn$sei,
-              Mhat = Mhat,
-              Shat = Shat)
+# only keep certain methods
 
-setwd(results.dir)
-my_ggsave( name = paste( "lodder_rtma_qqplot.pdf", sep="_" ),
-           .width = 7, 
-           .height = 7,
-           .results.dir = results.dir,
-           .overleaf.dir = overleaf.dir.figs )
+update_result_csv( name = paste( "Lodder", rsp$method.pretty, "Mhat", sep = " "),
+                   value = round( rsp$Mhat, 2),
+                   .overleaf.dir = overleaf.dir.nums )
+
+update_result_csv( name = paste( "Lodder", rsp$method.pretty, "MLo", sep = " "),
+                   value = round( rsp$MLo, 2),
+                   .overleaf.dir = overleaf.dir.nums )
 
 
-
-# # QQ Plot: CSM -------------------
-# 
-# # this will be a bad fit because of hacking
-# p = yi_qqplot(yi = dp.csm$yi,
-#               sei = dp.csm$sei,
-#               Mhat = Mhat,
-#               Shat = Shat)
-# 
-# # QQ Plot: All Results -------------------
-# 
-# # this will be a bad fit because of hacking
-# p = yi_qqplot(yi = dp$yi,
-#               sei = dp$sei,
-#               Mhat = Mhat,
-#               Shat = Shat)
-
-
-
-
-
-
-
+update_result_csv( name = paste( "Lodder", rsp$method.pretty, "MHi", sep = " "),
+                   value = round( rsp$MHi, 2),
+                   .overleaf.dir = overleaf.dir.nums )
 
 
 
