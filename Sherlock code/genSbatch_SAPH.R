@@ -47,17 +47,18 @@ scen.params = tidyr::expand_grid(
 
   # args from sim_meta_2
   Nmax = 30,
-  Mu = c(0.5, 0),
+  Mu = c(0.5),
   t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
   t2w = c(0, 0.2^2),
   m = 50,
 
-  true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
-                    "rbeta(n = 1, 2, 5)"), 
   hack = c("affirm2", "favor-best-affirm-wch", "affirm"),
   rho = c(0),
   k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
   prob.hacked = c(0.8),
+  
+  true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
+                    "rbeta(n = 1, 2, 5)"), 
 
   # Stan control args
   stan.maxtreedepth = 20,
@@ -227,10 +228,10 @@ n.files
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
 
-# 13,440
+# 6720
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 13001:13300) {
+for (i in 1:1000) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
