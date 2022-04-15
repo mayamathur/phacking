@@ -8,9 +8,6 @@
 # To quickly run this script in high-mem interactive session:
 # setwd("/home/groups/manishad/SAPH/applied_examples/code"); source("2_analyze_lodder_sherlock.R")
 
-# To update this code on Sherlock, need to upload it manually since it's not in the dir
-#  that pushes with my existing command.
-
 
 # This is very similar to doParallel.R.
 # The only real additions/changes are:
@@ -46,6 +43,10 @@ srr = function() {
 
 run.local = FALSE
 
+# which dataset to run?
+# "Fig 1" or "Appendix A"
+dataset.to.run = "Fig 1"
+
 sherlock.data.dir = "/home/groups/manishad/SAPH/applied_examples/data"
 sherlock.code.dir = "/home/groups/manishad/SAPH"
 sherlock.results.dir = "/home/groups/manishad/SAPH/applied_examples/results/lodder"
@@ -56,7 +57,7 @@ local.results.dir = NULL
 
 # specify which methods to run, as in doParallel
 # but obviously can't run gold-std on a non-simulated meta-analysis
-all.methods = "naive ; maon ; pcurve ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; prereg-naive"
+all.methods = "naive ; maon ; pcurve ; 2psm ; jeffreys-mcmc ; prereg-naive"
 #all.methods = "naive ; maon ; 2psm ; mle-sd; csm-mle-sd"
 # parse methods string
 all.methods = unlist( strsplit( x = all.methods,
@@ -113,8 +114,9 @@ if ( run.local == FALSE ) {
   
   setwd(sherlock.data.dir)
   # "dp" because this is published studies only
-  dp = read.csv("lodder_prepped.csv")
-
+  #@TEMP: USING FIG 1 DATASET
+  if ( dataset.to.run == "Fig 1" ) dp = read.csv("lodder_prepped_fig1.csv")
+  if ( dataset.to.run == "Appendix A" ) dp = read.csv("lodder_prepped.csv")
   
   
   # load packages with informative messages if one can't be installed
@@ -143,8 +145,11 @@ if ( run.local == FALSE ) {
 
 
 head(dp)
+
+
+if ( dataset.to.run == "Fig 1" ) expect_equal( nrow(dp), 236 )
 # for the full dataset that includes all interaction rows
-expect_equal( nrow(dp), 287 )
+if ( dataset.to.run == "Appendix A" ) expect_equal( nrow(dp), 287 )
 
 
 # MAKE DATA SUBSETS ------------------------------
