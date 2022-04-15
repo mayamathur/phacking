@@ -93,8 +93,7 @@ agg = fread( "agg.csv")
 file.info("agg.csv")$mtime
 
 
-#@temp only
-agg = make_agg_data(.s = s)
+
 
 
 # ### Merge two sets of sim results
@@ -116,13 +115,16 @@ agg = make_agg_data(.s = s)
 # agg = bind_rows(agg1, agg2)
 
 
-dim(agg)
+dim(agg)  # will exceed number of scens because of multiple methods
 expect_equal( 480, nuni(agg$scen.name) )
 
 agg = wrangle_agg_local(agg)
 
 # look at number of actual sim reps
 table(agg$sim.reps.actual)
+
+# TEMP: exclude scens with too few reps
+agg = agg %>% filter(sim.reps.actual >= 1500)
 
 
 # ~~ List variable names -------------------------
@@ -250,105 +252,129 @@ toDrop = c("jeffreys-mcmc-pmean", "jeffreys-mcmc-max-lp-iterate")
 method.keepers = all.methods[ !all.methods %in% toDrop ]
 
 
-.hack = "affirm2"
-aggp = agg %>% filter(method %in% method.keepers &
-                        Mu == 0.5 &
-                        hack == .hack)
-# to label the plots
-prefix = paste( "2022-3-27; Mu=0.5; hack=", .hack, sep = "")
-# temporarily set wd
-results.dir = paste("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Sherlock simulation results/Pilot simulations/*2022-3-27 full set/Mu=0.5/hack=", .hack, sep = "")
-
-
-# for 2022-3-25 sims
-aggp$tempFacetVar2 = paste( "t2a=", aggp$t2a, "; t2w=", aggp$t2w, sep = "")
-table(aggp$tempFacetVar2)
-
-# aggp$tempFacetVar1 = paste( "pr.hack=", aggp$prob.hacked, sep = "")
-# table(aggp$tempFacetVar1)
-
-
-for ( Yname in Ynames) {
-  
-  # to run "manually"
-  #Yname = "MhatBias"
-  #Yname = "MhatCover"
-  
-  y.breaks = NULL
-  if ( Yname == "MhatBias") y.breaks = seq(-0.5, 0.5, 0.1)
-  if ( Yname == "MhatWidth") y.breaks = seq(0, 10, 0.5)
-  
-  # MAIN VERSION
-  # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
-  #                         .Yname = Yname,
-  #                         .colorVarName = "method.pretty",
-  #                         #.facetVar1Name = "tempFacetVar1",
-  #                         .facetVar1Name = "true.sei.expr.pretty",
-  #                         .facetVar2Name = "tempFacetVar2",
-  #                         .dat = aggp,
-  #                         .ggtitle = prefix,
-  #                         .y.breaks = y.breaks,
-  #                         .writePlot = FALSE,
-  #                         .results.dir = NULL)
-  
-  # for 2022-4-6
-  p  = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
-                                .Yname = Yname,
-                                .colorVarName = "method",
-                                #.facetVar1Name = "tempFacetVar1",
-                                .facetVar1Name = "true.sei.expr",
-                                .facetVar2Name = "tempFacetVar2",
-                                .dat = aggp,
-                                .ggtitle = prefix,
-                                .y.breaks = y.breaks,
-                                .writePlot = FALSE,
-                                .results.dir = NULL)
-  
-  # # for 2022-3-16
-  # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
-  #                         .Yname = Yname,
-  #                         .colorVarName = "method",
-  #                         .facetVar1Name = "Nmax",
-  #                         .facetVar2Name = "hack",
-  #                         .dat = aggp,
-  #                         .ggtitle = "",
-  #                         .writePlot = FALSE,
-  #                         .results.dir = NULL)
+for ( .hack in unique(agg$hack) ) {
   
   
-  # for 2022-3-8 sims
-  # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
-  #                         .Yname = Yname,
-  #                         .colorVarName = "method",
-  #                         .facetVar1Name = "tempFacetVar",
-  #                         .facetVar2Name = "true.sei.expr.pretty",
-  #                         .dat = aggp,
-  #                         .ggtitle = "",
-  #                         .writePlot = FALSE,
-  #                         .results.dir = NULL)
-  
-  # # SAVE: this was for the 2022-3-7 and earlier sims (based on what they manipulated)
-  # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
-  #                         .Yname = Yname,
-  #                         .colorVarName = "method",
-  #                         .facetVar1Name = "rho.pretty",
-  #                         .facetVar2Name = "true.sei.expr.pretty",
-  #                         .dat = agg,
-  #                         .ggtitle = "",
-  #                         .writePlot = FALSE,
-  #                         .results.dir = NULL)
-  
-  # this is a great way to view plots!!
-  pl = ggplotly(p)
-  pl
-  
-  # how to save a plotly as html
-  # https://www.biostars.org/p/458325/
-  setwd(results.dir)
-  string = paste(prefix, Yname, "plotly.html", sep="_")
-  htmlwidgets::saveWidget(pl, string)
+  for ( .Mu in unique(agg$Mu) ) {
+    
+    cat( paste("\n\n -------- STARTING Mu=", .Mu, ", hack=", .hack, sep = "") )
+    
+    aggp = agg %>% filter(method %in% method.keepers &
+                            Mu == .Mu &
+                            hack == .hack)
+    # to label the plots
+    prefix = paste( "2022-4-9; ",
+    "Mu=", .Mu,
+    "; hack=", .hack, 
+    sep = "")
+    # temporarily set wd
+    # results.dir = paste("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Sherlock simulation results/Pilot simulations/*2022-3-27 full set/Mu=0.5/hack=", .hack, sep = "")
+    
+    # temporarily set wd
+    results.dir.temp = paste(results.dir,
+                             "/2022-4-9/Mu=",
+                             .Mu,
+                             "/hack=",
+                             .hack,
+                             sep = "")
+    
+    # for 2022-3-25 sims
+    aggp$tempFacetVar2 = paste( "t2a=", aggp$t2a, "; t2w=", aggp$t2w, sep = "")
+    table(aggp$tempFacetVar2)
+    
+    # aggp$tempFacetVar1 = paste( "pr.hack=", aggp$prob.hacked, sep = "")
+    # table(aggp$tempFacetVar1)
+    
+    
+    for ( Yname in Ynames) {
+      
+      # to run "manually"
+      #Yname = "MhatBias"
+      #Yname = "MhatCover"
+      
+      y.breaks = NULL
+      if ( Yname == "MhatBias") y.breaks = seq(-0.5, 0.5, 0.1)
+      if ( Yname == "MhatWidth") y.breaks = seq(0, 10, 0.5)
+      
+      # MAIN VERSION
+      # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
+      #                         .Yname = Yname,
+      #                         .colorVarName = "method.pretty",
+      #                         #.facetVar1Name = "tempFacetVar1",
+      #                         .facetVar1Name = "true.sei.expr.pretty",
+      #                         .facetVar2Name = "tempFacetVar2",
+      #                         .dat = aggp,
+      #                         .ggtitle = prefix,
+      #                         .y.breaks = y.breaks,
+      #                         .writePlot = FALSE,
+      #                         .results.dir = NULL)
+      
+      # for 2022-4-6
+      p  = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
+                               .Yname = Yname,
+                               .colorVarName = "method",
+                               #.facetVar1Name = "tempFacetVar1",
+                               .facetVar1Name = "true.sei.expr",
+                               .facetVar2Name = "tempFacetVar2",
+                               .dat = aggp,
+                               .ggtitle = prefix,
+                               .y.breaks = y.breaks,
+                               .writePlot = TRUE,
+                               .results.dir = results.dir.temp)
+      
+      # # for 2022-3-16
+      # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
+      #                         .Yname = Yname,
+      #                         .colorVarName = "method",
+      #                         .facetVar1Name = "Nmax",
+      #                         .facetVar2Name = "hack",
+      #                         .dat = aggp,
+      #                         .ggtitle = "",
+      #                         .writePlot = FALSE,
+      #                         .results.dir = NULL)
+      
+      
+      # for 2022-3-8 sims
+      # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
+      #                         .Yname = Yname,
+      #                         .colorVarName = "method",
+      #                         .facetVar1Name = "tempFacetVar",
+      #                         .facetVar2Name = "true.sei.expr.pretty",
+      #                         .dat = aggp,
+      #                         .ggtitle = "",
+      #                         .writePlot = FALSE,
+      #                         .results.dir = NULL)
+      
+      # # SAVE: this was for the 2022-3-7 and earlier sims (based on what they manipulated)
+      # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
+      #                         .Yname = Yname,
+      #                         .colorVarName = "method",
+      #                         .facetVar1Name = "rho.pretty",
+      #                         .facetVar2Name = "true.sei.expr.pretty",
+      #                         .dat = agg,
+      #                         .ggtitle = "",
+      #                         .writePlot = FALSE,
+      #                         .results.dir = NULL)
+      
+      # this is a great way to view plots!!
+      pl = ggplotly(p)
+      #pl
+      
+      # how to save a plotly as html
+      # https://www.biostars.org/p/458325/
+      setwd(results.dir.temp)
+      string = paste(prefix, Yname, "plotly.html", sep="_")
+      htmlwidgets::saveWidget(pl, string)
+      
+    }
+    
+  }
   
 }
+
+
+
+
 
 
 # ******** PLOTS (SIMPLE AND PRETTY FOR MAIN TEXT) -------------------------
@@ -381,16 +407,16 @@ YnamesSupp = c("MhatBias", "MhatCover", "MhatWidth",
                "MhatTestReject")
 
 # this dataset will be one full-page figure in main text or Supp depending on hack type
-sim_plot_multiple_outcomes(.hack = "favor-best-affirm-wch",
+pl1 = sim_plot_multiple_outcomes(.hack = "favor-best-affirm-wch",
                            .ggtitle = bquote( "Worst-case hacking, favoring best affirmative; " ~ mu ~ "= 0.5" ) )
 
 
-sim_plot_multiple_outcomes(.hack = "affirm",
+pl2 = sim_plot_multiple_outcomes(.hack = "affirm",
                            .ggtitle = bquote( "Worst-case hacking, favoring first affirmative; " ~ mu ~ "= 0.5" ))
 
 
 
-sim_plot_multiple_outcomes(.hack = "affirm2",
+pl3 = sim_plot_multiple_outcomes(.hack = "affirm2",
                            .ggtitle = bquote( "Limited hacking, favoring first affirmative or last nonaffirmative; " ~ mu ~ "= 0.5" ) )
 
 

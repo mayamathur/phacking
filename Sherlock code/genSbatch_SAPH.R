@@ -230,7 +230,7 @@ n.files
 # 13,440
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 7401:8400) {
+for (i in 13001:13300) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
@@ -246,7 +246,7 @@ source("helper_SAPH.R")
 missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
                               "/home/groups/manishad/SAPH/long_results",
                               .name.prefix = "long_results",
-                              .max.sbatch.num = 2400 )
+                              .max.sbatch.num = 13300 )
 
 
 

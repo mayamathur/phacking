@@ -462,19 +462,16 @@ quick_5var_agg_plot = function(.Xname,
     scale_y_continuous( breaks = y.breaks )
   
   if ( .writePlot == TRUE ) {
-    my_ggsave( name = paste(.Y, "_plot.pdf", sep=""),
+    my_ggsave( name = paste(Yname, "_plot.pdf", sep=""),
+               .plot = p,
                .width = 10,
                .height = 10,
                .results.dir = .results.dir,
-               .overleaf.dir.general = NA )
+               .overleaf.dir = overleaf.dir.figs )
   }
   
-  p
-  
-  # want to be able to easily specify groups of colorVar that should have the same plot char
-  #  or linetype (e.g., groups of related methods)
-  # could do it by passing custom color scale as argument
-  # see helper_TNE::plot_by_n for how to specify the custom color scale
+  return(p)
+
 }
 
 

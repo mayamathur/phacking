@@ -63,7 +63,9 @@ functions{
   		// because EACH fisher info below has n=1 only
   		n = 1; 
   		
-  		// beginning of stuff that is not modified at all from TNE
+  		// beginning of stuff that is not modified at all from TNE,
+  		//  *except* for the change-of-variables terms in kms and kss applied in a 
+  		//   final code block
   		// note that normal_lpdf, etc., parameterize in terms of SD, not var
   		//  the (0,1) below are *not* start values for MCMC
   		alphaL = exp( normal_lpdf(mustarL | 0, 1) - 
@@ -74,7 +76,8 @@ functions{
    	                log_diff_exp( normal_lcdf(mustarU | 0, 1),
    	                normal_lcdf(mustarL | 0, 1) ) );
    	                
-  		// second derivatives for Fisher info			
+  		// second derivatives for Fisher info	
+  		// wrt sigma, not tau
   		kmm = -n/sigma^2 + n/sigma^2 * ((alphaU-alphaL)^2 + alphaU*mustarU- alphaL*mustarL);
   		kms = -2*n/sigma^2 * (alphaL - alphaU) + 
   	   		  n/sigma^2 * (alphaL - alphaU + (alphaU*mustarU^2 - alphaL*mustarL^2) +
@@ -82,6 +85,11 @@ functions{
   		kss = n/sigma^2 - 3*n/sigma^2 * (1 + mustarL*alphaL - mustarU*alphaU) +
   	   			n/sigma^2 * (mustarU*alphaU*(mustarU^2 - 2) - mustarL*alphaL*(mustarL^2 - 2) +
   								(alphaU*mustarU - alphaL*mustarL)^2);
+  								
+  								
+  		// change of variables to get derivs wrt tau
+  		kms = kms * tau / sqrt(tau^2 + sei[i]^2);
+  		kss = kss * tau^2 / (tau^2 + sei[i]^2);
   		
   		fishinfo[1,1] = -kmm;
       fishinfo[1,2] = -kms;
