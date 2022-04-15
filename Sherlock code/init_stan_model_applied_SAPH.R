@@ -95,7 +95,6 @@ functions{
       fishinfo[1,2] = -kms;
       fishinfo[2,1] = -kms;
       fishinfo[2,2] = -kss;
-  		// end stuff that is not modified at all from TNE
   		
   		// MM: add the new fisher info to the total one
   		fishinfototal = fishinfototal + fishinfo;
