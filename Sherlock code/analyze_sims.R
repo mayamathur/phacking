@@ -231,6 +231,7 @@ Ynames = rev(MhatYNames)
 
 # alternatively, run just a subset:
 Ynames = c("MhatWidth", "MhatCover", "MhatBias",
+           "MhatEstFail",
            # last 2 are useful for looking at MAON
            "Mhat", "MhatTestReject")
 
@@ -263,7 +264,7 @@ for ( .hack in unique(agg$hack) ) {
                             Mu == .Mu &
                             hack == .hack)
     # to label the plots
-    prefix = paste( "2022-4-9; ",
+    prefix = paste( "2022-4-16; ",
     "Mu=", .Mu,
     "; hack=", .hack, 
     sep = "")
@@ -272,7 +273,7 @@ for ( .hack in unique(agg$hack) ) {
     
     # temporarily set wd
     results.dir.temp = paste(results.dir,
-                             "/2022-4-9/Mu=",
+                             "/2022-4-15 full set with corrected prior/Mu=",
                              .Mu,
                              "/hack=",
                              .hack,
@@ -319,7 +320,7 @@ for ( .hack in unique(agg$hack) ) {
                                .dat = aggp,
                                .ggtitle = prefix,
                                .y.breaks = y.breaks,
-                               .writePlot = TRUE,
+                               .writePlot = FALSE,
                                .results.dir = results.dir.temp)
       
       # # for 2022-3-16

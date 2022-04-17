@@ -108,15 +108,14 @@ string = paste("zip -m stitched.zip", .stitch.file.name)
 system(string)
 
 
-# ~ Optional: Quick Look for Failed Iterates ---------------------------
+# ~ Optional: Quick Summary and Look for Failed Iterates ---------------------------
 
-t = s %>% group_by(Mu, method) %>%
-  summarise( Mhat = meanNA(Mhat),
+t = s %>% group_by(k.pub.nonaffirm, Mu, method) %>%
+  summarise( MhatMn = meanNA(Mhat),
+             MhatCover = meanNA(MLo < Mu & MHi > Mu),
              MhatNA = mean(is.na(Mhat)))
 
 as.data.frame(t)
-
-# ~ Optional: Which Scens Have Run? ---------------------------
 
 
 # MAKE AGG DATA ----------------------------------------------
@@ -138,12 +137,18 @@ cat("\n\n nrow(agg) =", nrow(agg))
 cat("\n nuni(agg$scen.name) =", nuni(agg$scen.name) )
 
 # look again at failures
-agg %>% group_by(method) %>%
+t = agg %>% group_by(k.pub.nonaffirm, method) %>%
   summarise( mean(MhatEstFail),
              mean(MhatCIFail),
              mean(MhatTestReject)
              #meanNA(OptimxNAgreeOfConvergersMhatWinner)
              )
+as.data.frame(t)
+
+
+# errors of 2PSM when it fails
+table( s$overall.error[ s$method == "2psm" & is.na(s$Mhat) ] )
+
 
 
 ##### Move to Local #####

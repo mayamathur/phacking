@@ -39,31 +39,60 @@ lapply( allPackages,
 #  also from mutate in there
 # I think a similar thing will be true with the Rhats if you omit jeffreys-mcmc?
 
-# ### FULL VERSION ###
+# # ### FULL VERSION ###
+# scen.params = tidyr::expand_grid(
+#   # full list (save):
+#   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
+#   rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; prereg-naive",
+# 
+#   # args from sim_meta_2
+#   Nmax = 30,
+#   Mu = c(0.5),
+#   t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
+#   t2w = c(0, 0.2^2),
+#   m = 50,
+# 
+#   hack = c("affirm2", "favor-best-affirm-wch", "affirm"),
+#   rho = c(0),
+#   k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
+#   prob.hacked = c(0.8),
+#   
+#   true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
+#                     "rbeta(n = 1, 2, 5)"), 
+# 
+#   # Stan control args
+#   stan.maxtreedepth = 20,
+#   stan.adapt_delta = 0.98,
+# 
+#   get.CIs = TRUE,
+#   run.optimx = FALSE )
+
+### 2022-4-16: DEBUG NEW PRIOR ###
+
+# with new prior, this scen had only 91% coverage
 scen.params = tidyr::expand_grid(
   # full list (save):
   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-  rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; prereg-naive",
-
+  rep.methods = "naive ; jeffreys-mcmc",
+  
   # args from sim_meta_2
   Nmax = 30,
   Mu = c(0.5),
-  t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
-  t2w = c(0, 0.2^2),
+  t2a = c(0),
+  t2w = c(0),
   m = 50,
-
-  hack = c("affirm2", "favor-best-affirm-wch", "affirm"),
+  
+  hack = c("favor-best-affirm-wch"),
   rho = c(0),
-  k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
+  k.pub.nonaffirm = c(100),
   prob.hacked = c(0.8),
   
-  true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
-                    "rbeta(n = 1, 2, 5)"), 
-
+  true.sei.expr = c(0.37), #**hold constant the sei 
+  
   # Stan control args
   stan.maxtreedepth = 20,
   stan.adapt_delta = 0.98,
-
+  
   get.CIs = TRUE,
   run.optimx = FALSE )
 
@@ -231,7 +260,7 @@ n.files
 # 6720
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:1000) {
+for (i in 2:20) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 

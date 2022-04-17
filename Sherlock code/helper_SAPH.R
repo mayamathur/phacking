@@ -681,7 +681,7 @@ joint_nll_2 = function(.yi,
 
 
 # verbatim from TNE
-# this is what's used in sim studies (through 2022-3-28)
+# this is what's used in sim studies (through 2022-3-28 at least)
 E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
   
   # prevent infinite cutpoints
@@ -711,6 +711,7 @@ E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
 # 2022-3-28: simplify as in paper for right-truncated case
 # this one assumes .n = 1 and .a = -Inf
 # this fn is NOT used in simulations; it's only to check math in sims
+# paper uses the notation "r" instead of "alpha.b"
 E_fisher_TNE_check = function(.mu, .sigma, .b) {
   
   # prevent infinite cutpoints
