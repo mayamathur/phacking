@@ -84,10 +84,10 @@ scen.params = tidyr::expand_grid(
   
   hack = c("favor-best-affirm-wch"),
   rho = c(0),
-  k.pub.nonaffirm = c(100),
+  k.pub.nonaffirm = c(25),
   prob.hacked = c(0.8),
   
-  true.sei.expr = c(0.37), #**hold constant the sei 
+  true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
   
   # Stan control args
   stan.maxtreedepth = 20,
@@ -235,7 +235,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "06:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
+                            jobtime = "01:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -260,7 +260,7 @@ n.files
 # 6720
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 2:20) {
+for (i in 1:20) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 

@@ -100,12 +100,12 @@ s = s %>% filter(!is.na(scen.name))
 
 # ~ Write stitched.csv ---------------------------
 
-setwd(.results.stitched.write.path)
-fwrite(s, .stitch.file.name)
-
-# also make a zipped version
-string = paste("zip -m stitched.zip", .stitch.file.name)
-system(string)
+# setwd(.results.stitched.write.path)
+# fwrite(s, .stitch.file.name)
+# 
+# # also make a zipped version
+# string = paste("zip -m stitched.zip", .stitch.file.name)
+# system(string)
 
 
 # ~ Optional: Quick Summary and Look for Failed Iterates ---------------------------
@@ -113,6 +113,10 @@ system(string)
 t = s %>% group_by(k.pub.nonaffirm, Mu, method) %>%
   summarise( MhatMn = meanNA(Mhat),
              MhatCover = meanNA(MLo < Mu & MHi > Mu),
+             MhatWidth = meanNA(MHi - MLo),
+             MLo = meanNA(MLo),
+             MHi = meanNA(MHi),
+             Shat = meanNA(Shat),
              MhatNA = mean(is.na(Mhat)))
 
 as.data.frame(t)
