@@ -167,63 +167,6 @@ if ( "t2a" %in% param.vars.manip ) param.vars.manip = drop_vec_elements( param.v
 
 
 
-# SORT ROWS BY PERFORMANCE -------------------------
-
-
-# ~ Coverage -------------------------
-t.sort = sort_agg(MhatCover, desc = FALSE)
-
-# sort by method, then performance within method
-t.sort = t.sort %>% arrange(method, MhatCover)
-
-View(t.sort)
-
-setwd(results.dir)
-write.xlsx( as.data.frame(t.sort), "agg_sorted_by_method_and_coverage.xlsx")
-
-# ~ Bias (Signed) -------------------------
-
-t.sort = sort_agg(MhatBias, desc = TRUE)
-
-# sort by method, then performance within method
-t.sort = t.sort %>% arrange(method, desc(MhatBias))
-
-View(t.sort)
-
-setwd(results.dir)
-write.xlsx( as.data.frame(t.sort), "agg_sorted_by_method_and_coverage.xlsx")
-
-# REGRESS PERFORMANCE ON MANIPULATED SCEN PARS  -------------------------
-
-.method = "jeffreys-mcmc-pmed"
-
-# ~ MhatCover --------------------
-RHS = paste( param.vars.manip2, collapse = " + " )
-formula = paste( "MhatCover", RHS, sep = " ~ ")
-mod = lm( eval( parse( text = formula) ),
-          data = agg %>% filter(method == .method) )
-
-summary(mod)
-
-
-# ~ MhatBias --------------------
-RHS = paste( param.vars.manip2, collapse = " + " )
-formula = paste( "abs(MhatBias)", RHS, sep = " ~ ")
-mod = lm( eval( parse( text = formula) ),
-          data = agg %>% filter(method == .method) )
-
-
-summary(mod)
-
-
-
-# Conclusions
-# Things that HURT 2PSM performance
-# -	Wider range of SEs (e.g., U[1, 3] vs. U[0.1,3]; exponential is especially bad)
-# -	Larger t2a
-# -	Higher prob.hacked
-# -	k.pub.nonaffirm doesn’t matter
-
 
 # ******** PLOTS (BIG AND NOT PRETTIFIED) -------------------------
 
@@ -249,7 +192,8 @@ param.vars.manip2
 #   "jeffreys-var", "mle-sd", "csm-mle-sd", "mle-var", "2psm-csm-dataset", 
 #   "prereg-naive", "ltn-mle-sd")
 ( all.methods = unique(agg$method) )
-toDrop = c("jeffreys-mcmc-pmean", "jeffreys-mcmc-max-lp-iterate")
+#toDrop = c("jeffreys-mcmc-pmean", "jeffreys-mcmc-max-lp-iterate")
+toDrop = NULL
 method.keepers = all.methods[ !all.methods %in% toDrop ]
 
 
@@ -264,20 +208,22 @@ for ( .hack in unique(agg$hack) ) {
                             Mu == .Mu &
                             hack == .hack)
     # to label the plots
-    prefix = paste( "2022-4-16; ",
+    prefix = paste( "2022-4-19; ",
     "Mu=", .Mu,
     "; hack=", .hack, 
     sep = "")
     # temporarily set wd
     # results.dir = paste("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Sherlock simulation results/Pilot simulations/*2022-3-27 full set/Mu=0.5/hack=", .hack, sep = "")
     
-    # temporarily set wd
-    results.dir.temp = paste(results.dir,
-                             "/2022-4-15 full set with corrected prior/Mu=",
-                             .Mu,
-                             "/hack=",
-                             .hack,
-                             sep = "")
+    # # temporarily set wd
+    # results.dir.temp = paste(results.dir,
+    #                          "/2022-4-15 full set with corrected prior/Mu=",
+    #                          .Mu,
+    #                          "/hack=",
+    #                          .hack,
+    #                          sep = "")
+    
+    results.dir.temp = results.dir
     
     # for 2022-3-25 sims
     aggp$tempFacetVar2 = paste( "t2a=", aggp$t2a, "; t2w=", aggp$t2w, sep = "")
@@ -449,6 +395,67 @@ t = agg %>% group_by_at( param.vars.manip2 ) %>%
   #select( all_of( contains("sancheck") ) ) %>%
   mutate_if( is.numeric, function(x) round(x, 2) )
 View(t)
+
+
+
+# SORT ROWS BY PERFORMANCE -------------------------
+
+
+# ~ Coverage -------------------------
+t.sort = sort_agg(MhatCover, desc = FALSE)
+
+# sort by method, then performance within method
+t.sort = t.sort %>% arrange(method, MhatCover)
+
+View(t.sort)
+
+setwd(results.dir)
+write.xlsx( as.data.frame(t.sort), "agg_sorted_by_method_and_coverage.xlsx")
+
+# ~ Bias (Signed) -------------------------
+
+t.sort = sort_agg(MhatBias, desc = TRUE)
+
+# sort by method, then performance within method
+t.sort = t.sort %>% arrange(method, desc(MhatBias))
+
+View(t.sort)
+
+setwd(results.dir)
+write.xlsx( as.data.frame(t.sort), "agg_sorted_by_method_and_coverage.xlsx")
+
+# REGRESS PERFORMANCE ON MANIPULATED SCEN PARS  -------------------------
+
+.method = "jeffreys-mcmc-pmed"
+
+# ~ MhatCover --------------------
+RHS = paste( param.vars.manip2, collapse = " + " )
+formula = paste( "MhatCover", RHS, sep = " ~ ")
+mod = lm( eval( parse( text = formula) ),
+          data = agg %>% filter(method == .method) )
+
+summary(mod)
+
+
+# ~ MhatBias --------------------
+RHS = paste( param.vars.manip2, collapse = " + " )
+formula = paste( "abs(MhatBias)", RHS, sep = " ~ ")
+mod = lm( eval( parse( text = formula) ),
+          data = agg %>% filter(method == .method) )
+
+
+summary(mod)
+
+
+
+# Conclusions
+# Things that HURT 2PSM performance
+# -	Wider range of SEs (e.g., U[1, 3] vs. U[0.1,3]; exponential is especially bad)
+# -	Larger t2a
+# -	Higher prob.hacked
+# -	k.pub.nonaffirm doesn’t matter
+
+
 
 
 # OLD: EFFECT OF SCEN PARAMS ON DATASETS -------------------------

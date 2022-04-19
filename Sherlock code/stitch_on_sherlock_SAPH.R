@@ -110,14 +110,18 @@ s = s %>% filter(!is.na(scen.name))
 
 # ~ Optional: Quick Summary and Look for Failed Iterates ---------------------------
 
-t = s %>% group_by(k.pub.nonaffirm, Mu, method) %>%
-  summarise( MhatMn = meanNA(Mhat),
+t = s %>% group_by(scen.name, k.pub.nonaffirm, Mu, method) %>%
+  filter( grepl("jeffreys-mcmc", method) ) %>%
+  summarise( reps = n(),
+             MhatMn = meanNA(Mhat),
              MhatCover = meanNA(MLo < Mu & MHi > Mu),
              MhatWidth = meanNA(MHi - MLo),
              MLo = meanNA(MLo),
              MHi = meanNA(MHi),
              Shat = meanNA(Shat),
-             MhatNA = mean(is.na(Mhat)))
+             MhatNA = mean(is.na(Mhat))) %>%
+  filter(reps > 1000) %>%
+    mutate_if(is.numeric, function(x) round(x,2))
 
 as.data.frame(t)
 
