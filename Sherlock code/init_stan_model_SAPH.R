@@ -78,7 +78,7 @@ functions{
 		    e2 = sei[i]^2 + tau^2;
         e3 = sqrt(e2);
         e5 = sei[i] * tcrit[i] - mu;
-        // e6 is scaled tcrit[i]ical value:
+        // e6 is scaled critical value:
         e6 = e5/e3;
         //e7 = pnorm(e6);
         e7 = exp( normal_lcdf(e6 | 0, 1 ) );
