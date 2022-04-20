@@ -10,6 +10,8 @@
 # to do:
 #  - can get rid of mustarL and LL; they are just placeholders now
 # this model.text is from "2022-2-22 stan for Sherlock"
+
+
 model.text <- "
 
 functions{
@@ -28,9 +30,6 @@ functions{
     real sigma;
 		real LL; 
 		real UU;
-		// will just be set to 1
-		int n; 
-    
 
 		// this will be the TOTALS for all observations
 		matrix[2,2] fishinfototal;

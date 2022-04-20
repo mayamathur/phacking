@@ -43,12 +43,15 @@ lapply( allPackages,
 scen.params = tidyr::expand_grid(
   # full list (save):
   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-  rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; prereg-naive",
+  # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; prereg-naive",
+  rep.methods = "jeffreys-mcmc",
 
   # args from sim_meta_2
   Nmax = 30,
   Mu = c(0.5),
   t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
+  #t2a = 0,
+  #t2w = 0,
   t2w = c(0, 0.2^2),
   m = 50,
 
@@ -57,10 +60,12 @@ scen.params = tidyr::expand_grid(
   rho = c(0),
   #k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
   k.pub.nonaffirm = c(10, 20, 50, 100),
+  #k.pub.nonaffirm = c(25),
   prob.hacked = c(0.8),
 
-  true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
-                    "rbeta(n = 1, 2, 5)"),
+  true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
+  # true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
+  #                   "rbeta(n = 1, 2, 5)"),
 
   # Stan control args
   stan.maxtreedepth = 20,
@@ -237,7 +242,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "06:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
+                            jobtime = "05:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -259,10 +264,10 @@ n.files
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
 
-# 1280
+# 640
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:1000) {
+for (i in 1:640) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
