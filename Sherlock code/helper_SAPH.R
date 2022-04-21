@@ -236,6 +236,8 @@ estimate_jeffreys_mcmc_RTMA = function(.yi,
   init.fcn = function(o){ list(mu = .Mu.start,
                                 tau = .Tt.start ) }
   
+  
+  browser()
   # like tryCatch, but captures warnings without stopping the function from
   #  returning its results
   withCallingHandlers({
@@ -246,6 +248,7 @@ estimate_jeffreys_mcmc_RTMA = function(.yi,
     
     cat( paste("\n estimate_jeffreys_mcmc flag 2: about to call sampling") )
     
+    browser()
     post = sampling(stan.model,
                     cores = 1,
                     refresh = 0,
@@ -1438,9 +1441,17 @@ quick_sim = function(.p,
 # changes from sim_meta:
 # sei.expr
 # k.pub.nonaffirm
-sim_meta_2 = function(Nmax,  # max draws to try
-                      Mu,  # overall mean for meta-analysis
-                      t2a,  # across-study heterogeneity (NOT total heterogeneity)
+
+
+# Nmax: max number of draws (hypothesis tests) that each hacked study can make before giving up
+# Mu: overall mean for meta-analysis
+# t2a: across-study heterogeneity (NOT total heterogeneity)
+# Study parameters, assumed same for all studies:
+#  - m: sample size
+#  - t2w: within-study heterogeneity
+sim_meta_2 = function(Nmax,  
+                      Mu,  
+                      t2a,  
                       
                       # study parameters, assumed same for all studies:
                       m,  # sample size for this study

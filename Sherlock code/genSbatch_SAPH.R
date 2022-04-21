@@ -34,17 +34,22 @@ lapply( allPackages,
 
 # set up sim params for cluster
 
-# Note that if you don't include any of these: jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var
+
+# IMPORTANT NOTES ABOUT SCEN PARAMS:
+# - Note that if you don't include any of these: jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var
 #  then you'll need to comment out Optim variables from the analysis.vars in make_agg_data and 
 #  also from mutate in there
-# I think a similar thing will be true with the Rhats if you omit jeffreys-mcmc?
+# - I think a similar thing will be true with the Rhats if you omit jeffreys-mcmc?
+# - Usually good to run naive because it affects start values for subsequent methods (i.e., prevents
+#   the start values from being the true ones)
+
 
 # ### FULL VERSION ###
 scen.params = tidyr::expand_grid(
   # full list (save):
   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; prereg-naive",
-  rep.methods = "jeffreys-mcmc",
+  rep.methods = "naive ; jeffreys-mcmc",
 
   # args from sim_meta_2
   Nmax = 30,
@@ -267,7 +272,7 @@ n.files
 # 640
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:1) {
+for (i in 2:640) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 

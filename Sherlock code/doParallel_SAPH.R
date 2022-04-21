@@ -20,10 +20,9 @@
 
 
 # for interactive Sherlock:
-# ml load v8
-# ml load R/4.1.2
-# srun --mem=32G --time=2:00:00 --pty bash
-# R
+# path = "/home/groups/manishad/SAPH"
+# setwd(path)
+# source("doParallel_SAPH.R")
 
 
 # because Sherlock 2.0 restores previous workspace
@@ -35,7 +34,7 @@ run.local = FALSE
 
 # should we set scen params interactively on cluster?
 #@remember to change this back
-interactive.cluster.run = FALSE
+interactive.cluster.run = TRUE
 
 # ~~ Packages -----------------------------------------------
 toLoad = c("crayon",
@@ -67,9 +66,9 @@ if ( run.local == TRUE | interactive.cluster.run == TRUE ) toLoad = c(toLoad, "h
 
 
 
-# FOR CLUSTER USE ------------------------------
+# SET UP FOR CLUSTER OR LOCAL RUN ------------------------------
 
-
+# ~~ Local Run ----------------------------------------
 if (run.local == FALSE) {
   
   # load command line arguments
@@ -104,6 +103,7 @@ if (run.local == FALSE) {
   setwd(path)
   source("helper_SAPH.R")
   
+  # ~~ Cluster Run ----------------------------------------
   
   if ( interactive.cluster.run == FALSE ) {
     # get scen parameters (made by genSbatch.R)
@@ -115,6 +115,7 @@ if (run.local == FALSE) {
     print(p)
   }
   
+  # ~~ Interactive Cluster Run ----------------------------------------
   # alternatively, generate a simple scen.params in order to run doParallel manually in
   # Sherlock as a test
   if ( interactive.cluster.run == TRUE ) {
@@ -122,30 +123,32 @@ if (run.local == FALSE) {
     setwd(path)
     source("helper_SAPH.R")
     scen.params = tidyr::expand_grid(
-      # full list (save):
-      # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-      rep.methods = "2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; csm-mle-sd ; prereg-naive",
+      rep.methods = "naive ; jeffreys-mcmc",
       
       # args from sim_meta_2
       Nmax = 30,
       Mu = c(0.5),
-      t2a = c(.09),
-      t2w = c(0.04),
+      # t2a = c(0.2^2),
+      # t2w = c(0.2^2),
+      t2a = 0,
+      t2w = 0,
       m = 50,
       
-      true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
-      hack = c("affirm"),
+
+      hack = c("favor-best-affirm-wch"),
       rho = c(0),
-      k.pub.nonaffirm = c(50),
+      k.pub.nonaffirm = 10,
       prob.hacked = c(0.8),
       
+      true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
+
       # Stan control args
       stan.maxtreedepth = 20,
       stan.adapt_delta = 0.98,
       
       get.CIs = TRUE,
-      run.optimx = TRUE )
-    
+      run.optimx = FALSE )
+  
     
     scen.params$scen = 1:nrow(scen.params)
     
@@ -159,8 +162,8 @@ if (run.local == FALSE) {
   
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
-  sim.reps = 100  #@update this 
-  
+  if ( interactive.cluster.run == FALSE ) sim.reps = 100
+  if ( interactive.cluster.run == TRUE ) sim.reps = 1  
   
   # set the number of cores
   registerDoParallel(cores=16)
@@ -252,6 +255,7 @@ if ( run.local == TRUE ) setwd(code.dir)
 
 if ( run.local == FALSE ) setwd(path)
 
+
 source("init_stan_model_SAPH.R")
 
 
@@ -263,9 +267,9 @@ if ( exists("rs") ) rm(rs)
 
 # system.time is in seconds
 doParallel.seconds = system.time({
-  rs = foreach( i = 1:sim.reps, .combine = bind_rows ) %dopar% {
-    # for debugging (out file will contain all printed things):
-    #for ( i in 1:sim.reps ) {
+  #rs = foreach( i = 1:sim.reps, .combine = bind_rows ) %dopar% {
+    #@for debugging (out file will contain all printed things):
+    for ( i in 1:sim.reps ) {
     
     # only print info for first sim rep for visual clarity
     if ( i == 1 ) cat("\n\n~~~~~~~~~~~~~~~~ BEGIN SIM REP", i, "~~~~~~~~~~~~~~~~")
@@ -287,8 +291,8 @@ doParallel.seconds = system.time({
     p$V = p$t2a + p$t2w
     p$S = sqrt(p$V)
     
-    if ( i == 1 ) cat("\n\nHEAD OF P (SINGLE ROW OF SCEN.PARAMS):\n")
-    if ( i == 1 ) print(p)
+    if ( i == 1 ) cat("\n\nDIM AND HEAD OF P (SINGLE ROW OF SCEN.PARAMS):\n")
+    if ( i == 1 ) print(dim(p)); print(p)
     
     # parse methods string
     all.methods = unlist( strsplit( x = p$rep.methods,
@@ -528,6 +532,7 @@ doParallel.seconds = system.time({
       # path = "/home/groups/manishad/SAPH"
       # setwd(path)
       # source("helper_SAPH.R")
+      # source("init_stan_model_SAPH.R")
       
       rep.res = run_method_safe(method.label = c("jeffreys-sd"),
                                 method.fn = function() estimate_jeffreys_RTMA(yi = dpn$yi,
