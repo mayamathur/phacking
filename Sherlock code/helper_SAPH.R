@@ -1447,12 +1447,23 @@ quick_sim = function(.p,
 # k.pub.nonaffirm
 
 
-# Nmax: max number of draws (hypothesis tests) that each hacked study can make before giving up
-# Mu: overall mean for meta-analysis
-# t2a: across-study heterogeneity (NOT total heterogeneity)
+
+# Simulate a meta-analysis in which some proportion of underlying studies (prior to publication)
+#  are hacked, following various hacking mechanisms. Each study makes multiple draws (hypothesis tests)
+#  until some stopping criterion based on Nmax and the hacking mechanism.
+
+# - Nmax: max number of draws (hypothesis tests) that each hacked study can make before giving up
+# - Mu: overall mean for meta-analysis
+# - t2a: across-study heterogeneity (NOT total heterogeneity)
 # Study parameters, assumed same for all studies:
 #  - m: sample size
-#  - t2w: within-study heterogeneity
+#  - t2w: within-study heterogeneity across draws
+#  - true.sei.expr: quoted expression to evaluate to simulate a single study's standard error
+#  - rho: autocorrelation of draws from a given study
+#  - hack: mechanism of p-hacking (see sim_one_study_set for details)
+# - k.pub.nonaffirm: number of published nonaffirmative studies desired in meta-analysis
+#    (will simulate as many studies as needed to achieve that number)
+# - prob.hacked: probability that an underlying study is hacked
 sim_meta_2 = function(Nmax,  
                       Mu,  
                       t2a,  

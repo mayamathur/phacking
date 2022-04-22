@@ -129,10 +129,9 @@ as.data.frame(t)
 
 
 # iterates with acceptable Rhat
-
 t = s %>% group_by(scen.name, k.pub.nonaffirm, Mu, t2a, t2w, method) %>%
   filter( grepl("jeffreys-mcmc", method) &
-            MhatRhat < 1.02) %>%
+            MhatRhat < 1.01) %>%
   summarise( reps = n(),
              MhatMn = meanNA(Mhat),
              MhatCover = meanNA(MLo < Mu & MHi > Mu),
