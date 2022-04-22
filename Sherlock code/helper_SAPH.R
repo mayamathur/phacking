@@ -237,7 +237,6 @@ estimate_jeffreys_mcmc_RTMA = function(.yi,
                                 tau = .Tt.start ) }
   
   
-  browser()
   # like tryCatch, but captures warnings without stopping the function from
   #  returning its results
   withCallingHandlers({
@@ -248,7 +247,6 @@ estimate_jeffreys_mcmc_RTMA = function(.yi,
     
     cat( paste("\n estimate_jeffreys_mcmc flag 2: about to call sampling") )
     
-    browser()
     post = sampling(stan.model,
                     cores = 1,
                     refresh = 0,
@@ -687,6 +685,9 @@ joint_nll_2 = function(.yi,
 # this is what's used in sim studies (through 2022-3-28 at least)
 E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
   
+  # doesn't handle vectors because of max and min below
+  if ( length(.sigma) > 1 ) stop("This fn doesn't handle multiple observations")
+  
   # prevent infinite cutpoints
   # if either cutpoint is infinite, there are numerical issues because the alpha*Z terms
   #  below are 0*Inf
@@ -717,6 +718,8 @@ E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
 # paper uses the notation "r" instead of "alpha.b"
 E_fisher_TNE_check = function(.mu, .sigma, .b) {
   
+  if ( length(.sigma) > 1 ) stop("This fn doesn't handle multiple observations")
+  
   # prevent infinite cutpoints
   # if either cutpoint is infinite, there are numerical issues because the alpha*Z terms
   #  below are 0*Inf
@@ -736,20 +739,20 @@ E_fisher_TNE_check = function(.mu, .sigma, .b) {
 }
 
 # ### Sanity check #2022-3-28a:
-# mu = -0.2
-# sigma = 0.02
+# mu = 0.5
+# sigma = 0.6031401
 # a = -999
-# b = 1
+# b = 1.068415
 # n = 1
 # 
-# F1 = E_fisher_TNE( .mu = mu, 
+# F1 = E_fisher_TNE( .mu = mu,
 #                    .sigma = sigma,
 #                    .a = a,
 #                    .b = b,
 #                    .n = 1)
 # 
-# F2 = E_fisher_TNE_check( .mu = mu, 
-#                          .sigma = sigma, 
+# F2 = E_fisher_TNE_check( .mu = mu,
+#                          .sigma = sigma,
 #                          .b = b)
 # 
 # expect_equal(F1, F2)
@@ -775,6 +778,7 @@ E_fisher_RTMA = function( .sei, .Mu, .Tt, .tcrit = qnorm(0.975) ) {
                                        .b = .tcrit*.s )
                        })
   
+  #browser()
   # add all the matrices entrywise
   # https://stackoverflow.com/questions/11641701/sum-a-list-of-matrices
   Efish.all = Reduce('+', Efish.list) 

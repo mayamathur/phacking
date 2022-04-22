@@ -33,8 +33,7 @@ rm( list = ls() )
 run.local = FALSE
 
 # should we set scen params interactively on cluster?
-#@remember to change this back
-interactive.cluster.run = TRUE
+interactive.cluster.run = FALSE
 
 # ~~ Packages -----------------------------------------------
 toLoad = c("crayon",
@@ -128,10 +127,10 @@ if (run.local == FALSE) {
       # args from sim_meta_2
       Nmax = 30,
       Mu = c(0.5),
-      # t2a = c(0.2^2),
-      # t2w = c(0.2^2),
-      t2a = 0,
-      t2w = 0,
+      t2a = c(0.2^2),
+      t2w = c(0.2^2),
+      #t2a = 0,
+      #t2w = 0,
       m = 50,
       
 
@@ -267,9 +266,9 @@ if ( exists("rs") ) rm(rs)
 
 # system.time is in seconds
 doParallel.seconds = system.time({
-  #rs = foreach( i = 1:sim.reps, .combine = bind_rows ) %dopar% {
-    #@for debugging (out file will contain all printed things):
-    for ( i in 1:sim.reps ) {
+  rs = foreach( i = 1:sim.reps, .combine = bind_rows ) %dopar% {
+    #for debugging (out file will contain all printed things):
+    #for ( i in 1:sim.reps ) {
     
     # only print info for first sim rep for visual clarity
     if ( i == 1 ) cat("\n\n~~~~~~~~~~~~~~~~ BEGIN SIM REP", i, "~~~~~~~~~~~~~~~~")
@@ -492,7 +491,7 @@ doParallel.seconds = system.time({
       #                             .sei = sqrt(dpn$vi),
       #                             .tcrit = dpn$tcrit,
       #                             .Mu.start = Mhat.start,
-      #                             #@DOESN'T SEEM ABLE TO HANDLE START VALUE OF 0
+      #                             # can't handle start value of 0:
       #                             .Tt.start = max(0.01, Shat.start),
       #                             .stan.adapt_delta = p$stan.adapt_delta,
       #                             .stan.maxtreedepth = p$stan.maxtreedepth)
@@ -507,7 +506,7 @@ doParallel.seconds = system.time({
                                                                                    .sei = sqrt(dpn$vi),
                                                                                    .tcrit = dpn$tcrit,
                                                                                    .Mu.start = Mhat.start,
-                                                                                   #@DOESN'T SEEM ABLE TO HANDLE START VALUE OF 0
+                                                                                   # can't handle start value of 0:
                                                                                    .Tt.start = max(0.01, Shat.start),
                                                                                    .stan.adapt_delta = p$stan.adapt_delta,
                                                                                    .stan.maxtreedepth = p$stan.maxtreedepth), .rep.res = rep.res )

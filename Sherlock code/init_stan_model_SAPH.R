@@ -10,11 +10,9 @@
 
 
 
-# DEBUGGING ------------------------------
+# UNTRUNCATED PRIOR ------------------------------
 
-# pare down the model code
-
-
+# see prior_untrunc in “2022-4-20 New Jeffreys prior using numerical derivatives wrt tau.R” 
 model.text <- "
 
 functions{
@@ -52,6 +50,7 @@ functions{
     real e15;
     real expectation1;
     real expectation2;
+    real fishdet;
 
 		// this will be the TOTALS for all observations
 		matrix[2,2] fishinfototal;
@@ -62,76 +61,43 @@ functions{
 
 
 		// build a Fisher info matrix for EACH observation
-		for (i in 1:k) {
-
-		  // from body of R's get_D11_num:
-       e2 = sei[i]^2 + tau^2;
-        e3 = sqrt(e2);
-        e5 = sei[i] * tcrit[i] - mu;
-        e6 = e5/e3;
-        // R version:
-        //e7 = dnorm(e6, 0, 1);
-        e7 = exp( normal_lpdf(e6 | 0, 1) );
-        // R version:
-        //e8 = pnorm(e6);
-        e8 = exp( normal_lcdf(e6 | 0, 1 ) );
-		    kmm = -(1/e2 - (e5/(e2 * e8) + e7 * e3/(e8 * e3)^2) * e7/e3);
-
-		  // from body of R's get_D12_num:
-		    e2 = sei[i]^2 + tau^2;
-        e3 = sqrt(e2);
-        e5 = sei[i] * tcrit[i] - mu;
-        // e6 is scaled critical value:
-        e6 = e5/e3;
-        //e7 = pnorm(e6);
-        e7 = exp( normal_lcdf(e6 | 0, 1 ) );
-        e8 = e2^2;
-        //e9 = dnorm(e6, 0, 1);
-        e9 = exp( normal_lpdf(e6 | 0, 1) );
-
-        // my own expectation of .yi - .mu:
-        expectation1 = -sqrt(sei[i]^2 + tau^2) * e9/e7;
-        kms = -(tau * (((e7/e3 - e5 * e9/e2)/(e7 * e3)^2 - e5^2/(e8 *
-            e7 * e3)) * e9 + 2 * ((expectation1)/e8)));
+  for (i in 1:k) {
+    
+    // for this observation
+ 		// this will be the TOTALS for all observations
+ 		fishinfo[1,1] = 0;
+   	fishinfo[1,2] = 0;
+   	fishinfo[2,1] = 0;
+   	fishinfo[2,2] = 0;
+    
+    kmm = -(1/(sei[i]^2 + tau^2));
+    
+    // this is just 0
+    kms = -(2 * (tau * (0)/(sei[i]^2 + tau^2)^2));
+    
+    // from body of R's get_D22_num:
+    e1 = tau^2;
+    e3 = sei[i]^2 + e1;
+    // expectation of (.yi - mu)^2 is just marginal variance when not truncated
+    //e5 = (.yi - mu)^2
+    e5 = tau^2 + sei[i]^2;
+    kss = ((e5 * (1 - 2 * (e1/e3)) - 2 * (e1 * (e5/e3 - 1)))/e3 - 
+        1)/e3;
 
 
-  		// from body of R's get_D22_num:
-  		  e1 = tau^2;
-        e3 = sei[i]^2 + e1;
-        e5 = sei[i] * tcrit[i] - mu;
-        e6 = sqrt(e3);
-        // e7 is scaled crit value:
-        e7 = e5/e6;
-        //e8 = pnorm(e7)
-        e8 = exp( normal_lcdf(e7 | 0, 1 ) );
-        //e9 = dnorm(e7, 0, 1)
-        e9 = exp( normal_lpdf(e7 | 0, 1 ) );
-        e10 = e5 * e9;
-        e11 = e8 * e6;
-        e13 = e10/e11;
-        // *replace this one with its expectation:
-        //e15 = (.yi - .mu)^2/e3
-        // expectation of (.yi - .mu)^2:
-        expectation2 = (sei[i]^2 + tau^2)*(1 - e7 * e9/e8);
-        e15 = expectation2^2/e3;
-
-        kss = (e13 + e15 - (e1 * (e5 * ((e8/e6 - e10/e3)/e11^2 -
-            e5^2/(e3^2 * e8 * e6)) * e9 + 2 * ((e13 + 2 * e15 -
-            1)/e3)) + 1))/e3;
-
-
-  		fishinfo[1,1] = -kmm;
-      fishinfo[1,2] = -kms;
-      fishinfo[2,1] = -kms;
-      fishinfo[2,2] = -kss;
-
-  		// add the new fisher info to the total one
-  		fishinfototal = fishinfototal + fishinfo;
-		}
-		
-		//@TEMP: AVOID NEGATIVE PRIOR VALUES
+    fishinfo[1,1] = -kmm;
+    fishinfo[1,2] = -kms;
+    fishinfo[2,1] = -kms;
+    fishinfo[2,2] = -kss;
+    
+    // add the new fisher info to the total one
+    fishinfototal = fishinfototal + fishinfo;
+  }
+  
+	
+		// can't use 0 here because we'll be taking log of prior
 		fishdet = determinant(fishinfototal);
-		if ( fishdet < 0 ) fishdet = 0;
+		//if ( fishdet < 0 ) fishdet = 0.01;
 		return sqrt(fishdet);
 	}
 }

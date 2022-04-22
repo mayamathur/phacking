@@ -55,17 +55,17 @@ scen.params = tidyr::expand_grid(
   Nmax = 30,
   Mu = c(0.5),
   t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
-  #t2a = 0,
-  #t2w = 0,
   t2w = c(0, 0.2^2),
+  #t2a = 0.2^2,
+  #t2w = 0.2^2,
   m = 50,
 
   #hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
   hack = c("favor-best-affirm-wch"),
   rho = c(0),
   #k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
-  k.pub.nonaffirm = c(10, 20, 50, 100),
-  #k.pub.nonaffirm = c(25),
+  #k.pub.nonaffirm = c(10, 20, 50, 100),
+  k.pub.nonaffirm = c(25,50),
   prob.hacked = c(0.8),
 
   true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
@@ -272,7 +272,7 @@ n.files
 # 640
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 2:640) {
+for (i in 2:20) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
