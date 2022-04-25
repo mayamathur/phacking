@@ -272,7 +272,7 @@ generated quantities{
 #         //e15 = (.yi - .mu)^2/e3
 #         // expectation of (.yi - .mu)^2:
 #         expectation2 = (sei[i]^2 + tau^2)*(1 - e7 * e9/e8);
-#         e15 = expectation2^2/e3;
+#         e15 = expectation2/e3;
 # 
 #         kss = (e13 + e15 - (e1 * (e5 * ((e8/e6 - e10/e3)/e11^2 -
 #             e5^2/(e3^2 * e8 * e6)) * e9 + 2 * ((e13 + 2 * e15 -
