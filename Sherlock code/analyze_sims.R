@@ -94,8 +94,6 @@ file.info("agg.csv")$mtime
 
 
 
-
-
 # ### Merge two sets of sim results
 # 
 # # 2022-3-27 sims:
@@ -208,7 +206,7 @@ for ( .hack in unique(agg$hack) ) {
                             Mu == .Mu &
                             hack == .hack)
     # to label the plots
-    prefix = paste( "2022-4-19; ",
+    prefix = paste( "2022-4-25; new prior; ",
     "Mu=", .Mu,
     "; hack=", .hack, 
     sep = "")

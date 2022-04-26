@@ -140,6 +140,7 @@ make_agg_data = function( .s,
              #"doParallel.seconds",
              "optim.converged",
              "stan.warned",
+             "job.name",
              names_with(.dat = .s, .pattern = "optimx") )
   
   firstOnly = c("scen.name",
@@ -234,12 +235,12 @@ make_agg_data = function( .s,
             MhatRhatGt1.01 = meanNA(MhatRhat > 1.01),
             MhatRhatGt1.05 = meanNA(MhatRhat > 1.05),
             MhatRhatGt1.10 = meanNA(MhatRhat > 1.10),
-            MhatRhatMax = max(MhatRhat, na.rm = TRUE),
+            MhatRhatMax = max(MhatRhat),
             
             ShatRhatGt1.01 = meanNA(ShatRhat > 1.01),
             ShatRhatGt1.05 = meanNA(ShatRhat > 1.05),
             ShatRhatGt1.10 = meanNA(ShatRhat > 1.10),
-            ShatRhatMax = max(ShatRhat, na.rm = TRUE),
+            ShatRhatMax = max(ShatRhat),
             
             # SLURM timing stats
             doParallelSeconds = meanNA(doParallel.seconds),
@@ -249,7 +250,7 @@ make_agg_data = function( .s,
                                             0.95, na.rm = TRUE),
     ) 
   
-  
+
   # now look for which variables should have their means taken
   # this step must happen here, after we've started making s2, 
   #  so that the takeMean vars are actually in s2
