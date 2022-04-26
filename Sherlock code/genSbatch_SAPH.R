@@ -49,15 +49,15 @@ scen.params = tidyr::expand_grid(
   # full list (save):
   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; prereg-naive",
-  rep.methods = "naive ; jeffreys-mcmc",
+  rep.methods = "naive ; jeffreys-mcmc ; jeffreys-sd",
 
   # args from sim_meta_2
   Nmax = 30,
   Mu = c(0.5),
-  t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
-  t2w = c(0, 0.2^2),
-  #t2a = 0.2^2,
-  #t2w = 0.2^2,
+  #t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
+  #t2w = c(0, 0.2^2),
+  t2a = 0,
+  t2w = 0,
   m = 50,
 
   #hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
@@ -73,8 +73,9 @@ scen.params = tidyr::expand_grid(
   #                   "rbeta(n = 1, 2, 5)"),
 
   # Stan control args
-  stan.maxtreedepth = 20,
-  stan.adapt_delta = 0.98,
+  #@INCREASED 2022-4-26
+  stan.maxtreedepth = 25,
+  stan.adapt_delta = 0.995,
 
   get.CIs = TRUE,
   run.optimx = FALSE )

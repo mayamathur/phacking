@@ -234,7 +234,7 @@ estimate_jeffreys_mcmc_RTMA = function(.yi,
   
   # set start values for sampler
   init.fcn = function(o){ list(mu = .Mu.start,
-                                tau = .Tt.start ) }
+                               tau = .Tt.start ) }
   
   
   # like tryCatch, but captures warnings without stopping the function from
@@ -761,6 +761,7 @@ E_fisher_TNE_check = function(.mu, .sigma, .b) {
 
 
 
+#@2022-4-26: UPDATED TO USE NEW PRIOR (DERIV WRT TAU)
 # This fn ONLY handles nonaffirm results, but could easily be adapted to handle
 #  affirms by changing tcrit.
 # important: note that in this fn, critical value is on t/z scale, NOT raw scale
@@ -771,14 +772,88 @@ E_fisher_RTMA = function( .sei, .Mu, .Tt, .tcrit = qnorm(0.975) ) {
   
   Efish.list = lapply( X = as.list(.sei),
                        FUN = function(.s) {
-                         E_fisher_TNE( .mu = .Mu,
-                                       .sigma = sqrt(.Tt^2 + .s^2), 
-                                       .n = 1,
-                                       .a = -99,
-                                       .b = .tcrit*.s )
+                         
+                         # # OLD PRIOR (DERIV WRT MARGINAL SD)
+                         # E_fisher_TNE( .mu = .Mu,
+                         #               .sigma = sqrt(.Tt^2 + .s^2), 
+                         #               .n = 1,
+                         #               .a = -99,
+                         #               .b = .tcrit*.s )
+                         
+                         #@NEW PRIOR (2022-4-26)
+                         # for this observation
+                         sei = .s
+                         mu = .Mu
+                         tau = .Tt
+                         tcrit = .tcrit
+                         
+                         fishinfo = matrix( NA, nrow = 2, ncol = 2 )
+                         
+                         # from body of R's get_D11_num:
+                         e2 = sei[i]^2 + tau^2
+                         e3 = sqrt(e2)
+                         e5 = sei[i] * tcrit[i] - mu
+                         e6 = e5/e3
+                         e7 = dnorm(e6, 0, 1)
+                         # Stan version:
+                         # e7 = exp( normal_lpdf(e6 | 0, 1) )
+                         e8 = pnorm(e6)
+                         #e8 = exp( normal_lcdf(e6 | 0, 1 ) )
+                         kmm = -(1/e2 - (e5/(e2 * e8) + e7 * e3/(e8 * e3)^2) * e7/e3)
+                         
+                         # from body of R's get_D12_num:
+                         e2 = sei[i]^2 + tau^2
+                         e3 = sqrt(e2)
+                         e5 = sei[i] * tcrit[i] - mu
+                         # e6 is scaled critical value:
+                         e6 = e5/e3
+                         e7 = pnorm(e6)
+                         # e7 = exp( normal_lcdf(e6 | 0, 1 ) )
+                         e8 = e2^2
+                         e9 = dnorm(e6, 0, 1)
+                         #e9 = exp( normal_lpdf(e6 | 0, 1) )
+                         
+                         # my own expectation of .yi - .mu:
+                         expectation1 = -sqrt(sei[i]^2 + tau^2) * e9/e7
+                         kms = -(tau * (((e7/e3 - e5 * e9/e2)/(e7 * e3)^2 - e5^2/(e8 *
+                                                                                    e7 * e3)) * e9 + 2 * ((expectation1)/e8)))
+                         
+                         
+                         # from body of R's get_D22_num:
+                         e1 = tau^2
+                         e3 = sei[i]^2 + e1
+                         e5 = sei[i] * tcrit[i] - mu
+                         e6 = sqrt(e3)
+                         # e7 is scaled crit value:
+                         e7 = e5/e6
+                         e8 = pnorm(e7)
+                         # e8 = exp( normal_lcdf(e7 | 0, 1 ) )
+                         e9 = dnorm(e7, 0, 1)
+                         # e9 = exp( normal_lpdf(e7 | 0, 1 ) )
+                         e10 = e5 * e9
+                         e11 = e8 * e6
+                         e13 = e10/e11
+                         # *replace this one with its expectation:
+                         # e15 = (.yi - .mu)^2/e3
+                         # expectation of (.yi - .mu)^2:
+                         expectation2 = (sei[i]^2 + tau^2)*(1 - e7 * e9/e8)
+                         e15 = (expectation2)/e3
+                         
+                         kss = (e13 + e15 - (e1 * (e5 * ((e8/e6 - e10/e3)/e11^2 -
+                                                           e5^2/(e3^2 * e8 * e6)) * e9 + 2 * ((e13 + 2 * e15 -
+                                                                                                 1)/e3)) + 1))/e3
+                         
+                         
+                         fishinfo[1,1] = -kmm
+                         fishinfo[1,2] = -kms
+                         fishinfo[2,1] = -kms
+                         fishinfo[2,2] = -kss
+                         
+                         return(fishinfo)
+                    
+                         
                        })
   
-  #browser()
   # add all the matrices entrywise
   # https://stackoverflow.com/questions/11641701/sum-a-list-of-matrices
   Efish.all = Reduce('+', Efish.list) 
@@ -1249,7 +1324,7 @@ yi_cdf = function(yi,
                     sei = sei,
                     affirm = affirm,
                     cdfi = NA)
-
+  
   if ( any(dat$affirm == FALSE) ) {
     dat$cdfi[ dat$affirm == FALSE ] = ptruncnorm(q = dat$yi[ dat$affirm == FALSE ],
                                                  a = -Inf,
@@ -1300,7 +1375,7 @@ yi_qqplot = function(yi,
     xlab("Fitted CDF of point estimates") +
     ylab("Empirical CDF of point estimates") +
     theme_classic()
-
+  
   
 }
 
@@ -2565,7 +2640,7 @@ res1 = function() {
   
   cat("\nErrors by method:" )
   print( rep.res %>% group_by(method) %>%
-          summarise(prop.error = mean( overall.error != "" ) ) )
+           summarise(prop.error = mean( overall.error != "" ) ) )
   
   #table(rep.res$overall.error)
   
