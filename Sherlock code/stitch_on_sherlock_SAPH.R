@@ -136,9 +136,9 @@ t = s %>% group_by(scen.name, k.pub.nonaffirm, Mu, t2a, t2w, method) %>%
              MhatMn = meanNA(Mhat),
              MhatCover = meanNA(MLo < Mu & MHi > Mu),
              MhatWidth = meanNA(MHi - MLo),
-             MLo = meanNA(MLo),
-             MHi = meanNA(MHi),
-             Shat = meanNA(Shat),
+             # MLo = meanNA(MLo),
+             # MHi = meanNA(MHi),
+             # Shat = meanNA(Shat),
              MhatNA = mean(is.na(Mhat)) ) %>%
   #filter(reps > 1000) %>%
   mutate_if(is.numeric, function(x) round(x,2))
@@ -149,15 +149,15 @@ as.data.frame(t)
 
 # max-lp iterate 
 t = s %>% group_by(scen.name, k.pub.nonaffirm, Mu, t2a, t2w, method) %>%
-  filter( method == "jeffreys-mcmc-max-lp-iterate" &
-            MhatRhat < 10) %>%
+  filter( method == "jeffreys-mcmc-pmed" &
+            MhatRhat < 1.01) %>%
   summarise( reps = n(),
              MhatMn = meanNA(Mhat),
              MhatCover = meanNA(MLo < Mu & MHi > Mu),
              MhatWidth = meanNA(MHi - MLo),
-             MLo = meanNA(MLo),
-             MHi = meanNA(MHi),
-             Shat = meanNA(Shat),
+             # MLo = meanNA(MLo),
+             # MHi = meanNA(MHi),
+             # Shat = meanNA(Shat),
              MhatNA = mean(is.na(Mhat)) ) %>%
   #filter(reps > 1000) %>%
   mutate_if(is.numeric, function(x) round(x,2))

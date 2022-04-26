@@ -114,7 +114,7 @@ file.info("agg.csv")$mtime
 
 
 dim(agg)  # will exceed number of scens because of multiple methods
-expect_equal( 480, nuni(agg$scen.name) )
+expect_equal( 320, nuni(agg$scen.name) )
 
 agg = wrangle_agg_local(agg)
 
@@ -141,8 +141,8 @@ otherYNames = c("EstFail", "CIFail", "RhatGt1.01", "RhatGt1.05")
 # these ones don't fit in nicely because the "Mhat" is in the middle of string
 #"OptimxPropAgreeConvergersMhatWinner", "OptimxNAgreeOfConvergersMhatWinner"
 MhatMainYNames = paste( "Mhat", c(mainYNames), sep = "" )
-MhatYNames = c( paste( "Mhat", c(mainYNames, otherYNames), sep = "" ),
-                "OptimxPropAgreeConvergersMhatWinner", "OptimxNAgreeOfConvergersMhatWinner" )
+MhatYNames = c( paste( "Mhat", c(mainYNames, otherYNames), sep = "" ) )
+                #"OptimxPropAgreeConvergersMhatWinner", "OptimxNAgreeOfConvergersMhatWinner" )
 
 
 ### Names of parameter variables ###
