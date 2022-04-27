@@ -287,7 +287,11 @@ functions{
   		// add the new fisher info to the total one
   		fishinfototal = fishinfototal + fishinfo;
 		}
-		return sqrt(determinant(fishinfototal));
+		
+		
+		//TEMP ONLY: NUMERICAL ISSUES
+		return max(0, sqrt(determinant(fishinfototal)) );
+		//return sqrt(determinant(fishinfototal));
 	}
 }
 
