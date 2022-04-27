@@ -122,21 +122,19 @@ if (run.local == FALSE) {
     setwd(path)
     source("helper_SAPH.R")
     scen.params = tidyr::expand_grid(
-      rep.methods = "naive ; jeffreys-mcmc",
+      rep.methods = "naive ; jeffreys-mcmc ; jeffreys-sd",
       
       # args from sim_meta_2
       Nmax = 30,
       Mu = c(0.5),
-      t2a = c(0.2^2),
-      t2w = c(0.2^2),
-      #t2a = 0,
-      #t2w = 0,
+      t2a = 0,
+      t2w = 0,
       m = 50,
       
 
       hack = c("favor-best-affirm-wch"),
       rho = c(0),
-      k.pub.nonaffirm = 10,
+      k.pub.nonaffirm = 20,
       prob.hacked = c(0.8),
       
       true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
@@ -193,13 +191,13 @@ if ( run.local == TRUE ) {
   scen.params = tidyr::expand_grid(
     # full list (save):
     # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-    rep.methods = "2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; csm-mle-sd ; prereg-naive",
+    rep.methods = "naive ; jeffreys-sd",
     
     # args from sim_meta_2
     Nmax = 30,
     Mu = c(0.5),
-    t2a = c(.09),
-    t2w = c(0.04),
+    t2a = c(0),
+    t2w = c(0),
     m = 50,
     
     true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
@@ -213,7 +211,7 @@ if ( run.local == TRUE ) {
     stan.adapt_delta = 0.98,
     
     get.CIs = TRUE,
-    run.optimx = TRUE )
+    run.optimx = FALSE )
   
   scen.params$scen = 1:nrow(scen.params)
   
@@ -268,7 +266,7 @@ if ( exists("rs") ) rm(rs)
 doParallel.seconds = system.time({
   rs = foreach( i = 1:sim.reps, .combine = bind_rows ) %dopar% {
     #for debugging (out file will contain all printed things):
-    #for ( i in 1:sim.reps ) {
+    #for ( i in 1:1 ) {
     
     # only print info for first sim rep for visual clarity
     if ( i == 1 ) cat("\n\n~~~~~~~~~~~~~~~~ BEGIN SIM REP", i, "~~~~~~~~~~~~~~~~")
@@ -526,6 +524,7 @@ doParallel.seconds = system.time({
     
     # ~~ MAP (SD param) ------------------------------
     
+    #bm
     if ( "jeffreys-sd" %in% all.methods ) {
       # # temp for refreshing code
       # path = "/home/groups/manishad/SAPH"

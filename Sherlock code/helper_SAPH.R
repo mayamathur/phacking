@@ -62,7 +62,7 @@ estimate_jeffreys_RTMA = function( yi,
                                    par2is = "Tt",
                                    Mu.start,
                                    par2.start,
-                                   tcrit,  # SCALAR?
+                                   tcrit,  # vector of length k
                                    
                                    usePrior = TRUE,
                                    get.CIs,
@@ -770,6 +770,7 @@ E_fisher_RTMA = function( .sei, .Mu, .Tt, .tcrit = qnorm(0.975) ) {
   # get expected Fisher info for each observation separately, based on its unique SE
   # each observation is RTN, so can just use TNE result!!
   
+  #bm
   Efish.list = lapply( X = as.list(.sei),
                        FUN = function(.s) {
                          
@@ -782,17 +783,19 @@ E_fisher_RTMA = function( .sei, .Mu, .Tt, .tcrit = qnorm(0.975) ) {
                          
                          #@NEW PRIOR (2022-4-26)
                          # for this observation
+                         # relabel so it works with existing prior code
                          sei = .s
                          mu = .Mu
                          tau = .Tt
-                         tcrit = .tcrit
+                         tcrit = .tcrit  #@currently assumed to be a scalar
+                         if ( length(tcrit) > 1 ) tcrit = tcrit[1] #@OBVIOUSLY NEEDS TO BE GENERALIZED
                          
                          fishinfo = matrix( NA, nrow = 2, ncol = 2 )
                          
                          # from body of R's get_D11_num:
-                         e2 = sei[i]^2 + tau^2
+                         e2 = sei^2 + tau^2
                          e3 = sqrt(e2)
-                         e5 = sei[i] * tcrit[i] - mu
+                         e5 = sei * tcrit - mu
                          e6 = e5/e3
                          e7 = dnorm(e6, 0, 1)
                          # Stan version:
@@ -802,9 +805,9 @@ E_fisher_RTMA = function( .sei, .Mu, .Tt, .tcrit = qnorm(0.975) ) {
                          kmm = -(1/e2 - (e5/(e2 * e8) + e7 * e3/(e8 * e3)^2) * e7/e3)
                          
                          # from body of R's get_D12_num:
-                         e2 = sei[i]^2 + tau^2
+                         e2 = sei^2 + tau^2
                          e3 = sqrt(e2)
-                         e5 = sei[i] * tcrit[i] - mu
+                         e5 = sei * tcrit - mu
                          # e6 is scaled critical value:
                          e6 = e5/e3
                          e7 = pnorm(e6)
@@ -814,15 +817,15 @@ E_fisher_RTMA = function( .sei, .Mu, .Tt, .tcrit = qnorm(0.975) ) {
                          #e9 = exp( normal_lpdf(e6 | 0, 1) )
                          
                          # my own expectation of .yi - .mu:
-                         expectation1 = -sqrt(sei[i]^2 + tau^2) * e9/e7
+                         expectation1 = -sqrt(sei^2 + tau^2) * e9/e7
                          kms = -(tau * (((e7/e3 - e5 * e9/e2)/(e7 * e3)^2 - e5^2/(e8 *
                                                                                     e7 * e3)) * e9 + 2 * ((expectation1)/e8)))
                          
                          
                          # from body of R's get_D22_num:
                          e1 = tau^2
-                         e3 = sei[i]^2 + e1
-                         e5 = sei[i] * tcrit[i] - mu
+                         e3 = sei^2 + e1
+                         e5 = sei * tcrit - mu
                          e6 = sqrt(e3)
                          # e7 is scaled crit value:
                          e7 = e5/e6
@@ -836,7 +839,7 @@ E_fisher_RTMA = function( .sei, .Mu, .Tt, .tcrit = qnorm(0.975) ) {
                          # *replace this one with its expectation:
                          # e15 = (.yi - .mu)^2/e3
                          # expectation of (.yi - .mu)^2:
-                         expectation2 = (sei[i]^2 + tau^2)*(1 - e7 * e9/e8)
+                         expectation2 = (sei^2 + tau^2)*(1 - e7 * e9/e8)
                          e15 = (expectation2)/e3
                          
                          kss = (e13 + e15 - (e1 * (e5 * ((e8/e6 - e10/e3)/e11^2 -

@@ -110,14 +110,17 @@ system(string)
 
 # ~ Optional: Quick Summary and Look for Failed Iterates ---------------------------
 
-t = s %>% group_by(scen.name, k.pub.nonaffirm, Mu, t2a, t2w, method) %>%
-  filter( grepl("jeffreys-mcmc", method) ) %>%
+t = s %>% group_by(scen.name, k.pub.nonaffirm, Mu,
+                   #t2a, t2w, 
+                   true.sei.expr,
+                   method) %>%
+  #filter( grepl("jeffreys-mcmc", method) ) %>%
   summarise( reps = n(),
              MhatMn = meanNA(Mhat),
              MhatCover = meanNA(MLo < Mu & MHi > Mu),
              MhatWidth = meanNA(MHi - MLo),
-             MLo = meanNA(MLo),
-             MHi = meanNA(MHi),
+             # MLo = meanNA(MLo),
+             # MHi = meanNA(MHi),
              Shat = meanNA(Shat),
              MhatNA = mean(is.na(Mhat)),
              MhatRhatGt1.05 = mean(MhatRhat>1.05),
@@ -129,9 +132,12 @@ as.data.frame(t)
 
 
 # iterates with acceptable Rhat
-t = s %>% group_by(scen.name, k.pub.nonaffirm, Mu, t2a, t2w, method) %>%
+t = s %>% group_by(scen.name, k.pub.nonaffirm, Mu,
+                   #t2a, t2w, 
+                   true.sei.expr,
+                   method) %>%
   filter( grepl("jeffreys-mcmc", method) &
-            MhatRhat < 1.01) %>%
+            MhatRhat < 10) %>%
   summarise( reps = n(),
              MhatMn = meanNA(Mhat),
              MhatCover = meanNA(MLo < Mu & MHi > Mu),

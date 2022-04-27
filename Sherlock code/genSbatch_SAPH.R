@@ -65,12 +65,13 @@ scen.params = tidyr::expand_grid(
   rho = c(0),
   #k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
   #k.pub.nonaffirm = c(10, 20, 50, 100),
-  k.pub.nonaffirm = c(25,50),
+  k.pub.nonaffirm = c(25, 20),
   prob.hacked = c(0.8),
 
-  true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
-  # true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
-  #                   "rbeta(n = 1, 2, 5)"),
+  #true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
+   true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
+                     "rbeta(n = 1, 2, 5)",
+                     "draw_lodder_se()"),
 
   # Stan control args
   #@INCREASED 2022-4-26
@@ -229,7 +230,7 @@ source("helper_SAPH.R")
 # number of sbatches to generate (i.e., iterations within each scenario)
 # n.reps.per.scen = 1000  
 # n.reps.in.doParallel = 200  #@if running optimx, I used 100 here and 5:00:00 below
-n.reps.per.scen = 2000
+n.reps.per.scen = 1000
 n.reps.in.doParallel = 100
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
@@ -273,7 +274,7 @@ n.files
 # 320
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:320) {
+for (i in 1:60) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
