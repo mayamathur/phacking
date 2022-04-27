@@ -290,7 +290,11 @@ functions{
 		
 		
 		//TEMP ONLY: NUMERICAL ISSUES
-		return max(0, sqrt(determinant(fishinfototal)) );
+		if ( sqrt(determinant(fishinfototal)) < 0 ) {
+		return 0;
+		} else {
+		  return( sqrt(determinant(fishinfototal)) );
+		}
 		//return sqrt(determinant(fishinfototal));
 	}
 }
