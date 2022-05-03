@@ -9,13 +9,6 @@
 # source("init_stan_model_applied_SAPH.R")
 
 
-
-
-kmm = Si^(-2)*(cz*r + r^2 - 1)
-kms = tau*Si^(-3)*r*( cz^2 + cz*r + 1 )
-kss = ( tau^2 * Si^(-4) ) * ( cz^3*r + cz^2*r^2 + cz*r - 2 )
-
-
 # 2022-5-3: SIMPLIFIED JEFFREYS PRIOR WRT TAU ----------------------
 
 

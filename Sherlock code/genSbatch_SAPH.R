@@ -81,7 +81,7 @@ lapply( allPackages,
 #   get.CIs = TRUE,
 #   run.optimx = FALSE )
 
-### 2022-4-16: DEBUG NEW PRIOR ###
+### 2022-5-3: DEBUG NEW PRIOR ###
 
 # with new prior, this scen had only 91% coverage
 scen.params = tidyr::expand_grid(
@@ -272,10 +272,10 @@ n.files
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
 
-# 320
+# 240
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:60) {
+for (i in 1:1) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
