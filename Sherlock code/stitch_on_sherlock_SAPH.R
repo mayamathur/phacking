@@ -190,6 +190,14 @@ fwrite(agg, "agg.csv")
 cat("\n\n nrow(agg) =", nrow(agg))
 cat("\n nuni(agg$scen.name) =", nuni(agg$scen.name) )
 
+# OPTIONAL: agg that keeps only iterates with very low Rhat
+agg2 = make_agg_data( s %>% filter(MhatRhat<1.02 & ShatRhat<1.02))
+fwrite(agg2, "agg_RhatsLt1.02.csv")
+
+
+
+
+
 # look again at failures
 t = agg %>% group_by(k.pub.nonaffirm, method) %>%
   summarise( mean(MhatEstFail),
