@@ -45,70 +45,71 @@ lapply( allPackages,
 
 
 # ### FULL VERSION ###
+# scen.params = tidyr::expand_grid(
+#   # full list (save):
+#   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
+#   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; prereg-naive",
+#   rep.methods = "naive ; jeffreys-mcmc ; jeffreys-sd",
+# 
+#   # args from sim_meta_2
+#   Nmax = 30,
+#   Mu = c(0.5),
+#   #t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
+#   #t2w = c(0, 0.2^2),
+#   t2a = 0,
+#   t2w = 0,
+#   m = 50,
+# 
+#   #hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
+#   hack = c("favor-best-affirm-wch"),
+#   rho = c(0),
+#   #k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
+#   #k.pub.nonaffirm = c(10, 20, 50, 100),
+#   k.pub.nonaffirm = c(25, 20),
+#   prob.hacked = c(0.8),
+# 
+#   #true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
+#    true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
+#                      "rbeta(n = 1, 2, 5)",
+#                      "draw_lodder_se()"),
+# 
+#   # Stan control args
+#   #@INCREASED 2022-4-26
+#   stan.maxtreedepth = 25,
+#   stan.adapt_delta = 0.995,
+# 
+#   get.CIs = TRUE,
+#   run.optimx = FALSE )
+
+### 2022-4-16: DEBUG NEW PRIOR ###
+
+# with new prior, this scen had only 91% coverage
 scen.params = tidyr::expand_grid(
   # full list (save):
   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-  # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; prereg-naive",
-  rep.methods = "naive ; jeffreys-mcmc ; jeffreys-sd",
+  rep.methods = "naive ; jeffreys-mcmc",
 
   # args from sim_meta_2
   Nmax = 30,
   Mu = c(0.5),
-  #t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
-  #t2w = c(0, 0.2^2),
-  t2a = 0,
-  t2w = 0,
+  t2a = c(0, 0.04, 0.5^2),
+  t2w = c(0, 0.04),
   m = 50,
 
-  #hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
   hack = c("favor-best-affirm-wch"),
   rho = c(0),
-  #k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
-  #k.pub.nonaffirm = c(10, 20, 50, 100),
   k.pub.nonaffirm = c(25, 20),
   prob.hacked = c(0.8),
 
-  #true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
-   true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
-                     "rbeta(n = 1, 2, 5)",
-                     "draw_lodder_se()"),
+  true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)",
+                    "rbeta(n = 1, 2, 5)"),
 
   # Stan control args
-  #@INCREASED 2022-4-26
   stan.maxtreedepth = 25,
   stan.adapt_delta = 0.995,
 
   get.CIs = TRUE,
   run.optimx = FALSE )
-
-# ### 2022-4-16: DEBUG NEW PRIOR ###
-#
-# # with new prior, this scen had only 91% coverage
-# scen.params = tidyr::expand_grid(
-#   # full list (save):
-#   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-#   rep.methods = "naive ; jeffreys-mcmc",
-#   
-#   # args from sim_meta_2
-#   Nmax = 30,
-#   Mu = c(0.5),
-#   t2a = c(0),
-#   t2w = c(0),
-#   m = 50,
-#   
-#   hack = c("favor-best-affirm-wch"),
-#   rho = c(0),
-#   k.pub.nonaffirm = c(25),
-#   prob.hacked = c(0.8),
-#   
-#   true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
-#   
-#   # Stan control args
-#   stan.maxtreedepth = 20,
-#   stan.adapt_delta = 0.98,
-#   
-#   get.CIs = TRUE,
-#   run.optimx = FALSE )
 
 
 ### 2022-4-5: ISOLATE SCEN FOR CSM AND SMKH ###
