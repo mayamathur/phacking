@@ -1,6 +1,11 @@
 
 # PRELIMINARIES ---------------------------------------------
 
+# ~ User-Specified Parameters -----------------------------------------------
+
+# which dataset to run?
+# "Fig 1" or "Appendix A"
+dataset.to.run = "Appendix A"
 
 # ~ Load Data and Packages -----------------------------------------------
 
@@ -43,7 +48,8 @@ source("analyze_sims_helper_SAPH.R")
 
 # get prepped data
 setwd( here("Prepped data") )
-dp = fread("lodder_prepped.csv")
+if ( dataset.to.run == "Appendix A" ) dp = fread("lodder_prepped.csv")
+if ( dataset.to.run == "Fig 1" ) dp = fread("lodder_prepped_fig1.csv")
 
 # get results from Sherlock 
 #  from 2_analyze_lodder_sherlock.R

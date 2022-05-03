@@ -44,72 +44,66 @@ lapply( allPackages,
 #   the start values from being the true ones)
 
 
-# ### FULL VERSION ###
-# scen.params = tidyr::expand_grid(
-#   # full list (save):
-#   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-#   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; 2psm-csm-dataset ; csm-mcmc ; prereg-naive",
-#   rep.methods = "naive ; jeffreys-mcmc ; jeffreys-sd",
-# 
-#   # args from sim_meta_2
-#   Nmax = 30,
-#   Mu = c(0.5),
-#   #t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
-#   #t2w = c(0, 0.2^2),
-#   t2a = 0,
-#   t2w = 0,
-#   m = 50,
-# 
-#   #hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
-#   hack = c("favor-best-affirm-wch"),
-#   rho = c(0),
-#   #k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
-#   #k.pub.nonaffirm = c(10, 20, 50, 100),
-#   k.pub.nonaffirm = c(25, 20),
-#   prob.hacked = c(0.8),
-# 
-#   #true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
-#    true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
-#                      "rbeta(n = 1, 2, 5)",
-#                      "draw_lodder_se()"),
-# 
-#   # Stan control args
-#   #@INCREASED 2022-4-26
-#   stan.maxtreedepth = 25,
-#   stan.adapt_delta = 0.995,
-# 
-#   get.CIs = TRUE,
-#   run.optimx = FALSE )
-
-### 2022-5-3: DEBUG NEW PRIOR ###
-
-# with new prior, this scen had only 91% coverage
+### FULL VERSION ###
 scen.params = tidyr::expand_grid(
   # full list (save):
   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-  rep.methods = "naive ; jeffreys-mcmc",
+   rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
+  #rep.methods = "naive ; jeffreys-mcmc ; jeffreys-sd",
 
   # args from sim_meta_2
   Nmax = 30,
   Mu = c(0.5),
-  t2a = c(0, 0.04, 0.5^2),
-  t2w = c(0, 0.04),
+  t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
+  t2w = c(0.2^2),
   m = 50,
 
-  hack = c("favor-best-affirm-wch"),
+  hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
   rho = c(0),
-  k.pub.nonaffirm = c(25, 20),
+  k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
   prob.hacked = c(0.8),
 
-  true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)",
-                    "rbeta(n = 1, 2, 5)"),
+  true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
+   # true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
+   #                   "rbeta(n = 1, 2, 5)",
+   #                   "draw_lodder_se()"),
 
   # Stan control args
+  #@INCREASED 2022-4-26
   stan.maxtreedepth = 25,
   stan.adapt_delta = 0.995,
 
   get.CIs = TRUE,
   run.optimx = FALSE )
+
+# ### 2022-5-3: DEBUG NEW PRIOR ###
+# 
+# scen.params = tidyr::expand_grid(
+#   # full list (save):
+#   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
+#   rep.methods = "naive ; jeffreys-mcmc",
+# 
+#   # args from sim_meta_2
+#   Nmax = 30,
+#   Mu = c(0.5),
+#   t2a = c(0, 0.04, 0.5^2),
+#   t2w = c(0, 0.04),
+#   m = 50,
+# 
+#   hack = c("favor-best-affirm-wch"),
+#   rho = c(0),
+#   k.pub.nonaffirm = c(25, 20),
+#   prob.hacked = c(0.8),
+# 
+#   true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)",
+#                     "rbeta(n = 1, 2, 5)"),
+# 
+#   # Stan control args
+#   stan.maxtreedepth = 25,
+#   stan.adapt_delta = 0.995,
+# 
+#   get.CIs = TRUE,
+#   run.optimx = FALSE )
 
 
 ### 2022-4-5: ISOLATE SCEN FOR CSM AND SMKH ###
@@ -231,7 +225,7 @@ source("helper_SAPH.R")
 # number of sbatches to generate (i.e., iterations within each scenario)
 # n.reps.per.scen = 1000  
 # n.reps.in.doParallel = 200  #@if running optimx, I used 100 here and 5:00:00 below
-n.reps.per.scen = 1000
+n.reps.per.scen = 2000
 n.reps.in.doParallel = 100
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
@@ -250,7 +244,7 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "01:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
+                            jobtime = "02:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -272,10 +266,10 @@ n.files
 # sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
 
-# 240
+# 1680
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 2:240) {
+for (i in 1:1) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 

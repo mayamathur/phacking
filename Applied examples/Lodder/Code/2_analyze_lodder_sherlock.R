@@ -45,7 +45,7 @@ run.local = FALSE
 
 # which dataset to run?
 # "Fig 1" or "Appendix A"
-dataset.to.run = "Fig 1"
+dataset.to.run = "Appendix A"
 
 sherlock.data.dir = "/home/groups/manishad/SAPH/applied_examples/data"
 sherlock.code.dir = "/home/groups/manishad/SAPH"
@@ -57,18 +57,18 @@ local.results.dir = NULL
 
 # specify which methods to run, as in doParallel
 # but obviously can't run gold-std on a non-simulated meta-analysis
-all.methods = "naive ; maon ; pcurve ; 2psm ; jeffreys-mcmc ; prereg-naive"
+all.methods = "naive ; maon ; pcurve ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive"
 #all.methods = "naive ; maon ; 2psm ; mle-sd; csm-mle-sd"
 # parse methods string
 all.methods = unlist( strsplit( x = all.methods,
                                 split = " ; " ) )
 
 run.optimx = TRUE
-stan.adapt_delta = 0.98
-stan.maxtreedepth = 20
+stan.adapt_delta = 0.995
+stan.maxtreedepth = 25
 # hacky because estimate_jeffreys_mcmc_RTMA looks for p as global var
-p = data.frame( stan.adapt_delta = 0.98,
-                stan.maxtreedepth = 20 )
+p = data.frame( stan.adapt_delta = stan.adapt_delta,
+                stan.maxtreedepth = stan.maxtreedepth )
 
 
 # for labelling the results file
@@ -470,18 +470,18 @@ srr()
 
 ### LEFT-truncated normal
 # include only affirmatives
-rep.res = run_method_safe(method.label = c("ltn-mle-sd"),
-                          method.fn = function() estimate_jeffreys_RTMA(yi = dp$yi[ dp$affirm == TRUE ],
-                                                                        sei = sqrt(dp$vi[ dp$affirm == TRUE ]),
-                                                                        par2is = "Tt",
-                                                                        tcrit = qnorm(0.975), 
-                                                                        Mu.start = Mhat.start,
-                                                                        par2.start = Shat.start,
-                                                                        usePrior = FALSE,
-                                                                        get.CIs = TRUE,
-                                                                        CI.method = "wald",
-                                                                        run.optimx = run.optimx),
-                          .rep.res = rep.res )
+# rep.res = run_method_safe(method.label = c("ltn-mle-sd"),
+#                           method.fn = function() estimate_jeffreys_RTMA(yi = dp$yi[ dp$affirm == TRUE ],
+#                                                                         sei = sqrt(dp$vi[ dp$affirm == TRUE ]),
+#                                                                         par2is = "Tt",
+#                                                                         tcrit = qnorm(0.975), 
+#                                                                         Mu.start = Mhat.start,
+#                                                                         par2.start = Shat.start,
+#                                                                         usePrior = FALSE,
+#                                                                         get.CIs = TRUE,
+#                                                                         CI.method = "wald",
+#                                                                         run.optimx = run.optimx),
+#                           .rep.res = rep.res )
 
 
 
