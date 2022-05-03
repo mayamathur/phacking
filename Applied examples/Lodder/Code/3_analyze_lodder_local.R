@@ -53,8 +53,11 @@ if ( dataset.to.run == "Fig 1" ) dp = fread("lodder_prepped_fig1.csv")
 
 # get results from Sherlock 
 #  from 2_analyze_lodder_sherlock.R
-setwd( here("Results from Sherlock") )
-rs = fread("results_lodder.csv")
+if ( dataset.to.run == "Appendix A" ) {
+  setwd( here("Results from Sherlock/With Lodder's Appendix A dataset") )
+  rs = fread("results_lodder.csv")
+}
+
 
 # for this script's own results
 results.dir = here("Results from local analysis")
