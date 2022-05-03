@@ -111,12 +111,13 @@ system(string)
 # ~ Optional: Quick Summary and Look for Failed Iterates ---------------------------
 
 t = s %>% group_by(scen.name, k.pub.nonaffirm, Mu,
-                   #t2a, t2w, 
+                   t2a, t2w, 
                    true.sei.expr,
                    method) %>%
-  #filter( grepl("jeffreys-mcmc", method) ) %>%
+  filter( method == "jeffreys-mcmc-max-lp-iterate" ) %>%
+  # filter( grepl("jeffreys-mcmc", method) ) %>%
   summarise( reps = n(),
-             MhatMn = meanNA(Mhat),
+             MhatBias = meanNA(Mhat - Mu),
              MhatCover = meanNA(MLo < Mu & MHi > Mu),
              MhatWidth = meanNA(MHi - MLo),
              # MLo = meanNA(MLo),
@@ -131,15 +132,16 @@ t = s %>% group_by(scen.name, k.pub.nonaffirm, Mu,
 as.data.frame(t)
 
 
-# iterates with acceptable Rhat
+# iterates with small Rhat
 t = s %>% group_by(scen.name, k.pub.nonaffirm, Mu,
-                   #t2a, t2w, 
+                   t2a, t2w, 
                    true.sei.expr,
                    method) %>%
-  filter( grepl("jeffreys-mcmc", method) &
-            MhatRhat < 10) %>%
+  filter( method == "jeffreys-mcmc-max-lp-iterate" ) %>% &
+            MhatRhat < 1.02) %>%
+  # filter( grepl("jeffreys-mcmc", method) ) %>%
   summarise( reps = n(),
-             MhatMn = meanNA(Mhat),
+             MhatBias = meanNA(Mhat - Mu),
              MhatCover = meanNA(MLo < Mu & MHi > Mu),
              MhatWidth = meanNA(MHi - MLo),
              # MLo = meanNA(MLo),

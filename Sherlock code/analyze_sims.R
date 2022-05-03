@@ -206,7 +206,7 @@ for ( .hack in unique(agg$hack) ) {
                             Mu == .Mu &
                             hack == .hack)
     # to label the plots
-    prefix = paste( "2022-4-25; new prior; ",
+    prefix = paste( "2022-5-3; simplified new prior; ",
     "Mu=", .Mu,
     "; hack=", .hack, 
     sep = "")
