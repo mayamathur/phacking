@@ -100,12 +100,12 @@ s = s %>% filter(!is.na(scen.name))
 
 # ~ Write stitched.csv ---------------------------
 
-setwd(.results.stitched.write.path)
-fwrite(s, .stitch.file.name)
-
-# also make a zipped version
-string = paste("zip -m stitched.zip", .stitch.file.name)
-system(string)
+# setwd(.results.stitched.write.path)
+# fwrite(s, .stitch.file.name)
+# 
+# # also make a zipped version
+# string = paste("zip -m stitched.zip", .stitch.file.name)
+# system(string)
 
 
 # ~ Optional: Quick Summary and Look for Failed Iterates ---------------------------
@@ -222,19 +222,19 @@ table( s$overall.error[ s$method == "2psm" & is.na(s$Mhat) ] )
 
 # LOOK FOR MISSED JOBS ----------------------------------------------
 
-# path = "/home/groups/manishad/SAPH"
-# setwd(path)
-# source("helper_SAPH.R")
-# source("analyze_sims_helper_SAPH.R")
-# 
-# # look for missed jobs
-# missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
-#                               "/home/groups/manishad/SAPH/long_results",
-#                               .name.prefix = "long",
-#                               .max.sbatch.num = 2400)
-# 
-# setwd( paste(path, "/sbatch_files", sep="") )
-# for (i in missed.nums) {
-#   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
-# }
+path = "/home/groups/manishad/SAPH"
+setwd(path)
+source("helper_SAPH.R")
+source("analyze_sims_helper_SAPH.R")
+
+# look for missed jobs
+missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
+                              "/home/groups/manishad/SAPH/long_results",
+                              .name.prefix = "long",
+                              .max.sbatch.num = 2400)
+
+setwd( paste(path, "/sbatch_files", sep="") )
+for (i in missed.nums) {
+  system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
+}
 
