@@ -314,6 +314,7 @@ make_agg_data = function( .s,
 # This fn is separate from make_agg_data because it needs more frequent modification
 wrangle_agg_local = function(agg) {
   ##### Make New Variables At Scenario Level ##### 
+  
   # label methods more intelligently for use in plots
   agg$method.pretty = NA
   agg$method.pretty[ agg$method == c("naive") ] = "Uncorrected"
@@ -322,9 +323,9 @@ wrangle_agg_local = function(agg) {
   agg$method.pretty[ agg$method == c("2psm") ] = "SM"
   agg$method.pretty[ agg$method == c("2psm-csm-dataset") ] = "SMKH" # "known hacking"
   agg$method.pretty[ agg$method == c("prereg-naive") ] = "Unhacked only"
-  agg$method.pretty[ agg$method %in% c("jeffreys-mcmc-pmed") ] = "RTMA"
+  agg$method.pretty[ agg$method %in% c("jeffreys-mcmc-max-lp-iterate") ] = "RTMA"
   table(agg$method, agg$method.pretty)
-  
+
   
   agg$true.sei.expr = as.factor(agg$true.sei.expr)
   
@@ -488,18 +489,23 @@ sim_plot_multiple_outcomes = function(.hack,
                                       .ggtitle = "") {
   
   .dat = agg
-  .dat$facetVar = paste( "t2a=", .dat$t2a, "; t2w=", .dat$t2w, sep = "")
+  # when using different levels of t2w:
+  # .dat$facetVar = paste( "t2a=", .dat$t2a, "; t2w=", .dat$t2w, sep = "")
+  #.dat$facetVar = paste( "t2a = ", .dat$t2a, sep = "")
+  .dat$facetVar = sqrt(.dat$t2a)
   
   .dat = .dat %>% filter(method.pretty %in% method.keepers &
                            Mu == 0.5 &
                            
                            true.sei.expr == "0.02 + rexp(n = 1, rate = 3)" &
                            
-                           hack == .hack &
-                           facetVar %in% c("t2a=0.04; t2w=0",
-                                           "t2a=0.04; t2w=0.04",
-                                           "t2a=0.09; t2w=0.04",
-                                           "t2a=0.25; t2w=0.04") )
+                           hack == .hack
+                           # when using different levels of t2w:
+                           # facetVar %in% c("t2a=0; t2w=0.04",
+                           #                 "t2a=0.04; t2w=0.04",
+                           #                 "t2a=0.09; t2w=0.04",
+                           #                 "t2a=0.25; t2w=0.04")
+                         )
   
   
   
@@ -529,8 +535,6 @@ sim_plot_multiple_outcomes = function(.hack,
     
     .dat$Y = .dat[[.Yname]]
     
-    
-    
     # ~~ Set ggplot color palette ----
     # to see all palettes:
     # par(mar=c(3,4,2,2))
@@ -547,7 +551,7 @@ sim_plot_multiple_outcomes = function(.hack,
     
     
     # set color palette to match 3_analyze_lodder.R
-    .colors = c(SMKH = "#1B9E77",
+    .colors = c(#SMKH = "#1B9E77",
                 MAN = "#ff9900",
                 RTMA = "red",
                 `Unhacked only` = "#3399ff",
@@ -562,7 +566,7 @@ sim_plot_multiple_outcomes = function(.hack,
     .lty = rep("dashed", nuni(.dat$method.pretty))
     names(.lty) = names(.colors)
     
-    newMethods = c("SMKH",
+    newMethods = c(#"SMKH",
                    "MAN",
                    "RTMA")
     
@@ -645,9 +649,9 @@ sim_plot_multiple_outcomes = function(.hack,
     # ~ Add facetting ----------
     # this block needs to be after adding geom_hlines so that the lines obey the facetting
     p = p + facet_wrap( ~ facetVar,
-                        ncol = length( unique(.dat$facetVar) ) ) 
-    
-    
+                        ncol = length( unique(.dat$facetVar) ),
+                        labeller = label_bquote( cols = tau[a] ~ "=" ~ .(facetVar) ) ) 
+ 
     
     # ~ Set Y-axis breaks ----------
     # other outcomes follow rules or can just use default axis breaks
@@ -660,11 +664,11 @@ sim_plot_multiple_outcomes = function(.hack,
         y.breaks.supp = seq(0, 1, .1)
         
       } else if ( grepl(pattern = "Bias", .Yname) ){
-        y.breaks = seq(-0.4, 0.4, .2)
-        y.breaks.supp = seq(-1, 1, 0.2)
+        y.breaks = seq(-0.4, 0.4, .1)
+        y.breaks.supp = seq(-1, 1, 0.1)
         
       } else if ( grepl(pattern = "Width", .Yname) ){
-        y.breaks = seq(0, 2, .5)
+        y.breaks = seq(0, 2, .25)
         y.breaks.supp = seq(0, 3, 0.25)
         
       } else if ( grepl(pattern = "Reject", .Yname) ){
@@ -726,7 +730,8 @@ sim_plot_multiple_outcomes = function(.hack,
       scale_y_continuous( breaks = y.breaks.supp) +
 
       facet_wrap( ~ facetVar,
-                  ncol = 2 ) + 
+                  ncol = 2,  # fix to 2 becuase will take up whole page
+                  labeller = label_bquote( cols = tau[a] ~ "=" ~ .(facetVar) ) ) + 
 
       # theme_bw(base_size=21) +
       # theme(text = element_text(face = "bold"),
@@ -802,6 +807,52 @@ sim_plot_multiple_outcomes = function(.hack,
   return(plotListSupp)
 } 
 
+
+# SAPH-SPECIFIC SMALL HELPERS ----------------------------------
+
+# initialize global variables that describe estimate and outcome names, etc.
+init_var_names = function() {
+  
+  ### Names of statistical metrics ###
+  # used later to create plots and tables, but needed to check var types 
+  #  upon reading in data
+  estNames <<- c("Mhat", "Shat")
+  
+  # blank entry is to get Mhat itself, which is useful for 
+  #  looking at whether MAON>0
+  mainYNames <<- c("Bias", "", "RMSE", "Cover", "Width", "EmpSE")
+  
+  otherYNames <<- c("EstFail", "CIFail", "RhatGt1.01", "RhatGt1.05")
+  
+  # these ones don't fit in nicely because the "Mhat" is in the middle of string
+  #"OptimxPropAgreeConvergersMhatWinner", "OptimxNAgreeOfConvergersMhatWinner"
+  MhatMainYNames <<- paste( "Mhat", c(mainYNames), sep = "" )
+  MhatYNames <<- c( paste( "Mhat", c(mainYNames, otherYNames), sep = "" ) )
+  #"OptimxPropAgreeConvergersMhatWinner", "OptimxNAgreeOfConvergersMhatWinner" )
+  
+  
+  ### Names of parameter variables ###
+  # figure out which scen params were actually manipulated
+  #@this assumes that "Nmax" is always the first param var and "method" is always the last
+  ( param.vars <<- names(agg)[ which( names(agg) == "Nmax" ) : which( names(agg) == "method" ) ] )
+  
+  # how many levels does each param var have in dataset?
+  ( n.levels <<- agg %>% dplyr::select(param.vars) %>%
+      summarise_all( function(x) nuni(x) ) )
+  
+  ( param.vars.manip <<- names(n.levels)[ n.levels > 1 ] )
+  
+  
+  # eliminate redundant ones
+  if ( "t2a" %in% param.vars.manip ) param.vars.manip <<- drop_vec_elements( param.vars.manip, c("S", "V") )
+  
+  
+  ( param.vars.manip2 <<- drop_vec_elements(param.vars.manip, "method") )
+  
+  cat( paste("\n\nManipulated parameter vars: ",
+             paste(param.vars.manip2, collapse= ", ") ) )
+  
+}
 
 # GENERIC SMALL HELPERS -------------------------------------------------------------
 

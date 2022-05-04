@@ -114,7 +114,7 @@ file.info("agg.csv")$mtime
 
 
 dim(agg)  # will exceed number of scens because of multiple methods
-expect_equal( 320, nuni(agg$scen.name) )
+expect_equal( 840, nuni(agg$scen.name) )
 
 agg = wrangle_agg_local(agg)
 
@@ -122,48 +122,20 @@ agg = wrangle_agg_local(agg)
 table(agg$sim.reps.actual)
 
 # TEMP: exclude scens with too few reps
-agg = agg %>% filter(sim.reps.actual >= 1500)
+#agg = agg %>% filter(sim.reps.actual >= 1500)
 
 
 # ~~ List variable names -------------------------
 
-### Names of statistical metrics ###
-# used later to create plots and tables, but needed to check var types 
-#  upon reading in data
-estNames = c("Mhat", "Shat")
-
-# blank entry is to get Mhat itself, which is useful for 
-#  looking at whether MAON>0
-mainYNames = c("Bias", "", "RMSE", "Cover", "Width", "EmpSE")
-
-otherYNames = c("EstFail", "CIFail", "RhatGt1.01", "RhatGt1.05")
-
-# these ones don't fit in nicely because the "Mhat" is in the middle of string
-#"OptimxPropAgreeConvergersMhatWinner", "OptimxNAgreeOfConvergersMhatWinner"
-MhatMainYNames = paste( "Mhat", c(mainYNames), sep = "" )
-MhatYNames = c( paste( "Mhat", c(mainYNames, otherYNames), sep = "" ) )
-                #"OptimxPropAgreeConvergersMhatWinner", "OptimxNAgreeOfConvergersMhatWinner" )
+# initialize global variables that describe estimate and outcome names, etc.
+# this must be after creating aff
+init_var_names()
 
 
-### Names of parameter variables ###
-# figure out which scen params were actually manipulated
-#@this assumes that "Nmax" is always the first param var and "method" is always the last
-( param.vars = names(agg)[ which( names(agg) == "Nmax" ) : which( names(agg) == "method" ) ] )
-
-# how many levels does each param var have in dataset?
-( n.levels = agg %>% dplyr::select(param.vars) %>%
-    summarise_all( function(x) nuni(x) ) )
-
-( param.vars.manip = names(n.levels)[ n.levels > 1 ] )
-
-
-# eliminate redundant ones
-if ( "t2a" %in% param.vars.manip ) param.vars.manip = drop_vec_elements( param.vars.manip, c("S", "V") )
-
-
-( param.vars.manip2 = drop_vec_elements(param.vars.manip, "method") )
-
-
+#@MOVE THIS
+# confirm that jeffreys-mcmc-max-lp-iterate and jeffreys-sd are so close 
+#  that it's reasonable to just treat former as the MAP
+summary(agg$Mhat[agg$method == "jeffreys-mcmc-max-lp-iterate"] - agg$Mhat[agg$method == "jeffreys-sd"])
 
 
 # ******** PLOTS (BIG AND NOT PRETTIFIED) -------------------------
@@ -171,10 +143,10 @@ if ( "t2a" %in% param.vars.manip ) param.vars.manip = drop_vec_elements( param.v
 Ynames = rev(MhatYNames)
 
 # alternatively, run just a subset:
-Ynames = c("MhatWidth", "MhatCover", "MhatBias",
-           "MhatEstFail",
-           # last 2 are useful for looking at MAON
-           "Mhat", "MhatTestReject")
+# Ynames = c("MhatWidth", "MhatCover", "MhatBias",
+#            "MhatEstFail",
+#            # last 2 are useful for looking at MAON
+#            "Mhat", "MhatTestReject")
 
 #@temp if not running optimx:
 #Ynames = Ynames[3:11]
@@ -206,12 +178,11 @@ for ( .hack in unique(agg$hack) ) {
                             Mu == .Mu &
                             hack == .hack)
     # to label the plots
-    prefix = paste( "2022-5-3; simplified new prior; ",
+    prefix = paste( "2022-5-4 sims; ",
     "Mu=", .Mu,
     "; hack=", .hack, 
     sep = "")
-    # temporarily set wd
-    # results.dir = paste("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Sherlock simulation results/Pilot simulations/*2022-3-27 full set/Mu=0.5/hack=", .hack, sep = "")
+  
     
     # # temporarily set wd
     # results.dir.temp = paste(results.dir,
@@ -220,8 +191,9 @@ for ( .hack in unique(agg$hack) ) {
     #                          "/hack=",
     #                          .hack,
     #                          sep = "")
+    results.dir.temp = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Linked to OSF (SAPH)/Sherlock simulation results/Pilot simulations/2022-5-4 all scens with new, simplified prior/Big unprettified plots"
     
-    results.dir.temp = results.dir
+    #results.dir.temp = results.dir
     
     # for 2022-3-25 sims
     aggp$tempFacetVar2 = paste( "t2a=", aggp$t2a, "; t2w=", aggp$t2w, sep = "")
@@ -254,12 +226,12 @@ for ( .hack in unique(agg$hack) ) {
       #                         .writePlot = FALSE,
       #                         .results.dir = NULL)
       
-      # for 2022-4-6
+      # for 2022-5-4
       p  = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
                                .Yname = Yname,
                                .colorVarName = "method",
                                #.facetVar1Name = "tempFacetVar1",
-                               .facetVar1Name = "true.sei.expr",
+                               .facetVar1Name = "true.sei.expr.pretty",
                                .facetVar2Name = "tempFacetVar2",
                                .dat = aggp,
                                .ggtitle = prefix,
@@ -305,10 +277,17 @@ for ( .hack in unique(agg$hack) ) {
       pl = ggplotly(p)
       #pl
       
+      # in filename, mark the most important plots with asterisk
+      if ( Yname %in% c("MhatBias", "MhatCover", "MhatWidth") ){
+        new.prefix = paste("*", prefix, sep = "")
+      } else {
+        new.prefix = prefix
+      }
+      
       # how to save a plotly as html
       # https://www.biostars.org/p/458325/
       setwd(results.dir.temp)
-      string = paste(prefix, Yname, "plotly.html", sep="_")
+      string = paste(new.prefix, Yname, "plotly.html", sep="_")
       htmlwidgets::saveWidget(pl, string)
       
     }
@@ -352,6 +331,7 @@ YnamesSupp = c("MhatBias", "MhatCover", "MhatWidth",
                "MhatTestReject")
 
 # this dataset will be one full-page figure in main text or Supp depending on hack type
+# by default, these write only to Overleaf dir
 pl1 = sim_plot_multiple_outcomes(.hack = "favor-best-affirm-wch",
                            .ggtitle = bquote( "Worst-case hacking, favoring best affirmative; " ~ mu ~ "= 0.5" ) )
 
