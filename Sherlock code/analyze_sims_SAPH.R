@@ -44,19 +44,25 @@ overwrite.res = FALSE
 # ~~ Set directories -------------------------
 code.dir = here("Sherlock code")
 
-
-# data.dir = str_replace( string = here(),
-#                         pattern = "Code \\(git\\)",
-#                         replacement = "Sherlock simulation results/Pilot simulations/*2022-3-27 full set" )
-
 data.dir = str_replace( string = here(),
                         pattern = "Code \\(git\\)",
-                        replacement = "Sherlock simulation results/Pilot simulations" )
+                        replacement = "Simulation results/2022-5-4 full simulations/Data" )
 
 
-results.dir = data.dir
+
+results.dir = str_replace( string = here(),
+                           pattern = "Code \\(git\\)",
+                           replacement = "Simulation results/2022-5-4 full simulations/Results" )
+
 
 overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/figures_SAPH/sims"
+
+# # alternative for running new simulations
+# data.dir = str_replace( string = here(),
+#                         pattern = "Code \\(git\\)",
+#                         replacement = "Simulation results" )
+# 
+# results.dir = data.dir
 
 
 
@@ -114,7 +120,7 @@ file.info("agg.csv")$mtime
 
 
 dim(agg)  # will exceed number of scens because of multiple methods
-expect_equal( 840, nuni(agg$scen.name) )
+expect_equal( 84, nuni(agg$scen.name) )
 
 agg = wrangle_agg_local(agg)
 
@@ -179,10 +185,10 @@ for ( .hack in unique(agg$hack) ) {
                             hack == .hack)
     # to label the plots
     prefix = paste( "2022-5-4 sims; ",
-    "Mu=", .Mu,
-    "; hack=", .hack, 
-    sep = "")
-  
+                    "Mu=", .Mu,
+                    "; hack=", .hack, 
+                    sep = "")
+    
     
     # # temporarily set wd
     # results.dir.temp = paste(results.dir,
@@ -333,16 +339,16 @@ YnamesSupp = c("MhatBias", "MhatCover", "MhatWidth",
 # this dataset will be one full-page figure in main text or Supp depending on hack type
 # by default, these write only to Overleaf dir
 pl1 = sim_plot_multiple_outcomes(.hack = "favor-best-affirm-wch",
-                           .ggtitle = bquote( "Worst-case hacking, favoring best affirmative; " ~ mu ~ "= 0.5" ) )
+                                 .ggtitle = bquote( "WSS favors best affirmative; stringent ASS;" ~ mu ~ "= 0.5" ) )
 
 
 pl2 = sim_plot_multiple_outcomes(.hack = "affirm",
-                           .ggtitle = bquote( "Worst-case hacking, favoring first affirmative; " ~ mu ~ "= 0.5" ))
+                                 .ggtitle = bquote( "WSS favors first affirmative; stringent ASS; " ~ mu ~ "= 0.5" ))
 
 
 
 pl3 = sim_plot_multiple_outcomes(.hack = "affirm2",
-                           .ggtitle = bquote( "Limited hacking, favoring first affirmative or last nonaffirmative; " ~ mu ~ "= 0.5" ) )
+                                 .ggtitle = bquote( "WSS favors first affirmative; no ASS; " ~ mu ~ "= 0.5" ) )
 
 
 
@@ -553,7 +559,7 @@ ggplot( data = agg.temp,
               lty = 2,
               color = "gray") +
   geom_point( size = 2,
-             alpha = 0.7) + 
+              alpha = 0.7) + 
   
   scale_x_continuous( breaks = seq(0, 0.4, 0.05),
                       limits = c(0, 0.4) ) +
@@ -562,7 +568,7 @@ ggplot( data = agg.temp,
                       limits = c(0, 0.4) ) +
   
   ggtitle("Mhat from MAN, hack=affirm, Mu=0.5") +
-
+  
   theme_classic()
 
 
@@ -572,7 +578,7 @@ ggsave("Plot MAN underestimation.pdf",
 
 
 
-          
+
 
 # 2022-3-24: AGAIN TRY TO REPLICATE 2022-3-8 -------------------------
 

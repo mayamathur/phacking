@@ -664,7 +664,7 @@ sim_plot_multiple_outcomes = function(.hack,
         y.breaks.supp = seq(0, 1, .1)
         
       } else if ( grepl(pattern = "Bias", .Yname) ){
-        y.breaks = seq(-0.4, 0.4, .1)
+        y.breaks = seq(-0.4, 0.5, .1)
         y.breaks.supp = seq(-1, 1, 0.1)
         
       } else if ( grepl(pattern = "Width", .Yname) ){
