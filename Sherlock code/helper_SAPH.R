@@ -6,11 +6,6 @@
 # "draw" always refers to within-study draw
 # "study set" refers to all draws, observed and observed, for a given study
 
-# If Nmax is small, rhoEmp (empirical autocorrelation of muin's) will be smaller
-#  than rho. That's okay because it reflects small-sample bias in autocorrelation
-# estimate itself, not a problem with the simulation code
-# For more about the small-sample bias: # https://www.jstor.org/stable/2332719?seq=1#metadata_info_tab_contents
-
 
 
 # ESTIMATION METHOD FNS ----------------------------------------------
@@ -1850,6 +1845,12 @@ sim_meta = function(Nmax,  # max draws to try
 #    publish the one with the lowest p-value. If you don't get any affirmatives, don't publish anything.
 
 # NOTE: If you add args here, need to update quick_sim as well
+
+# If Nmax is small, rhoEmp (empirical autocorrelation of muin's) will be smaller
+#  than rho. That's okay because it reflects small-sample bias in autocorrelation
+# estimate itself, not a problem with the simulation code
+# For more about the small-sample bias: # https://www.jstor.org/stable/2332719?seq=1#metadata_info_tab_contents
+
 sim_one_study_set = function(Nmax,  # max draws to try
                              Mu,  # overall mean for meta-analysis
                              t2a,  # across-study heterogeneity (NOT total heterogeneity)
