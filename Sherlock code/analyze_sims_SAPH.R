@@ -65,29 +65,9 @@ overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/figur
 # results.dir = data.dir
 
 
-
 setwd(code.dir)
 source("helper_SAPH.R")
 source("analyze_sims_helper_SAPH.R")
-
-
-
-# ~~ Get iterate-level data -------------------------
-
-# setwd(data.dir)
-# # check when the dataset was last modified to make sure we're working with correct version
-# # MAY TAKE A LONG TIME!
-# #s = fread( "stitched.csv")
-# 
-# file.info("stitched.csv")$mtime
-# 
-# dim(s)
-# nuni(s$scen.name)
-# 
-# #**Check for MCMC errors and similar
-# #*# frequent errors for both jeffreys-var and mle-var, but not the corresponding SD param'zations
-# s %>% group_by(method) %>%
-#   summarise( meanNA(is.na(Mhat)))
 
 
 # ~~ Get agg data -------------------------
@@ -99,49 +79,25 @@ agg = fread( "agg.csv")
 file.info("agg.csv")$mtime
 
 
-
-# ### Merge two sets of sim results
-# 
-# # 2022-3-27 sims:
-# setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Linked to OSF (SAPH)/Sherlock simulation results/Pilot simulations/*2022-3-27 full set")
-# agg1 = fread( "agg.csv")
-# # check when the dataset was last modified to make sure we're working with correct version
-# file.info("agg.csv")$mtime
-# 
-# # 2022-4-1 sims:
-# setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Linked to OSF (SAPH)/Sherlock simulation results/Pilot simulations/*2022-4-1 full set with Lodder SEs/Datasets before merging with 2022-3-27")
-# agg2 = fread( "agg.csv")
-# # check when the dataset was last modified to make sure we're working with correct version
-# file.info("agg.csv")$mtime
-# 
-# # merge them
-# dim(agg1); dim(agg2)
-# agg = bind_rows(agg1, agg2)
-
-
 dim(agg)  # will exceed number of scens because of multiple methods
 expect_equal( 84, nuni(agg$scen.name) )
 
+# prettify variable names
 agg = wrangle_agg_local(agg)
 
 # look at number of actual sim reps
 table(agg$sim.reps.actual)
 
-# TEMP: exclude scens with too few reps
+# temporary if checking on sim results in real time:
+#  exclude scens with too few reps
 #agg = agg %>% filter(sim.reps.actual >= 1500)
 
 
 # ~~ List variable names -------------------------
 
 # initialize global variables that describe estimate and outcome names, etc.
-# this must be after creating aff
+# this must be after calling wrangle_agg_local
 init_var_names()
-
-
-#@MOVE THIS
-# confirm that jeffreys-mcmc-max-lp-iterate and jeffreys-sd are so close 
-#  that it's reasonable to just treat former as the MAP
-summary(agg$Mhat[agg$method == "jeffreys-mcmc-max-lp-iterate"] - agg$Mhat[agg$method == "jeffreys-sd"])
 
 
 # ******** PLOTS (BIG AND NOT PRETTIFIED) -------------------------
@@ -151,11 +107,8 @@ Ynames = rev(MhatYNames)
 # alternatively, run just a subset:
 # Ynames = c("MhatWidth", "MhatCover", "MhatBias",
 #            "MhatEstFail",
-#            # last 2 are useful for looking at MAON
+#            # last 2 are useful for looking at MAN
 #            "Mhat", "MhatTestReject")
-
-#@temp if not running optimx:
-#Ynames = Ynames[3:11]
 
 # to help decide which vars to include in plot:
 param.vars.manip2
@@ -172,6 +125,8 @@ param.vars.manip2
 toDrop = NULL
 method.keepers = all.methods[ !all.methods %in% toDrop ]
 
+
+# for each hacking method and Mu, make facetted plotly
 
 for ( .hack in unique(agg$hack) ) {
   
@@ -190,23 +145,22 @@ for ( .hack in unique(agg$hack) ) {
                     sep = "")
     
     
-    # # temporarily set wd
+    # temporarily set wd
     # results.dir.temp = paste(results.dir,
-    #                          "/2022-4-15 full set with corrected prior/Mu=",
+    #                          "/Big unprettified plots/",
     #                          .Mu,
     #                          "/hack=",
     #                          .hack,
     #                          sep = "")
-    results.dir.temp = "~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Linked to OSF (SAPH)/Sherlock simulation results/Pilot simulations/2022-5-4 all scens with new, simplified prior/Big unprettified plots"
     
-    #results.dir.temp = results.dir
-    
-    # for 2022-3-25 sims
+    results.dir.temp = paste(results.dir,
+                             "/Big unprettified plots",
+                             sep = "")
+
+
+    # set one of the two facetting variables for plots
     aggp$tempFacetVar2 = paste( "t2a=", aggp$t2a, "; t2w=", aggp$t2w, sep = "")
     table(aggp$tempFacetVar2)
-    
-    # aggp$tempFacetVar1 = paste( "pr.hack=", aggp$prob.hacked, sep = "")
-    # table(aggp$tempFacetVar1)
     
     
     for ( Yname in Ynames) {
@@ -218,25 +172,10 @@ for ( .hack in unique(agg$hack) ) {
       y.breaks = NULL
       if ( Yname == "MhatBias") y.breaks = seq(-0.5, 0.5, 0.1)
       if ( Yname == "MhatWidth") y.breaks = seq(0, 10, 0.5)
-      
-      # MAIN VERSION
-      # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
-      #                         .Yname = Yname,
-      #                         .colorVarName = "method.pretty",
-      #                         #.facetVar1Name = "tempFacetVar1",
-      #                         .facetVar1Name = "true.sei.expr.pretty",
-      #                         .facetVar2Name = "tempFacetVar2",
-      #                         .dat = aggp,
-      #                         .ggtitle = prefix,
-      #                         .y.breaks = y.breaks,
-      #                         .writePlot = FALSE,
-      #                         .results.dir = NULL)
-      
-      # for 2022-5-4
+
       p  = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
                                .Yname = Yname,
                                .colorVarName = "method",
-                               #.facetVar1Name = "tempFacetVar1",
                                .facetVar1Name = "true.sei.expr.pretty",
                                .facetVar2Name = "tempFacetVar2",
                                .dat = aggp,
@@ -245,43 +184,8 @@ for ( .hack in unique(agg$hack) ) {
                                .writePlot = FALSE,
                                .results.dir = results.dir.temp)
       
-      # # for 2022-3-16
-      # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
-      #                         .Yname = Yname,
-      #                         .colorVarName = "method",
-      #                         .facetVar1Name = "Nmax",
-      #                         .facetVar2Name = "hack",
-      #                         .dat = aggp,
-      #                         .ggtitle = "",
-      #                         .writePlot = FALSE,
-      #                         .results.dir = NULL)
       
-      
-      # for 2022-3-8 sims
-      # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
-      #                         .Yname = Yname,
-      #                         .colorVarName = "method",
-      #                         .facetVar1Name = "tempFacetVar",
-      #                         .facetVar2Name = "true.sei.expr.pretty",
-      #                         .dat = aggp,
-      #                         .ggtitle = "",
-      #                         .writePlot = FALSE,
-      #                         .results.dir = NULL)
-      
-      # # SAVE: this was for the 2022-3-7 and earlier sims (based on what they manipulated)
-      # p = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
-      #                         .Yname = Yname,
-      #                         .colorVarName = "method",
-      #                         .facetVar1Name = "rho.pretty",
-      #                         .facetVar2Name = "true.sei.expr.pretty",
-      #                         .dat = agg,
-      #                         .ggtitle = "",
-      #                         .writePlot = FALSE,
-      #                         .results.dir = NULL)
-      
-      # this is a great way to view plots!!
       pl = ggplotly(p)
-      #pl
       
       # in filename, mark the most important plots with asterisk
       if ( Yname %in% c("MhatBias", "MhatCover", "MhatWidth") ){
@@ -309,18 +213,6 @@ for ( .hack in unique(agg$hack) ) {
 
 # ******** PLOTS (SIMPLE AND PRETTY FOR MAIN TEXT) -------------------------
 
-# Online only:
-#  - plotlys with both true.sei.expr
-#  - Mu=0 cases
-#  - All outcome vars, including Shat, Rhat, etc.
-
-# Main text (2 full-page figures):
-# - Mu=0.5
-# - true.sei.expr = "0.02 + rexp(n = 1, rate = 3)" only
-# - hack=favor-best and affirm2
-
-# Supplement: 
-# - counterpart to main text figure for hack=affirm
 
 
 # for each hack type, arrange plots so each facet row is an outcome
@@ -339,16 +231,19 @@ YnamesSupp = c("MhatBias", "MhatCover", "MhatWidth",
 # this dataset will be one full-page figure in main text or Supp depending on hack type
 # by default, these write only to Overleaf dir
 pl1 = sim_plot_multiple_outcomes(.hack = "favor-best-affirm-wch",
-                                 .ggtitle = bquote( "WSS favors best affirmative; stringent ASS;" ~ mu ~ "= 0.5" ) )
+                                 .ggtitle = bquote( "WSS favors best affirmative; stringent ASS;" ~ mu ~ "= 0.5" ),
+                                 .local.results.dir = results.dir )
 
 
 pl2 = sim_plot_multiple_outcomes(.hack = "affirm",
-                                 .ggtitle = bquote( "WSS favors first affirmative; stringent ASS; " ~ mu ~ "= 0.5" ))
+                                 .ggtitle = bquote( "WSS favors first affirmative; stringent ASS; " ~ mu ~ "= 0.5" ),
+                                 .local.results.dir = results.dir)
 
 
 
 pl3 = sim_plot_multiple_outcomes(.hack = "affirm2",
-                                 .ggtitle = bquote( "WSS favors first affirmative; no ASS; " ~ mu ~ "= 0.5" ) )
+                                 .ggtitle = bquote( "WSS favors first affirmative; no ASS; " ~ mu ~ "= 0.5" ),
+                                 .local.results.dir = results.dir)
 
 
 
@@ -365,21 +260,8 @@ t = agg %>% group_by_at( param.vars.manip2 ) %>%
   mutate_if( is.numeric, function(x) round(x, 2) )
 
 setwd(results.dir)
+setwd("Sanity checks")
 write.xlsx( as.data.frame(t), "table_sanchecks.xlsx")
-
-
-# 2022-4-7: temporarily look at number of hacked nonaffirms for CSM
-keepers = c("sancheck.dp.k.nonaffirm",
-            "sancheck.prob.published.nonaffirm.is.hacked")
-
-
-t = agg %>% group_by_at( param.vars.manip2 ) %>%
-  filter(hack == "affirm2" & true.sei.expr == "0.02 + rexp(n = 1, rate = 3)") %>%
-  select( all_of(keepers) ) %>%
-  #select( all_of( contains("sancheck") ) ) %>%
-  mutate_if( is.numeric, function(x) round(x, 2) )
-View(t)
-
 
 
 # SORT ROWS BY PERFORMANCE -------------------------

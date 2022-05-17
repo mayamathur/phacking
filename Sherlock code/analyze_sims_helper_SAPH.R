@@ -486,7 +486,8 @@ quick_5var_agg_plot = function(.Xname,
 # the outcome(s) that only go in supp should be at the end of list
 sim_plot_multiple_outcomes = function(.hack,
                                       .y.breaks = NULL,
-                                      .ggtitle = "") {
+                                      .ggtitle = "",
+                                      .local.results.dir = NA) {
   
   .dat = agg
   # when using different levels of t2w:
@@ -496,18 +497,8 @@ sim_plot_multiple_outcomes = function(.hack,
   
   .dat = .dat %>% filter(method.pretty %in% method.keepers &
                            Mu == 0.5 &
-                           
                            true.sei.expr == "0.02 + rexp(n = 1, rate = 3)" &
-                           
-                           hack == .hack
-                           # when using different levels of t2w:
-                           # facetVar %in% c("t2a=0; t2w=0.04",
-                           #                 "t2a=0.04; t2w=0.04",
-                           #                 "t2a=0.09; t2w=0.04",
-                           #                 "t2a=0.25; t2w=0.04")
-                         )
-  
-  
+                           hack == .hack )
   
   
   # force ordering of methods to match 3_analyze_lodder.R
@@ -518,9 +509,7 @@ sim_plot_multiple_outcomes = function(.hack,
                     "RTMA",
                     "MAN",
                     "SMKH")
-  
-  
-  
+
   
   .dat$method.pretty = factor(.dat$method.pretty, levels = rev(correct.order))
   
@@ -611,7 +600,6 @@ sim_plot_multiple_outcomes = function(.hack,
       # https://ggplot2.tidyverse.org/reference/ggtheme.html
       theme_bw(base_size = 20) +
       
-      # use all values of
       #scale_x_log10( breaks = unique(.dp$n) )
       # use only some values
       #scale_x_log10( breaks = c(500, 1000) ) +
@@ -675,7 +663,7 @@ sim_plot_multiple_outcomes = function(.hack,
         y.breaks = seq(0, 1, .1)
         y.breaks.supp = y.breaks
         
-      }else {
+      } else {
         # otherwise keep the default limits from ggplot
         y.breaks = ggplot_build(p)$layout$panel_params[[1]]$y$breaks
       }
@@ -762,7 +750,7 @@ sim_plot_multiple_outcomes = function(.hack,
                                  rel_heights = rel.heights)
   
   
-  # ~~ Save combined plot ------------
+  # ~~ Write combined plot to Overleaf and local dir ------------
   name = paste( tolower(.hack),
                 "_Mu0.5.pdf",
                 sep = "" )
@@ -772,7 +760,7 @@ sim_plot_multiple_outcomes = function(.hack,
                .plot = pCombined,
                .width = 8,
                .height = 11,
-               .results.dir = NA,
+               .results.dir = paste(.local.results.dir, "Simple plots in main text", sep = "/"),
                .overleaf.dir = overleaf.dir.figs )
   } else {
     message("\n\nNot writing the plot to local dir or Overleaf because overwrite.res = FALSE")
@@ -793,7 +781,7 @@ sim_plot_multiple_outcomes = function(.hack,
                  .plot = plotListSupp[[ which(YnamesSupp == .Yname) ]],
                  .width = 8,
                  .height = 11,
-                 .results.dir = NA,
+                 .results.dir = paste(.local.results.dir, "Simple plots in Supplement", sep = "/"),
                  .overleaf.dir = overleaf.dir.figs )
       
     }
