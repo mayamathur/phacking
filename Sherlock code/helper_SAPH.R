@@ -16,39 +16,7 @@
 #  All of these fns should take get.CIs as an argument and return CIs as c(NA, NA) if not wanted
 # Fns in this category need to return a dataframe with the below structure, although it's okay if they don't return all of these names since run_method_safe will handle that. Note that this is a LIST containing a dataframe called "stats", not just the dataframe; this allows easy extension in case you want to return other objects, like model objects.
 
-# return( list( stats = data.frame( method = "jeffreys-mcmc",
-#                                   
-#                                   Mhat = Mhat,
-#                                   Shat = Shat,
-#                                   
-#                                   MhatSE = MhatSE,
-#                                   ShatSE = ShatSE,
-#                                   
-#                                   # this will use same CI limits for all 3 pt estimates
-#                                   MLo = M.CI[1],
-#                                   MHi = M.CI[2],
-#                                   
-#                                   SLo = S.CI[1],
-#                                   SHi = S.CI[2] ) ) )
-
-
-# yi, 
-# sei,
-# par2is = "Tt",
-# Mu.start,
-# par2.start,
-# tcrit,  # SCALAR?
-# 
-# usePrior = TRUE,
-# get.CIs,
-# CI.method = "wald",
-# 
-# run.optimx = FALSE
-
-
-
-# 2021-9-2: MM audited fn by reading
-# mu.start, sigma.start: start values for optimatization
+# mu.start, sigma.start: start values for optimization
 # as illustrated in a sanity check after nlpost_simple, this fn's MAPs agree with
 #  using mle() directly on nlpost_Jeffreys
 # confirmed that this agrees with weightr when usePrior = FALSE; see "2021-11-23 repurpose TNE code"
@@ -66,7 +34,7 @@ estimate_jeffreys_RTMA = function( yi,
                                    run.optimx = FALSE ) {
   
   
-  # #@TEST ONLY
+  # #TEST ONLY
   # dpn = dp[ dp$affirm == FALSE, ]
   # yi = dpn$yi
   # sei = sqrt(dpn$vi)
@@ -126,7 +94,6 @@ estimate_jeffreys_RTMA = function( yi,
   
   # recode convergence more intuitively
   # optim uses "0" to mean successful convergence
-  #@DOESN'T YET HAVE CRITERIA ABOUT KKT, ETC.
   optim.converged = attr(mle.obj, "details")$convergence == 0 
   
   # ~~ Try Other Optimizers ----
@@ -194,13 +161,6 @@ estimate_jeffreys_RTMA = function( yi,
 
 
 
-# modified from TNE (2022-2-21)
-
-# Fns in this category need to return a list with these elements:
-#   Mhat, Vhat, M.SE, M.CI (2-vector), V.SE, V.CI (2-vector)
-# Because these fns are run inside run_method_safe, the latter will handle editing rep.res
-#  All of these fns should take get.CIs as an argument and return CIs as c(NA, NA) if not wanted
-
 # .yi: published point estimates
 # .sei: their SEs
 # .tcrit: critical values on t or z scale for each study; can just use qnorm(.975) by default
@@ -267,7 +227,6 @@ estimate_jeffreys_mcmc_RTMA = function(.yi,
   cat( paste("\n estimate_jeffreys_mcmc flag 3: about to call postSumm") )
   postSumm = summary(post)$summary
   
-  #@ 2022-3-4: CHANGED FROM LP__ TO LOG_POST; THIS WILL ALSO AFFECT TNE
   # pull out best iterate to pass to MAP optimization later
   ext = rstan::extract(post) # a vector of all post-WU iterates across all chains
   #best.ind = which.max(ext$lp__)  # single iterate with best log-posterior should be very close to MAP
@@ -378,7 +337,6 @@ report_meta = function(.mod,
 
 
 
-# 2021-9-2: MM audited fn by reading through
 # x: data vector
 # doesn't handle the case CI.method = "profile" and par2is = "sd" (will just return NAs)
 estimate_mle = function( x,
@@ -390,9 +348,7 @@ estimate_mle = function( x,
                          CI.method = "wald"
 ) {
   
-  #@TEMP
-  #write.csv( c(mu.start, sigma.start), "inside_mle_start_values.csv")
-  
+ 
   # ~~ Get MLE with Main Optimizer (NM) ----
   # fn needs to be formatted exactly like this (no additional args)
   #  in order for mle() to understand
@@ -538,7 +494,6 @@ estimate_mle = function( x,
 
 # ~ Jeffreys prior fns ---------------
 
-
 # **This fn can handle both nonaffirm and affirm results.
 # agrees with weightr per "Repurpose TNE code.R"
 # RTMA log-likelihood - now uses TNE version
@@ -676,8 +631,7 @@ joint_nll_2 = function(.yi,
 
 
 
-# verbatim from TNE
-# this is what's used in sim studies (through 2022-3-28 at least)
+# verbatim from TNE for sanity checks only
 E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
   
   # doesn't handle vectors because of max and min below
@@ -707,82 +661,22 @@ E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
                   byrow = TRUE ) )
 }
 
-# 2022-3-28: simplify as in paper for right-truncated case
-# this one assumes .n = 1 and .a = -Inf
-# this fn is NOT used in simulations; it's only to check math in sims
-# paper uses the notation "r" instead of "alpha.b"
-E_fisher_TNE_check = function(.mu, .sigma, .b) {
-  
-  if ( length(.sigma) > 1 ) stop("This fn doesn't handle multiple observations")
-  
-  # prevent infinite cutpoints
-  # if either cutpoint is infinite, there are numerical issues because the alpha*Z terms
-  #  below are 0*Inf
-  Zb = min( 99, (.b - .mu) / .sigma )
-  
-  alpha.b = dnorm(Zb) / pnorm(Zb) 
-  
-  k11 = (1/.sigma^2) * (alpha.b^2 + alpha.b*Zb - 1)
-  
-  k12 = (1/.sigma^2) * (alpha.b*(Zb^2) + (alpha.b^2)*Zb + alpha.b)
-  
-  k22 = (1/.sigma^2) * (alpha.b*(Zb^3) + alpha.b*Zb + (alpha.b*Zb)^2 - 2)
-  
-  return( matrix( c(-k11, -k12, -k12, -k22),
-                  nrow = 2,
-                  byrow = TRUE ) )
-}
 
-# ### Sanity check #2022-3-28a:
-# mu = 0.5
-# sigma = 0.6031401
-# a = -999
-# b = 1.068415
-# n = 1
-# 
-# F1 = E_fisher_TNE( .mu = mu,
-#                    .sigma = sigma,
-#                    .a = a,
-#                    .b = b,
-#                    .n = 1)
-# 
-# F2 = E_fisher_TNE_check( .mu = mu,
-#                          .sigma = sigma,
-#                          .b = b)
-# 
-# expect_equal(F1, F2)
-
-
-
-
-
-#@2022-4-26: UPDATED TO USE NEW PRIOR (DERIV WRT TAU)
+# Fisher info when taking derivatives wrt mu and tau
 # This fn ONLY handles nonaffirm results, but could easily be adapted to handle
 #  affirms by changing tcrit.
 # important: note that in this fn, critical value is on t/z scale, NOT raw scale
 #  vs. in E_fisher_TNE, .b is on raw scale
 E_fisher_RTMA = function( .sei, .Mu, .Tt, .tcrit = qnorm(0.975) ) {
-  # get expected Fisher info for each observation separately, based on its unique SE
-  # each observation is RTN, so can just use TNE result!!
-  
-  #bm
+
   Efish.list = lapply( X = as.list(.sei),
                        FUN = function(.s) {
                          
-                         # # OLD PRIOR (DERIV WRT MARGINAL SD)
-                         # E_fisher_TNE( .mu = .Mu,
-                         #               .sigma = sqrt(.Tt^2 + .s^2), 
-                         #               .n = 1,
-                         #               .a = -99,
-                         #               .b = .tcrit*.s )
-                         
-                         #@NEW PRIOR (2022-4-26)
                          # for this observation
-                         # relabel so it works with existing prior code
                          sei = .s
                          mu = .Mu
                          tau = .Tt
-                         tcrit = .tcrit  #@currently assumed to be a scalar
+                         tcrit = .tcrit  # currently assumed to be a scalar
                          if ( length(tcrit) > 1 ) tcrit = tcrit[1] #@OBVIOUSLY NEEDS TO BE GENERALIZED
                          
                          fishinfo = matrix( NA, nrow = 2, ncol = 2 )
@@ -1066,17 +960,13 @@ get_optimx_dataframe = function( .yi,
 
 # ~ P-Curve Helpers --------------------
 
-# MM: I GOT THIS FROM MCSHANE SUPPLEMENT
 # Notes below are from McShane's R script:
-
 # Code obtained on 02/10/2016 from:
 # http://www.p-curve.com/Supplement/Rcode_paper2/APPENDIX%20-%20Loss%20Function%20and%20Estimation.R
 # The code has been modified as per the following:
 #	(i) The function originally named loss is now named pcurve.loss
 #	(ii) The function originally named plotloss is now named pcurve.opt and plotting has been commented out.
 #   (iii) The example has been commented out.
-
-
 
 #LOSS FUNCTION
 pcurve.loss=function(t_obs,df_obs,d_est) {
