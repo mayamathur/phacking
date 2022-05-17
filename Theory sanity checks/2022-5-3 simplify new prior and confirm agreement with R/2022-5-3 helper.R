@@ -1,4 +1,48 @@
 
+
+simple_lli = function(.yi,
+                      .sei,
+                      .mu,
+                      .tau,  
+                      .crit ) {
+  
+  # # # TEST
+  # .mu=0.1
+  # .tau=1
+  # .sei=0.5
+  # .crit=1.96
+  # .yi=0.5
+  
+  Si = sqrt(.tau^2 + .sei^2)
+  alphaU = (.crit*.sei - .mu)/Si
+  
+  # sanity check:
+  # mine = -log( Si* sqrt(2*pi) ) - 0.5 * Si^(-2) * (.yi-.mu)^2 - log( pnorm(alphaU) )
+  # termA = dnorm( .yi,
+  #                mean = .mu,
+  #                sd = Si,
+  #                log = TRUE)
+  # 
+  # termB = pnorm( q = alphaU,
+  #                mean = 0,
+  #                sd = 1,
+  #                log.p = TRUE )
+  # 
+  # termA - termB
+  # 
+  # expect_equal(termA - termB, mine) 
+  # 
+  # # also check vs. dtruncnorm:
+  # expect_equal( log( dtruncnorm(x = .yi,
+  #            a = -Inf,
+  #            b = .crit*.sei,
+  #            mean = .mu,
+  #            sd = Si) ), mine )
+  
+  # same as "mine" above
+  -log( Si* sqrt(2*pi) ) - 0.5 * Si^(-2) * (.yi-.mu)^2 - log( pnorm(alphaU) )
+}
+
 prior = function(mu, tau, k, sei, tcrit) {
   
   if ( length(tcrit) < k ) stop("tcrit must be vector of length k")

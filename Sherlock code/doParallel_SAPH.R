@@ -4,13 +4,6 @@
 # Important things to remember: 
 #
 # - The returned Vhat is an estimate of T2 + t2w, *not* T2 itself
-#
-# - correct_meta_phack1 will NOT work well for small m. I already tried this.
-#   This is because, for computational convenience, I'm using the truncated normal dist
-#   for the tstats, and it won't hold well when m is small. 
-# 
-# - Key hypotheses to check in simulation results: T2 = 0, t2w > 0, Nmax > 1: Nonaffirms should fit the trunc distribution because
-#    there's no selection on mui. So this scenario should look just like T2 = 0, t2w > 0, Nmax = 1.
 
 # Debugging help:
 # 
