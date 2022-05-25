@@ -1,49 +1,18 @@
 
-
-simple_lli = function(.yi,
-                      .sei,
-                      .mu,
-                      .tau,  
-                      .crit ) {
+# log-likelihood for 1 observation
+simple_lli = function(yi,
+                      sei,
+                      mu,
+                      tau,  
+                      tcrit ) {
   
-  # # # TEST
-  # .mu=0.1
-  # .tau=1
-  # .sei=0.5
-  # .crit=1.96
-  # .yi=0.5
+  Si = sqrt(tau^2 + sei^2)
+  cz = (tcrit*sei - mu)/Si
   
-  Si = sqrt(.tau^2 + .sei^2)
-  alphaU = (.crit*.sei - .mu)/Si
-  
-  # sanity check:
-  # mine = -log( Si* sqrt(2*pi) ) - 0.5 * Si^(-2) * (.yi-.mu)^2 - log( pnorm(alphaU) )
-  # termA = dnorm( .yi,
-  #                mean = .mu,
-  #                sd = Si,
-  #                log = TRUE)
-  # 
-  # termB = pnorm( q = alphaU,
-  #                mean = 0,
-  #                sd = 1,
-  #                log.p = TRUE )
-  # 
-  # termA - termB
-  # 
-  # expect_equal(termA - termB, mine) 
-  # 
-  # # also check vs. dtruncnorm:
-  # expect_equal( log( dtruncnorm(x = .yi,
-  #            a = -Inf,
-  #            b = .crit*.sei,
-  #            mean = .mu,
-  #            sd = Si) ), mine )
-  
-  # same as "mine" above
-  -log( Si* sqrt(2*pi) ) - 0.5 * Si^(-2) * (.yi-.mu)^2 - log( pnorm(alphaU) )
+  -log( Si* sqrt(2*pi) ) - 0.5 * Si^(-2) * (yi-mu)^2 - log( pnorm(cz) )
 }
 
-prior = function(mu, tau, k, sei, tcrit) {
+prior_unsimpl = function(mu, tau, k, sei, tcrit) {
   
   if ( length(tcrit) < k ) stop("tcrit must be vector of length k")
   
@@ -143,14 +112,19 @@ prior = function(mu, tau, k, sei, tcrit) {
 }
 
 
-prior_simp = function(mu, tau, k, sei, tcrit) {
+
+# joint prior, not yet logged
+# should only pass the sei from the nonaffirmative studies
+prior_simp = function(mu, tau, sei, tcrit) {
   
+  k = length(sei)
   if ( length(tcrit) < k ) stop("tcrit must be vector of length k")
   
   # this will be the TOTALS for all observations
   fishinfototal = matrix( 0, nrow = 2, ncol = 2 )
   
   # build a Fisher info matrix for EACH observation
+  # for-loop surely not the most efficient way to do this
   for (i in 1:k) {
     
     # for this observation
@@ -170,7 +144,7 @@ prior_simp = function(mu, tau, k, sei, tcrit) {
     fishinfo[1,2] = -kms
     fishinfo[2,1] = -kms
     fishinfo[2,2] = -kss
-
+    
     # add the new fisher info to the total one
     fishinfototal = fishinfototal + fishinfo
   }
@@ -179,6 +153,51 @@ prior_simp = function(mu, tau, k, sei, tcrit) {
                det = det(fishinfototal),
                prior = sqrt( det(fishinfototal) ) ) )
 }
+
+
+
+# joint negative log-posterior
+#  expects yi, sei, and tcrit to be global vars (wrt this inner fn)
+# second parameter could be Tt or T2t depending on par2is argument above
+nlpost_simple = function(.mu, .tau) {
+  
+  joint_ll = sum( simple_lli(yi = yi,
+                             sei = sei,
+                             tcrit = tcrit,
+                             mu = .mu,
+                             tau = .tau) )
+  
+  joint_lprior = sum( log( prior_simp(sei = sei,
+                                      tcrit = tcrit,
+                                      mu = .mu,
+                                      tau = .tau)$prior ) )
+  
+  -joint_ll - joint_lprior
+}
+
+
+library(stats4)
+# mle() is just a wrapper for optim()
+mle.obj = mle( minuslogl = nlpost_simple,
+               start = list(.mu = 0, .tau = 1),
+               method = "Nelder-Mead" )
+
+# recode convergence more intuitively
+# optim uses "0" to mean successful convergence
+optim.converged = attr(mle.obj, "details")$convergence == 0 
+
+
+# fake data
+yi = c(-0.5, 0.3, 0.25)
+sei = c(1, 2, 0.25)
+tcrit = rep(1.96, 3)
+
+prior_simp(sei = sei,
+           tcrit = tcrit,
+           mu = 0,
+           tau = 1)$prior
+
+
 
 
 

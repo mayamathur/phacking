@@ -30,8 +30,94 @@ library(testthat)
 library(Deriv)
 
 
-setwd("~/Dropbox/Personal computer/Independent studies/2021/Sensitivity analysis for p-hacking (SAPH)/Code (not on OSF)/Aux code/**2022-5-3 simplify new prior and confirm agreement with R")
+setwd(here())
 source("2022-5-3 helper.R")
+
+
+# CHECK MY LKL FUNCTION ---------------------------
+
+# set up some test values
+mu=0.1
+tau=1
+sei=0.5
+crit=1.96
+y=0.5
+
+check = log( dtruncnorm( x = y,
+                         mean = mu,
+                         sd = sqrt(tau^2 + sei^2),
+                         a = -Inf,
+                         b = sei*crit ) )
+
+
+# also check my simple R fn
+expect_equal( check,
+              simple_lli(yi = y,
+                         sei = sei,
+                         mu = mu,
+                         tau = tau,
+                         tcrit = crit)
+              ,
+              tol = 0.001)
+
+
+
+# USE R'S DERIV TO GET FISHER INFO ENTRIES AND CHECK VS. MATHEMATICA ---------------------------
+
+
+# all get_D_XX fns below match Mathematica! :)
+
+# ~ D11 ------------------------------------------
+
+mu=0.1
+tau=1
+sei=0.5
+crit=1.96
+y=0.5
+
+
+get_D1_num = Deriv(simple_lli, ".mu")
+
+get_D11_num = Deriv(get_D1_num, ".mu")
+
+expect_equal( get_D11_num(.yi = y,
+                          .sei = sei,
+                          .mu = mu,
+                          .tau = tau,
+                          .crit = crit),
+              -0.453676,
+              tol = 0.001)
+
+
+# ~ D12 ------------------------------------------
+
+get_D12_num = Deriv(get_D1_num, ".tau")
+
+expect_equal( get_D12_num(.yi = y,
+                          .sei = sei,
+                          .mu = mu,
+                          .tau = tau,
+                          .crit = crit),
+              -0.535173,
+              tol = 0.001)
+
+# ~ D22 ------------------------------------------
+
+get_D2_num = Deriv(simple_lli, ".tau")
+
+get_D22_num = Deriv(get_D2_num, ".tau")
+
+# vs. Mathematica:
+expect_equal( get_D22_num(.yi = y,
+                          .sei = sei,
+                          .mu = mu,
+                          .tau = tau,
+                          .crit = crit),
+              0.0974377,
+              tol = 0.001)
+
+# I then used the bodies of get_DXX_num functions to create prior_unsimpl()
+
 
 
 # GET READY TO MANUALLY SIMPLIFY PRIOR ---------------------------
@@ -55,7 +141,7 @@ r = dnor/pnor
 
 # SIMPLIFY KSS TERM ---------------------------
 
-# what follows is from the body of prior():
+# what follows is from the body of prior_unsimpl():
 # from body of R's get_D22_num:
 e1 = tau^2
 e3 = sei[i]^2 + e1
@@ -265,6 +351,15 @@ my.kmm = Si^(-2)*(cz*r + r^2 - 1)
 expect_equal( kmm, my.kmm)
 
 
+
+# MORE PARSIMONIOUS FUNCTION FOR USE WITH OPTIM  ---------------------------
+
+
+
+
+
+
+
 # CONFIRM AGREEMENT AT DIFFERENT VALUES ---------------------------
 
 
@@ -281,7 +376,7 @@ dp = expand_grid(.mu = seq(-2, 2, .05),
 
 
 # check behavior for first row
-prior(mu = dp$.mu[1],
+prior_unsimpl(mu = dp$.mu[1],
       tau = dp$.tau[1],
       k = k,
       sei = sei,
@@ -289,14 +384,13 @@ prior(mu = dp$.mu[1],
 
 prior_simp(mu = dp$.mu[1],
            tau = dp$.tau[1],
-           k = k,
            sei = sei,
            tcrit = tcrit )$prior
 
 # make plotting dataframe by calculating log-prior for a grid of values (mu, sigma)
 dp = dp %>%
   rowwise() %>%
-  mutate( prior1 = prior(mu = .mu,
+  mutate( prior1 = prior_unsimpl(mu = .mu,
                          tau = .tau,
                          k = k,
                          sei = sei,
@@ -304,7 +398,6 @@ dp = dp %>%
           
           prior2 = prior_simp(mu = .mu,
                               tau = .tau,
-                              k = k,
                               sei = sei,
                               tcrit = tcrit )$prior, )
 
@@ -318,7 +411,10 @@ which( is.na(dp$prior1) )
 expect_equal( dp$prior1, dp$prior2, tol = 0.0001 )
 
 
-# CONTOUR PLOT ---------------------------
+
+# LOOK AT PROPERTIES OF PRIOR ---------------------------
+
+# ~ Contour plot ---------------------------
 
 # set up colors for contours
 get_colors = colorRampPalette( c("lemonchiffon1", "chocolate4") )
