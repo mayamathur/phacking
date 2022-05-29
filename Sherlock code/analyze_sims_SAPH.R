@@ -231,18 +231,18 @@ YnamesSupp = c("MhatBias", "MhatCover", "MhatWidth",
 # this dataset will be one full-page figure in main text or Supp depending on hack type
 # by default, these write only to Overleaf dir
 pl1 = sim_plot_multiple_outcomes(.hack = "favor-best-affirm-wch",
-                                 .ggtitle = bquote( "WSS favors best affirmative; stringent ASS;" ~ mu ~ "= 0.5" ),
+                                 .ggtitle = bquote( "SWS favors best affirmative; stringent SAS;" ~ mu ~ "= 0.5" ),
                                  .local.results.dir = results.dir )
 
 
 pl2 = sim_plot_multiple_outcomes(.hack = "affirm",
-                                 .ggtitle = bquote( "WSS favors first affirmative; stringent ASS; " ~ mu ~ "= 0.5" ),
+                                 .ggtitle = bquote( "SWS favors first affirmative; stringent SAS; " ~ mu ~ "= 0.5" ),
                                  .local.results.dir = results.dir)
 
 
 
 pl3 = sim_plot_multiple_outcomes(.hack = "affirm2",
-                                 .ggtitle = bquote( "WSS favors first affirmative; no ASS; " ~ mu ~ "= 0.5" ),
+                                 .ggtitle = bquote( "SWS favors first affirmative; no SAS; " ~ mu ~ "= 0.5" ),
                                  .local.results.dir = results.dir)
 
 
