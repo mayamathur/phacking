@@ -186,7 +186,12 @@ if ( run.local == TRUE ) {
     # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
     rep.methods = "naive ; jeffreys-sd",
     
-    # args from sim_meta_2
+    sim.env = "stefan",
+    
+    ### args shared between sim environments
+    hack = c("affirm"),
+    
+    ### only needed if sim.env = "mathur": args from sim_meta_2
     Nmax = 30,
     Mu = c(0.5),
     t2a = c(0),
@@ -194,10 +199,15 @@ if ( run.local == TRUE ) {
     m = 50,
     
     true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
-    hack = c("affirm"),
     rho = c(0),
     k.pub.nonaffirm = c(50),
     prob.hacked = c(0.8),
+    ### end of stuff for sim.env = "mathur"
+    
+    ### only needed if sim.env = "stefan": args from sim_meta_2
+    strategy.stefan = "firstsig",  # "firstsig" or "smallest"
+    alternative.stefan = "two.sided",  # "two.sided" or "greater"
+    ### end of stuff for sim.env = "stefan"
     
     # Stan control args
     stan.maxtreedepth = 20,

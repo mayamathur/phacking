@@ -348,7 +348,7 @@ estimate_mle = function( x,
                          CI.method = "wald"
 ) {
   
- 
+  
   # ~~ Get MLE with Main Optimizer (NM) ----
   # fn needs to be formatted exactly like this (no additional args)
   #  in order for mle() to understand
@@ -668,7 +668,7 @@ E_fisher_TNE = function(.mu, .sigma, .n, .a, .b) {
 # important: note that in this fn, critical value is on t/z scale, NOT raw scale
 #  vs. in E_fisher_TNE, .b is on raw scale
 E_fisher_RTMA = function( .sei, .Mu, .Tt, .tcrit = qnorm(0.975) ) {
-
+  
   Efish.list = lapply( X = as.list(.sei),
                        FUN = function(.s) {
                          
@@ -742,7 +742,7 @@ E_fisher_RTMA = function( .sei, .Mu, .Tt, .tcrit = qnorm(0.975) ) {
                          fishinfo[2,2] = -kss
                          
                          return(fishinfo)
-                    
+                         
                          
                        })
   
@@ -1772,7 +1772,6 @@ sim_one_study_set = function(Nmax,  # max draws to try
                    n = 1)
   
   # TRUE SD (not estimated)
-  #@SHOULD BE M-1, I THINK
   sd.y = se * sqrt(m)
   
   # collect all args from outer fn, including default ones
@@ -1984,10 +1983,6 @@ sim_one_study_set = function(Nmax,  # max draws to try
 
 
 
-
-
-
-
 # # ~ Sanity check  ---------------------------------------------------------------
 # #  if Nmax -> Inf and we hack until affirmative, 
 # #   published results should follow truncated t distribution
@@ -2165,6 +2160,190 @@ draw_lodder_se = function() {
   sample(x = lodder.ses,
          size = 1, 
          replace = TRUE)
+}
+
+
+# DATA SIMULATION: STEFAN ---------------------------------------------------------------
+
+
+# reference:
+# sim_one_study_set_stefan = function(strategy.stefan,
+#                                     alternative.stefan,
+#                                     
+#                                     stringent,
+#                                     
+#                                     return.only.published = FALSE,
+#                                     is.hacked,  # separate from hack.type so that we can use same fn in each case for comparability
+#                                     hack.type)
+
+#bm
+sim_meta_2_stefan = function(strategy.stefan,
+                             alternative.stefan,
+                             
+                             stringent,
+                             prob.hacked,
+                             hack.type,
+                             return.only.published = FALSE
+) {
+  
+
+  # # test only
+  # strategy.stefan = "firstsig"
+  # alternative.stefan = "greater"
+  # prob.hacked = 0.8
+  # stringent = TRUE
+  # return.only.published = FALSE
+  # hack.type = "DV"
+  # k.pub.nonaffirm = 10  # global var in doParallel
+  
+  k.pub.nonaffirm.achieved = 0
+  i = 1
+  
+  while( k.pub.nonaffirm.achieved < k.pub.nonaffirm ) {
+    
+    is.hacked = rbinom(n = 1, size = 1, prob = prob.hacked)
+  
+    
+    newRow = sim_one_study_set_stefan(strategy.stefan = strategy.stefan,
+                                      alternative.stefan = alternative.stefan,
+                                      
+                                      stringent = stringent,
+                                      
+                                      return.only.published = return.only.published,
+                                      is.hacked = is.hacked,  
+                                      hack.type = hack.type)
+      
+ 
+    
+    # add study ID
+    newRow = newRow %>% add_column( .before = 1,
+                                      study = i )
+  
+    
+    if ( i == 1 ) .dat = newRow else .dat = rbind( .dat, newRow )
+    
+    i = i + 1
+    k.pub.nonaffirm.achieved = sum( .dat$affirm == FALSE & .dat$Di == 1 ) 
+    
+  }
+  
+  # add more info to dataset
+  .dat$k.underlying = length(unique(.dat$study))
+  .dat$k.nonaffirm.underlying = length( unique( .dat$study[ .dat$affirm == FALSE ] ) )
+  
+  if ( return.only.published == TRUE ) .dat = .dat[ .dat$Di == 1, ]
+  
+  return(.dat)
+}
+
+
+
+
+
+sim_one_study_set_stefan = function(strategy.stefan,
+                                    alternative.stefan,
+                                    
+                                    stringent,
+                                    
+                                    return.only.published = FALSE,
+                                    is.hacked,  # separate from hack.type so that we can use same fn in each case for comparability
+                                    hack.type # will be ignored if is.hacked = FALSE ("DV","optstop", "covars", "outliers")
+                                    
+                                    
+) {  
+  
+  
+  # # test only
+  # strategy.stefan = "firstsig"
+  # alternative.stefan = "greater"
+  # is.hacked = FALSE
+  # stringent = TRUE
+  # return.only.published = FALSE
+  # hack.type = "DV"
+  
+  
+  # even if is.hacked == FALSE, we call the appropriate hack fn for the entire
+  #   meta-analysis for comparability between hacked and unhacked studies, then later
+  #  use the original (unhacked) stats if is.hacked = FALSE
+  if (hack.type == "DV") {
+    d = as.data.frame( sim.multDVhack(nobs.group = 30,
+                                      nvar = 5,
+                                      r = 0.3,
+                                      strategy = strategy.stefan, 
+                                      iter = 1,
+                                      alternative = alternative.stefan,
+                                      alpha = 0.05) )
+  }
+  
+  #@add other stefan hack types
+  
+  # choose appropriate stats as yi, sei, vi depending on whether this study is hacked
+  # and get dataset into same format as in my own sim_one_study_set
+  if ( is.hacked == TRUE ) {
+    d = d %>% rename(pval = ps.hack,
+                     yi = ds.hack) %>%
+      select( !c(ps.orig, r2s.hack, r2s.orig, ds.orig) )
+  } 
+  if ( is.hacked == FALSE ) {
+    d = d %>% rename(pval = ps.orig,
+                     yi = ds.orig) %>%
+      select( !c(ps.hack, r2s.hack, r2s.orig, ds.hack) )
+    
+  }
+  
+  
+  # calculate sei, vi
+  d$sei = calc_sei(yi = d$yi, pval = d$pval)
+  d$vi = d$sei^2
+  
+  
+  # convenience indicators for significance and affirmative status
+  d$signif = d$pval < 0.05
+  d$affirm = (d$pval < 0.05 & d$yi > 0)
+  
+  d$is.hacked = is.hacked
+  
+  
+  # ~~ Decide which draw to favor & publish ----
+  # Stefan fn already returns only the favored draws
+  # i.e., d is just a single row for this study
+  #  however, need to decide whether to "report" a nonaffirm result
+  if ( is.hacked == FALSE | (is.hacked == TRUE & stringent == FALSE) ) d$Di = 1
+  if ( stringent == TRUE ) d$Di = ifelse(d$affirm == TRUE, 1, 0)
+  
+  if ( return.only.published == TRUE ) d = d[ d$Di == 1, ]
+  
+  return(d)
+}
+
+
+k.pub.nonaffirm = 2
+d = sim_meta_2_stefan( strategy.stefan = "firstsig",
+                       alternative.stefan = "greater",
+                       prob.hacked = 0.8,
+                       stringent = TRUE,
+                       return.only.published = FALSE,
+                       hack.type = "DV" )
+
+# problem: very hard to get published nonaffirms with prob.hacked = 0.8 and mean of 0
+# maybe try editing mu argument here?
+#  https://github.com/astefan1/phacking_compendium/blob/master/phackR/R/helpers.R
+# also might need to edit .sim.data because it has hard-coded rnorm args
+# should go through each hack mechanism that I want to include and see which data simulation fn it uses
+# - optional stopping uses .sim.data: https://github.com/astefan1/phacking_compendium/blob/master/phackR/R/optionalStopping.R
+# - exploit covariates uses .sim.covariates, which has own mu and sd args: https://github.com/astefan1/phacking_compendium/blob/master/phackR/R/exploitCovariates.R
+# - sim.outHack uses .sim.multcor
+# - sim.multDV also uses .sim.multcor
+
+# NEXT STEP: COPY ALL THEIR FNS LOCALLY
+# then see if you can easily get a mu argument into all these fns
+# you got this!!!!
+
+
+calc_sei = function(yi, pval) {
+  # from:
+  # pval = 2 * ( 1 - pnorm( abs(yi)/sei ) )
+  abs(yi) / qnorm(1 - pval/2) 
 }
 
 

@@ -44,37 +44,76 @@ lapply( allPackages,
 #   the start values from being the true ones)
 
 
-### FULL VERSION - AS IN 2022-5-17 SIMS ###
+### FULL VERSION - RSM_1 ###
 scen.params = tidyr::expand_grid(
   # full list (save):
   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-   rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
+  rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
   #rep.methods = "naive ; jeffreys-mcmc ; jeffreys-sd",
-
-  # args from sim_meta_2
+  
+  ### only needed if sim.env = "mathur": args from sim_meta_2
   Nmax = 30,
   Mu = c(0.5),
   t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
   t2w = c(0.2^2),
   m = 50,
-
+  
   hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
   rho = c(0),
   k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
   prob.hacked = c(0.8),
-
+  
   true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
-   # true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
-   #                   "rbeta(n = 1, 2, 5)",
-   #                   "draw_lodder_se()"),
-
+  # true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
+  #                   "rbeta(n = 1, 2, 5)",
+  #                   "draw_lodder_se()"),
+  ### end of stuff for sim.env = "mathur"
+  
+  
+  ### only needed if sim.env = "stefan": args from sim_meta_2
+  # FILL
+  ### end of stuff for sim.env = "stefan"
+  
   # Stan control args
   #@INCREASED 2022-4-26
   stan.maxtreedepth = 25,
   stan.adapt_delta = 0.995,
-
+  
   get.CIs = TRUE,
   run.optimx = FALSE )
+
+
+# ### RSM_0 VERSION - AS IN 2022-5-17 SIMS ###
+# scen.params = tidyr::expand_grid(
+#   # full list (save):
+#   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
+#    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
+#   #rep.methods = "naive ; jeffreys-mcmc ; jeffreys-sd",
+# 
+#   # args from sim_meta_2
+#   Nmax = 30,
+#   Mu = c(0.5),
+#   t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
+#   t2w = c(0.2^2),
+#   m = 50,
+# 
+#   hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
+#   rho = c(0),
+#   k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
+#   prob.hacked = c(0.8),
+# 
+#   true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
+#    # true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
+#    #                   "rbeta(n = 1, 2, 5)",
+#    #                   "draw_lodder_se()"),
+# 
+#   # Stan control args
+#   #@INCREASED 2022-4-26
+#   stan.maxtreedepth = 25,
+#   stan.adapt_delta = 0.995,
+# 
+#   get.CIs = TRUE,
+#   run.optimx = FALSE )
 
 
 
@@ -86,6 +125,10 @@ scen.params = tidyr::expand_grid(
 # # remove nonsense combinations
 # # rho > 0 is pointless if there's only 1 draw
 # scen.params = scen.params %>% dplyr::filter( !(rho > 0 & Nmax == 1) )
+
+
+#@FOR CLARITY, maybe set to NA any scen params that aren't used based on stefan vs. mathur?
+# also don't include all the extra combos
 
 # add scen numbers
 start.at = 1
