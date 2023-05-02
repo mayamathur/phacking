@@ -1,10 +1,10 @@
 
 # log-likelihood for 1 observation
-simple_lli = function(yi,
-                      sei,
-                      mu,
-                      tau,  
-                      tcrit ) {
+simple_lli = function(.yi,
+                      .sei,
+                      .mu,
+                      .tau,  
+                      .tcrit ) {
   
   Si = sqrt(tau^2 + sei^2)
   cz = (tcrit*sei - mu)/Si

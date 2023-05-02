@@ -148,7 +148,7 @@ generateSbatch(sbatch_params, runfile_path)
 n.files
 
 # run just the first one
-# sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
+# sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/500.sbatch
 
 
 # 1680

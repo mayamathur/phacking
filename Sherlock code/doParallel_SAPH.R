@@ -23,7 +23,7 @@ rm( list = ls() )
 
 
 # are we running locally?
-run.local = FALSE
+run.local = TRUE
 
 # should we set scen params interactively on cluster?
 interactive.cluster.run = FALSE
