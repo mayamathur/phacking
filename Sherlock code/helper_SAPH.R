@@ -2170,7 +2170,7 @@ draw_lodder_se = function() {
 # sim_one_study_set_stefan = function(strategy.stefan,
 #                                     alternative.stefan,
 #                                     
-#                                     stringent,
+#                                     stringent.hack,
 #                                     
 #                                     return.only.published = FALSE,
 #                                     is.hacked,  # separate from hack.type so that we can use same fn in each case for comparability
@@ -2180,7 +2180,7 @@ draw_lodder_se = function() {
 sim_meta_2_stefan = function(strategy.stefan,
                              alternative.stefan,
                              
-                             stringent,
+                             stringent.hack,
                              prob.hacked,
                              hack.type,
                              return.only.published = FALSE
@@ -2191,7 +2191,7 @@ sim_meta_2_stefan = function(strategy.stefan,
   # strategy.stefan = "firstsig"
   # alternative.stefan = "greater"
   # prob.hacked = 0.8
-  # stringent = TRUE
+  # stringent.hack = TRUE
   # return.only.published = FALSE
   # hack.type = "DV"
   # k.pub.nonaffirm = 10  # global var in doParallel
@@ -2207,7 +2207,7 @@ sim_meta_2_stefan = function(strategy.stefan,
     newRow = sim_one_study_set_stefan(strategy.stefan = strategy.stefan,
                                       alternative.stefan = alternative.stefan,
                                       
-                                      stringent = stringent,
+                                      stringent.hack = stringent.hack,
                                       
                                       return.only.published = return.only.published,
                                       is.hacked = is.hacked,  
@@ -2243,21 +2243,22 @@ sim_meta_2_stefan = function(strategy.stefan,
 sim_one_study_set_stefan = function(strategy.stefan,
                                     alternative.stefan,
                                     
-                                    stringent,
+                                    stringent.hack,
                                     
                                     return.only.published = FALSE,
                                     is.hacked,  # separate from hack.type so that we can use same fn in each case for comparability
-                                    hack.type # will be ignored if is.hacked = FALSE ("DV","optstop", "covars", "outliers")
+                                    hack.type # will be ignored if is.hacked = FALSE ("DV","optstop", "subgroup")
                                     
                                     
 ) {  
   
+  #browser()
   
   # # test only
   # strategy.stefan = "firstsig"
   # alternative.stefan = "greater"
   # is.hacked = FALSE
-  # stringent = TRUE
+  # stringent.hack = TRUE
   # return.only.published = FALSE
   # hack.type = "DV"
   
@@ -2267,16 +2268,47 @@ sim_one_study_set_stefan = function(strategy.stefan,
   #  use the original (unhacked) stats if is.hacked = FALSE
   if (hack.type == "DV") {
     d = as.data.frame( sim.multDVhack(nobs.group = 30,
-                                      nvar = 5,
+                                      nvar = 10, # default is 5
+                                      #nvar = 1,  #@test only - unhacked
                                       r = 0.3,
-                                      strategy = strategy.stefan, 
                                       iter = 1,
+                                      strategy = strategy.stefan,
                                       alternative = alternative.stefan,
                                       alpha = 0.05) )
   }
   
+  if (hack.type == "optstop") {
+    #@WHY DOES THIS NOT HAVE STRATEGY ARG? ASK
+    # SOUNDS LIKE IT'S TWO.SIDED:
+    # The dataset is evaluated row-by-row, starting with a minimum sample size of n.min. At each step, a number of observations is added to the sample, defined by the argument step and the t-test is computed. This continues until the maximum sample size specified in n.max is reached. The p-hacked p-value is defined as the first p-value that is smaller than the defined alpha level.
+    d = as.data.frame( sim.optstop(n.min = 10,
+                                   #n.max = 20,  # default
+                                   n.max = 50,
+                                   step = 2,
+                                   #strategy = strategy.stefan,
+                                   alternative = alternative.stefan,
+                                   iter = 1,
+                                   alpha = 0.05) )
+  }
+  
+  
+  if (hack.type == "subgroup") {
+    d = as.data.frame( sim.subgroupHack(nobs.group = 30,
+                                        nsubvars = 5, # default: 3
+                                        strategy = strategy.stefan,
+                                        alternative = alternative.stefan,
+                                        alpha = 0.05,
+                                        iter = 1) )
+  }
+  
+  
+  
+  
+  
   #@add other stefan hack types
   
+  
+  ### work that doesn't depend on hacking type ###
   # choose appropriate stats as yi, sei, vi depending on whether this study is hacked
   # and get dataset into same format as in my own sim_one_study_set
   if ( is.hacked == TRUE ) {
@@ -2308,8 +2340,9 @@ sim_one_study_set_stefan = function(strategy.stefan,
   # Stefan fn already returns only the favored draws
   # i.e., d is just a single row for this study
   #  however, need to decide whether to "report" a nonaffirm result
-  if ( is.hacked == FALSE | (is.hacked == TRUE & stringent == FALSE) ) d$Di = 1
-  if ( stringent == TRUE ) d$Di = ifelse(d$affirm == TRUE, 1, 0)
+  if ( is.hacked == FALSE ) d$Di = 1  # because SAS only affects hacked studies
+  if ( is.hacked == TRUE & stringent.hack == TRUE ) d$Di = ifelse(d$affirm == TRUE, 1, 0)
+  if ( is.hacked == TRUE & stringent.hack == FALSE ) d$Di = 1
   
   if ( return.only.published == TRUE ) d = d[ d$Di == 1, ]
   
@@ -2317,14 +2350,8 @@ sim_one_study_set_stefan = function(strategy.stefan,
 }
 
 
-k.pub.nonaffirm = 2
-d = sim_meta_2_stefan( strategy.stefan = "firstsig",
-                       alternative.stefan = "greater",
-                       prob.hacked = 0.8,
-                       stringent = TRUE,
-                       return.only.published = FALSE,
-                       hack.type = "DV" )
 
+#@CAN PROBABLY REMOVE - NOTES ON ADJUSTING MU
 # problem: very hard to get published nonaffirms with prob.hacked = 0.8 and mean of 0
 # maybe try editing mu argument here?
 #  https://github.com/astefan1/phacking_compendium/blob/master/phackR/R/helpers.R
@@ -2334,10 +2361,6 @@ d = sim_meta_2_stefan( strategy.stefan = "firstsig",
 # - exploit covariates uses .sim.covariates, which has own mu and sd args: https://github.com/astefan1/phacking_compendium/blob/master/phackR/R/exploitCovariates.R
 # - sim.outHack uses .sim.multcor
 # - sim.multDV also uses .sim.multcor
-
-# NEXT STEP: COPY ALL THEIR FNS LOCALLY
-# then see if you can easily get a mu argument into all these fns
-# you got this!!!!
 
 
 calc_sei = function(yi, pval) {
