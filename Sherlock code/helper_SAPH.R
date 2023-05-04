@@ -2263,12 +2263,14 @@ sim_one_study_set_stefan = function(strategy.stefan,
   # return.only.published = FALSE
   # hack.type = "DV"
   
+  # to force entry into while-loop below
   sei = 100
   
   # Stefan fns routinely generate combinations of p-val and yi that imply absurdly large SEs
   #  e.g., p = 0.999 but yi = -1.04, which implies sei = 10,000
   # hackily prevent this:
-  while ( sei > 2 ) {
+  #bm
+  while ( sei > 2 | sei < 0.02 ) {
    
     
     # even if is.hacked == FALSE, we call the appropriate hack fn for the entire
