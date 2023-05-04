@@ -53,6 +53,7 @@ toLoad = c("crayon",
            "rstan",
            "optimx",
            "weightr")
+#@will need to load stefan package from git, or else copy all the code
 
 if ( run.local == TRUE | interactive.cluster.run == TRUE ) toLoad = c(toLoad, "here")
 
@@ -124,28 +125,28 @@ if (run.local == FALSE) {
       t2w = 0,
       m = 50,
       
-
+      
       hack = c("favor-best-affirm-wch"),
       rho = c(0),
       k.pub.nonaffirm = 20,
       prob.hacked = c(0.8),
       
       true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
-
+      
       # Stan control args
       stan.maxtreedepth = 20,
       stan.adapt_delta = 0.98,
       
       get.CIs = TRUE,
       run.optimx = FALSE )
-  
+    
     
     scen.params$scen = 1:nrow(scen.params)
     
     scen = 1
   }  # end "if ( interactive.cluster.run == TRUE )"
   
-
+  
   
   # locally, with total k = 100, Nmax = 10, and sim.reps = 250, took 93 min total
   # for that I did sim.reps = 100 per doParallel
@@ -177,19 +178,19 @@ if ( run.local == TRUE ) {
   source("helper_SAPH.R")
   
   
-  # ~~ Set Local Sim Params -----------------------------
+  # ~~ ****** Set Local Sim Params -----------------------------
   # methods.to.run options:
   # naive ; gold-std ; 2psm ; maon ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
   # 2022-3-16: CSM, LTMA, RTMA
   scen.params = tidyr::expand_grid(
     # full list (save):
-    # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
-    rep.methods = "naive ; jeffreys-sd",
+    rep.methods = "naive ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
+    #rep.methods = "naive ; jeffreys-sd",
     
     sim.env = "stefan",
     
     ### args shared between sim environments
-    hack = c("affirm"),
+    hack = c("DV"),
     
     ### only needed if sim.env = "mathur": args from sim_meta_2
     Nmax = 30,
@@ -200,13 +201,13 @@ if ( run.local == TRUE ) {
     
     true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
     rho = c(0),
-    k.pub.nonaffirm = c(50),
+    k.pub.nonaffirm = c(100),
     prob.hacked = c(0.8),
     ### end of stuff for sim.env = "mathur"
     
     ### only needed if sim.env = "stefan": args from sim_meta_2
     strategy.stefan = "firstsig",  # "firstsig" or "smallest"
-    alternative.stefan = "two.sided",  # "two.sided" or "greater"
+    alternative.stefan = "greater",  # "two.sided" or "greater"
     ### end of stuff for sim.env = "stefan"
     
     # Stan control args
@@ -300,18 +301,54 @@ doParallel.seconds = system.time({
     
     # ~ Simulate Dataset ------------------------------
     # includes unpublished studies
-    d = sim_meta_2( Nmax = p$Nmax,
-                    Mu = p$Mu,
-                    t2a = p$t2a,
-                    m = p$m,
-                    t2w = p$t2w,
-                    true.sei.expr = p$true.sei.expr,
-                    hack = p$hack,
-                    rho = p$rho,
-                    
-                    k.pub.nonaffirm = p$k.pub.nonaffirm,
-                    prob.hacked = p$prob.hacked,
-                    return.only.published = FALSE)
+    
+    if ( p$sim.env == "mathur" ) {
+      d = sim_meta_2( Nmax = p$Nmax,
+                      Mu = p$Mu,
+                      t2a = p$t2a,
+                      m = p$m,
+                      t2w = p$t2w,
+                      true.sei.expr = p$true.sei.expr,
+                      hack = p$hack,
+                      rho = p$rho,
+                      
+                      k.pub.nonaffirm = p$k.pub.nonaffirm,
+                      prob.hacked = p$prob.hacked,
+                      return.only.published = FALSE)
+    }
+    
+    
+    if ( p$sim.env == "stefan" ) {
+      d = sim_meta_2_stefan( hack.type = p$hack,
+                             stringent.hack = TRUE, # HELD CONSTANT FOR ALL SIMS
+                             strategy.stefan = p$strategy.stefan,
+                             alternative.stefan = p$alternative.stefan,
+                             
+                             k.pub.nonaffirm = p$k.pub.nonaffirm,
+                             prob.hacked = p$prob.hacked,
+                             return.only.published = FALSE)
+      
+      #bm: trying to get spidey sense for when the various methods work vs. don't
+      # soon will be good to run for all methods except mine
+      
+      # recode for comparability with sim_meta_2
+      d$hack = NA
+      d$hack[ d$is.hacked == 1 ] = p$hack
+      d$hack[ d$is.hacked == 0 ] = "no"
+      
+      
+      # # sanity checks
+      # hist(d$yi[ d$Di == 1] )
+      # hist(d$yi[ d$Di == 1 & d$is.hacked == TRUE ] )
+      # hist(d$yi[ d$Di == 1 & d$is.hacked == TRUE ]/ d$sei[ d$Di == 1 & d$is.hacked == TRUE ] ) # Z-scores
+      # 
+      # hist(d$yi[ d$Di == 1 & d$is.hacked == FALSE ] )
+      # hist(d$yi[ d$Di == 1 & d$is.hacked == FALSE ]/ d$sei[ d$Di == 1 & d$is.hacked == FALSE ] ) # Z-scores
+      
+    }
+    
+    
+    
     
     d$Zi = d$yi / sqrt(d$vi)
     
@@ -385,6 +422,9 @@ doParallel.seconds = system.time({
     # ~~ Gold-Standard Meta-Analysis (ALL FIRST Draws) ------------------------------
     
     if ( "gold-std" %in% all.methods ) {
+      
+      # to implement it, would need to save the ds.orig things from the underlying stefan fns
+      if ( p$sim.env == "stefan" ) stop("gold-std not implemented for stefan")
       
       rep.res = run_method_safe(method.label = c("gold-std"),
                                 method.fn = function() {
@@ -482,7 +522,7 @@ doParallel.seconds = system.time({
     if ( "jeffreys-mcmc" %in% all.methods ) {
       # # temp for refreshing code
       # path = "/home/groups/manishad/SAPH"
-      setwd(path)
+      # setwd(path)
       # source("helper_SAPH.R")
       # source("init_stan_model_SAPH.R")
       # 
@@ -614,7 +654,7 @@ doParallel.seconds = system.time({
     
     # ~~ CSM: MLE with known hacking status (SD param) ------------------------------
     
- 
+    
     
     if ( "csm-mle-sd" %in% all.methods &
          nrow(dp.csm) > 0 ) {
@@ -662,7 +702,7 @@ doParallel.seconds = system.time({
                                 method.fn = function() estimate_jeffreys_mcmc_RTMA(.yi = dp.csm$yi,
                                                                                    .sei = sqrt(dp.csm$vi),
                                                                                    .tcrit = dp.csm$tcrit,
-
+                                                                                   
                                                                                    .Mu.start = Mhat.start,
                                                                                    .Tt.start = max(0.01, Shat.start),
                                                                                    .stan.adapt_delta = p$stan.adapt_delta,
@@ -705,7 +745,7 @@ doParallel.seconds = system.time({
     }
     
     # ~~ Naive (Unhacked Only) ------------------------------
-  
+    
     if ( "prereg-naive" %in% all.methods &
          nrow(dp.unhacked) > 0 ) {
       rep.res = run_method_safe(method.label = c("prereg-naive"),
@@ -755,7 +795,7 @@ doParallel.seconds = system.time({
                                            .tcrit = dpn$tcrit,
                                            .Mu = 2,
                                            .Tt = 2 )
-
+      
       
       log.prior.sanity.R = lprior( .sei = sqrt(dpn$vi),
                                    .Mu = 2,
@@ -829,13 +869,13 @@ doParallel.seconds = system.time({
       
       
       
- 
-
+      
+      
       # ~~~ Sanity Check #2A: Agreement at Fixed Params, CSM Dataset (Includes Affirms) -------
       # these are calculated for a FIXED (mu=2, tau=2) to match the sanity checks embedded in 
       #  stan.model above (see "generated quantities")
       # these calls are as in nlpost_jeffreys_RTMA
-  
+      
       log.lkl.sanity.R = -1 * joint_nll_2( .yi = dp.csm$yi,
                                            .sei = sqrt(dp.csm$vi),
                                            .tcrit = dp.csm$tcrit,
@@ -871,19 +911,19 @@ doParallel.seconds = system.time({
       
       
       ( log.lkl.sanity.R = -1 * joint_nll_2( .yi = dpa$yi,
-                                           .sei = sqrt(dpa$vi),
-                                           .tcrit = dpa$tcrit,
-                                           .Mu = 2,
-                                           .Tt = 2 ) )
+                                             .sei = sqrt(dpa$vi),
+                                             .tcrit = dpa$tcrit,
+                                             .Mu = 2,
+                                             .Tt = 2 ) )
       
       
       # write my own simpler lkl
       library(truncnorm)
       log.lkl.sanity.R.2 = sum( log( dtruncnorm( x = dpa$yi,
-                                  mean = 2,
-                                  sd = sqrt(2^2 + dpa$vi),
-                                  a = dpa$tcrit * sqrt(dpa$vi),
-                                  b = 99 ) ) )
+                                                 mean = 2,
+                                                 sd = sqrt(2^2 + dpa$vi),
+                                                 a = dpa$tcrit * sqrt(dpa$vi),
+                                                 b = 99 ) ) )
       
       expect_equal(log.lkl.sanity.R, log.lkl.sanity.R.2)
       
@@ -894,8 +934,8 @@ doParallel.seconds = system.time({
                     log = TRUE )
       critScaled = dpa$tcrit * sqrt(dpa$vi)
       term2 = log( 1 - pnorm(q = critScaled,
-                        mean = 2,
-                        sd = sqrt(2^2 + dpa$vi) ) )
+                             mean = 2,
+                             sd = sqrt(2^2 + dpa$vi) ) )
       # agrees!!!!!
       expect_equal( sum( term1 - term2 ),
                     log.lkl.sanity.R )
@@ -914,7 +954,7 @@ doParallel.seconds = system.time({
       ext = rstan::extract(temp$post)
       # "unique" because these have a fixed value across all iterates
       ( log.lkl.sanity.stan = unique(ext$log_lik_sanity) )
-  
+      
       # agrees
       expect_equal( as.numeric(log.lkl.sanity.R),
                     as.numeric(log.lkl.sanity.stan),
@@ -1020,87 +1060,90 @@ doParallel.seconds = system.time({
     cat("\ndoParallel flag: Before adding sanity checks to rep.res")
     
     
-    # add info about simulated datasets
-    # "ustudies"/"udraws" refers to underlying studies/draws prior to hacking or publication bias
-    ( sancheck.prob.ustudies.published =  mean( d.first$study %in% unique(dp$study) ) )
-    expect_equal( sancheck.prob.ustudies.published, nrow(dp)/nrow(d.first) )
-    # this one should always be 100% unless there's also publication bias:
-    ( sancheck.prob.unhacked.ustudies.published =  mean( d.first$study[ d.first$hack == "no" ] %in% unique( dp$study[ dp$hack == "no" ] ) ) )
-    # under affim hacking, will be <100%:
-    ( sancheck.prob.hacked.ustudies.published =  mean( d.first$study[ d.first$hack != "no" ] %in% unique( dp$study[ dp$hack != "no" ] ) ) )
-    
-    # might NOT be 100% if you're generating multiple draws per unhacked studies but favoring, e.g., a random one:
-    ( sancheck.prob.unhacked.udraws.published =  mean( d$study.draw[ d$hack == "no" ] %in% unique( dp$study.draw[ dp$hack == "no" ] ) ) )
-    ( sancheck.prob.hacked.udraws.published =  mean( d$study.draw[ d$hack != "no" ] %in% unique( dp$study.draw[ dp$hack != "no" ] ) ) )
-    
-    
-    
-    #*this one is especially important: under worst-case hacking, it's analogous to prop.retained  in
-    #  TNE since it's the proportion of the underlying distribution that's nonaffirmative
-    ( sancheck.prob.unhacked.udraws.nonaffirm =  mean( d$affirm[ d$hack == "no" ] == FALSE ) )
-    # a benchmark for average power:
-    ( sancheck.prob.unhacked.udraws.affirm =  mean( d$affirm[ d$hack == "no" ] ) )
-    ( sancheck.prob.hacked.udraws.nonaffirm =  mean( d$affirm[ d$hack != "no" ] == FALSE ) )
-    ( sancheck.prob.hacked.udraws.affirm =  mean( d$affirm[ d$hack != "no" ] ) )
-    
-    # probability that a published, nonaffirmative draw is from a hacked study
-    # under worst-case hacking, should be 0
-    ( sancheck.prob.published.nonaffirm.is.hacked = mean( dp$hack[ dp$affirm == 0 ] != "no" ) )
-    # this will be >0
-    ( sancheck.prob.published.affirm.is.hacked = mean( dp$hack[ dp$affirm == 1 ] != "no" ) )
-    
-    # average yi's 
-    
-    rep.res = rep.res %>% add_column(   sancheck.dp.k = nrow(dp),
-                                        sancheck.dp.k.affirm = sum(dp$affirm == TRUE),
-                                        sancheck.dp.k.nonaffirm = sum(dp$affirm == FALSE),
-                                        
-                                        sancheck.dp.k.affirm.unhacked = sum(dp$affirm == TRUE & dp$hack == "no"),
-                                        sancheck.dp.k.affirm.hacked = sum(dp$affirm == TRUE & dp$hack != "no"),
-                                        sancheck.dp.k.nonaffirm.unhacked = sum(dp$affirm == FALSE & dp$hack == "no"),
-                                        sancheck.dp.k.nonaffirm.hacked = sum(dp$affirm == FALSE & dp$hack != "no"),
-                                        
-                                        # means draws per HACKED, published study
-                                        sancheck.dp.meanN.hacked = mean( dp$N[dp$hack != "no"] ),
-                                        sancheck.dp.q90N.hacked = quantile( dp$N[dp$hack != "no"], 0.90 ),
-                                        
-                                        # average yi's of published draws from each study type
-                                        sancheck.mean.yi.unhacked.pub.study = mean( dp$yi[ dp$hack == "no"] ),
-                                        sancheck.mean.yi.hacked.pub.study = mean( dp$yi[ dp$hack != "no"] ),
-                                        
-                                        
-                                        sancheck.mean.mui.unhacked.pub.nonaffirm = mean( dp$mui[ dp$hack == "no" & dp$affirm == FALSE ] ),
-                                        sancheck.mean.yi.unhacked.pub.nonaffirm = mean( dp$yi[ dp$hack == "no" & dp$affirm == FALSE ] ),
-                                        sancheck.mean.yi.unhacked.pub.affirm = mean( dp$yi[ dp$hack == "no" & dp$affirm == TRUE ] ),
-                                        
-                                        sancheck.mean.yi.hacked.pub.nonaffirm = mean( dp$yi[ dp$hack != "no" & dp$affirm == FALSE ] ),
-                                        sancheck.mean.yi.hacked.pub.affirm = mean( dp$yi[ dp$hack != "no" & dp$affirm == TRUE ] ),
-                                        
-                                        # average Zi's
-                                        sancheck.mean.Zi.unhacked.pub.study = mean( dp$Zi[ dp$hack == "no"] ),
-                                        sancheck.mean.Zi.hacked.pub.study = mean( dp$Zi[ dp$hack != "no"] ),
-                                        
-                                        sancheck.mean.Zi.unhacked.pub.nonaffirm = mean( dp$Zi[ dp$hack == "no" & dp$affirm == FALSE ] ),
-                                        sancheck.mean.Zi.unhacked.pub.affirm = mean( dp$Zi[ dp$hack == "no" & dp$affirm == TRUE ] ),
-                                        
-                                        sancheck.mean.Zi.hacked.pub.nonaffirm = mean( dp$Zi[ dp$hack != "no" & dp$affirm == FALSE ] ),
-                                        sancheck.mean.Zi.hacked.pub.affirm = mean( dp$Zi[ dp$hack != "no" & dp$affirm == TRUE ] ),
-                                        
-                                        
-                                        sancheck.prob.ustudies.published = sancheck.prob.ustudies.published,
-                                        sancheck.prob.unhacked.ustudies.published = sancheck.prob.unhacked.ustudies.published,
-                                        sancheck.prob.hacked.ustudies.published = sancheck.prob.hacked.ustudies.published,
-                                        
-                                        sancheck.prob.unhacked.udraws.published = sancheck.prob.unhacked.udraws.published,
-                                        sancheck.prob.hacked.udraws.published = sancheck.prob.hacked.udraws.published,
-                                        
-                                        sancheck.prob.unhacked.udraws.nonaffirm = sancheck.prob.unhacked.udraws.nonaffirm,
-                                        sancheck.prob.unhacked.udraws.affirm = sancheck.prob.unhacked.udraws.affirm,
-                                        sancheck.prob.hacked.udraws.nonaffirm = sancheck.prob.hacked.udraws.nonaffirm,
-                                        sancheck.prob.hacked.udraws.affirm = sancheck.prob.hacked.udraws.affirm,
-                                        
-                                        sancheck.prob.published.nonaffirm.is.hacked = sancheck.prob.published.nonaffirm.is.hacked
-    )
+    # some san.checks will fail for sim.env = stefan b/c e.g., we don't have within-study sample sizes
+    if ( p$sim.env == "mathur" ) {
+      # add info about simulated datasets
+      # "ustudies"/"udraws" refers to underlying studies/draws prior to hacking or publication bias
+      ( sancheck.prob.ustudies.published =  mean( d.first$study %in% unique(dp$study) ) )
+      expect_equal( sancheck.prob.ustudies.published, nrow(dp)/nrow(d.first) )
+      # this one should always be 100% unless there's also publication bias:
+      ( sancheck.prob.unhacked.ustudies.published =  mean( d.first$study[ d.first$hack == "no" ] %in% unique( dp$study[ dp$hack == "no" ] ) ) )
+      # under affim hacking, will be <100%:
+      ( sancheck.prob.hacked.ustudies.published =  mean( d.first$study[ d.first$hack != "no" ] %in% unique( dp$study[ dp$hack != "no" ] ) ) )
+      
+      # might NOT be 100% if you're generating multiple draws per unhacked studies but favoring, e.g., a random one:
+      ( sancheck.prob.unhacked.udraws.published =  mean( d$study.draw[ d$hack == "no" ] %in% unique( dp$study.draw[ dp$hack == "no" ] ) ) )
+      ( sancheck.prob.hacked.udraws.published =  mean( d$study.draw[ d$hack != "no" ] %in% unique( dp$study.draw[ dp$hack != "no" ] ) ) )
+      
+      
+      
+      #*this one is especially important: under worst-case hacking, it's analogous to prop.retained  in
+      #  TNE since it's the proportion of the underlying distribution that's nonaffirmative
+      ( sancheck.prob.unhacked.udraws.nonaffirm =  mean( d$affirm[ d$hack == "no" ] == FALSE ) )
+      # a benchmark for average power:
+      ( sancheck.prob.unhacked.udraws.affirm =  mean( d$affirm[ d$hack == "no" ] ) )
+      ( sancheck.prob.hacked.udraws.nonaffirm =  mean( d$affirm[ d$hack != "no" ] == FALSE ) )
+      ( sancheck.prob.hacked.udraws.affirm =  mean( d$affirm[ d$hack != "no" ] ) )
+      
+      # probability that a published, nonaffirmative draw is from a hacked study
+      # under worst-case hacking, should be 0
+      ( sancheck.prob.published.nonaffirm.is.hacked = mean( dp$hack[ dp$affirm == 0 ] != "no" ) )
+      # this will be >0
+      ( sancheck.prob.published.affirm.is.hacked = mean( dp$hack[ dp$affirm == 1 ] != "no" ) )
+      
+      # average yi's 
+      
+      rep.res = rep.res %>% add_column(   sancheck.dp.k = nrow(dp),
+                                          sancheck.dp.k.affirm = sum(dp$affirm == TRUE),
+                                          sancheck.dp.k.nonaffirm = sum(dp$affirm == FALSE),
+                                          
+                                          sancheck.dp.k.affirm.unhacked = sum(dp$affirm == TRUE & dp$hack == "no"),
+                                          sancheck.dp.k.affirm.hacked = sum(dp$affirm == TRUE & dp$hack != "no"),
+                                          sancheck.dp.k.nonaffirm.unhacked = sum(dp$affirm == FALSE & dp$hack == "no"),
+                                          sancheck.dp.k.nonaffirm.hacked = sum(dp$affirm == FALSE & dp$hack != "no"),
+                                          
+                                          # means draws per HACKED, published study
+                                          sancheck.dp.meanN.hacked = mean( dp$N[dp$hack != "no"] ),
+                                          sancheck.dp.q90N.hacked = quantile( dp$N[dp$hack != "no"], 0.90 ),
+                                          
+                                          # average yi's of published draws from each study type
+                                          sancheck.mean.yi.unhacked.pub.study = mean( dp$yi[ dp$hack == "no"] ),
+                                          sancheck.mean.yi.hacked.pub.study = mean( dp$yi[ dp$hack != "no"] ),
+                                          
+                                          
+                                          sancheck.mean.mui.unhacked.pub.nonaffirm = mean( dp$mui[ dp$hack == "no" & dp$affirm == FALSE ] ),
+                                          sancheck.mean.yi.unhacked.pub.nonaffirm = mean( dp$yi[ dp$hack == "no" & dp$affirm == FALSE ] ),
+                                          sancheck.mean.yi.unhacked.pub.affirm = mean( dp$yi[ dp$hack == "no" & dp$affirm == TRUE ] ),
+                                          
+                                          sancheck.mean.yi.hacked.pub.nonaffirm = mean( dp$yi[ dp$hack != "no" & dp$affirm == FALSE ] ),
+                                          sancheck.mean.yi.hacked.pub.affirm = mean( dp$yi[ dp$hack != "no" & dp$affirm == TRUE ] ),
+                                          
+                                          # average Zi's
+                                          sancheck.mean.Zi.unhacked.pub.study = mean( dp$Zi[ dp$hack == "no"] ),
+                                          sancheck.mean.Zi.hacked.pub.study = mean( dp$Zi[ dp$hack != "no"] ),
+                                          
+                                          sancheck.mean.Zi.unhacked.pub.nonaffirm = mean( dp$Zi[ dp$hack == "no" & dp$affirm == FALSE ] ),
+                                          sancheck.mean.Zi.unhacked.pub.affirm = mean( dp$Zi[ dp$hack == "no" & dp$affirm == TRUE ] ),
+                                          
+                                          sancheck.mean.Zi.hacked.pub.nonaffirm = mean( dp$Zi[ dp$hack != "no" & dp$affirm == FALSE ] ),
+                                          sancheck.mean.Zi.hacked.pub.affirm = mean( dp$Zi[ dp$hack != "no" & dp$affirm == TRUE ] ),
+                                          
+                                          
+                                          sancheck.prob.ustudies.published = sancheck.prob.ustudies.published,
+                                          sancheck.prob.unhacked.ustudies.published = sancheck.prob.unhacked.ustudies.published,
+                                          sancheck.prob.hacked.ustudies.published = sancheck.prob.hacked.ustudies.published,
+                                          
+                                          sancheck.prob.unhacked.udraws.published = sancheck.prob.unhacked.udraws.published,
+                                          sancheck.prob.hacked.udraws.published = sancheck.prob.hacked.udraws.published,
+                                          
+                                          sancheck.prob.unhacked.udraws.nonaffirm = sancheck.prob.unhacked.udraws.nonaffirm,
+                                          sancheck.prob.unhacked.udraws.affirm = sancheck.prob.unhacked.udraws.affirm,
+                                          sancheck.prob.hacked.udraws.nonaffirm = sancheck.prob.hacked.udraws.nonaffirm,
+                                          sancheck.prob.hacked.udraws.affirm = sancheck.prob.hacked.udraws.affirm,
+                                          
+                                          sancheck.prob.published.nonaffirm.is.hacked = sancheck.prob.published.nonaffirm.is.hacked
+      )
+    }
     
     rep.res
     

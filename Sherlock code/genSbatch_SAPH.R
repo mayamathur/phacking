@@ -48,12 +48,14 @@ lapply( allPackages,
 scen.params = tidyr::expand_grid(
   # full list (save):
   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
+  
+  # don't run gold-std with stefan; not implemented
   rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
   #rep.methods = "naive ; jeffreys-mcmc ; jeffreys-sd",
   
   ### only needed if sim.env = "mathur": args from sim_meta_2
   Nmax = 30,
-  Mu = c(0.5),
+  Mu = c(0.5),  #@will need to include even for sim.env = stefan to have start values 
   t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
   t2w = c(0.2^2),
   m = 50,

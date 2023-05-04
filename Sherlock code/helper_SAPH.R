@@ -2176,13 +2176,14 @@ draw_lodder_se = function() {
 #                                     is.hacked,  # separate from hack.type so that we can use same fn in each case for comparability
 #                                     hack.type)
 
-#bm
+
 sim_meta_2_stefan = function(strategy.stefan,
                              alternative.stefan,
                              
                              stringent.hack,
                              prob.hacked,
                              hack.type,
+                             k.pub.nonaffirm,
                              return.only.published = FALSE
 ) {
   
@@ -2239,7 +2240,7 @@ sim_meta_2_stefan = function(strategy.stefan,
 
 
 
-
+#bm
 sim_one_study_set_stefan = function(strategy.stefan,
                                     alternative.stefan,
                                     
@@ -2262,72 +2263,84 @@ sim_one_study_set_stefan = function(strategy.stefan,
   # return.only.published = FALSE
   # hack.type = "DV"
   
+  sei = 100
   
-  # even if is.hacked == FALSE, we call the appropriate hack fn for the entire
-  #   meta-analysis for comparability between hacked and unhacked studies, then later
-  #  use the original (unhacked) stats if is.hacked = FALSE
-  if (hack.type == "DV") {
-    d = as.data.frame( sim.multDVhack(nobs.group = 30,
-                                      nvar = 10, # default is 5
-                                      #nvar = 1,  #@test only - unhacked
-                                      r = 0.3,
-                                      iter = 1,
-                                      strategy = strategy.stefan,
-                                      alternative = alternative.stefan,
-                                      alpha = 0.05) )
-  }
-  
-  if (hack.type == "optstop") {
-    #@WHY DOES THIS NOT HAVE STRATEGY ARG? ASK
-    # SOUNDS LIKE IT'S TWO.SIDED:
-    # The dataset is evaluated row-by-row, starting with a minimum sample size of n.min. At each step, a number of observations is added to the sample, defined by the argument step and the t-test is computed. This continues until the maximum sample size specified in n.max is reached. The p-hacked p-value is defined as the first p-value that is smaller than the defined alpha level.
-    d = as.data.frame( sim.optstop(n.min = 10,
-                                   #n.max = 20,  # default
-                                   n.max = 50,
-                                   step = 2,
-                                   #strategy = strategy.stefan,
-                                   alternative = alternative.stefan,
-                                   iter = 1,
-                                   alpha = 0.05) )
-  }
-  
-  
-  if (hack.type == "subgroup") {
-    d = as.data.frame( sim.subgroupHack(nobs.group = 30,
-                                        nsubvars = 5, # default: 3
+  # Stefan fns routinely generate combinations of p-val and yi that imply absurdly large SEs
+  #  e.g., p = 0.999 but yi = -1.04, which implies sei = 10,000
+  # hackily prevent this:
+  while ( sei > 2 ) {
+   
+    
+    # even if is.hacked == FALSE, we call the appropriate hack fn for the entire
+    #   meta-analysis for comparability between hacked and unhacked studies, then later
+    #  use the original (unhacked) stats if is.hacked = FALSE
+    if (hack.type == "DV") {
+      d = as.data.frame( sim.multDVhack(nobs.group = 30,
+                                        nvar = 10, # default is 5
+                                        #nvar = 1,  #@test only - unhacked
+                                        r = 0.3,
+                                        iter = 1,
                                         strategy = strategy.stefan,
                                         alternative = alternative.stefan,
-                                        alpha = 0.05,
-                                        iter = 1) )
-  }
-  
-  
-  
-  
-  
-  #@add other stefan hack types
-  
-  
-  ### work that doesn't depend on hacking type ###
-  # choose appropriate stats as yi, sei, vi depending on whether this study is hacked
-  # and get dataset into same format as in my own sim_one_study_set
-  if ( is.hacked == TRUE ) {
-    d = d %>% rename(pval = ps.hack,
-                     yi = ds.hack) %>%
-      select( !c(ps.orig, r2s.hack, r2s.orig, ds.orig) )
-  } 
-  if ( is.hacked == FALSE ) {
-    d = d %>% rename(pval = ps.orig,
-                     yi = ds.orig) %>%
-      select( !c(ps.hack, r2s.hack, r2s.orig, ds.hack) )
+                                        alpha = 0.05) )
+    }
+    
+    if (hack.type == "optstop") {
+      #@WHY DOES THIS NOT HAVE STRATEGY ARG? ASK
+      # SOUNDS LIKE IT'S TWO.SIDED:
+      # The dataset is evaluated row-by-row, starting with a minimum sample size of n.min. At each step, a number of observations is added to the sample, defined by the argument step and the t-test is computed. This continues until the maximum sample size specified in n.max is reached. The p-hacked p-value is defined as the first p-value that is smaller than the defined alpha level.
+      d = as.data.frame( sim.optstop(n.min = 10,
+                                     #n.max = 20,  # default
+                                     n.max = 50,
+                                     step = 2,
+                                     #strategy = strategy.stefan,
+                                     alternative = alternative.stefan,
+                                     iter = 1,
+                                     alpha = 0.05) )
+    }
+    
+    
+    if (hack.type == "subgroup") {
+      d = as.data.frame( sim.subgroupHack(nobs.group = 30,
+                                          nsubvars = 5, # default: 3
+                                          strategy = strategy.stefan,
+                                          alternative = alternative.stefan,
+                                          alpha = 0.05,
+                                          iter = 1) )
+    }
+    
+    
+    
+    
+    
+    #@add other stefan hack types
+    
+    
+    ### work that doesn't depend on hacking type ###
+    # choose appropriate stats as yi, sei, vi depending on whether this study is hacked
+    # and get dataset into same format as in my own sim_one_study_set
+    if ( is.hacked == TRUE ) {
+      d = d %>% rename(pval = ps.hack,
+                       yi = ds.hack) %>%
+        select( !c(ps.orig, r2s.hack, r2s.orig, ds.orig) )
+    } 
+    if ( is.hacked == FALSE ) {
+      d = d %>% rename(pval = ps.orig,
+                       yi = ds.orig) %>%
+        select( !c(ps.hack, r2s.hack, r2s.orig, ds.hack) )
+      
+    }
+    
+    
+    # calculate sei, vi
+    d$sei = calc_sei(yi = d$yi, pval = d$pval)
+    sei = d$sei  # for the while-loop condition
     
   }
   
-  
-  # calculate sei, vi
-  d$sei = calc_sei(yi = d$yi, pval = d$pval)
+ 
   d$vi = d$sei^2
-  
+  d$tcrit = qnorm(0.975)  # here using z-approx since that's what we use to calculate sei
   
   # convenience indicators for significance and affirmative status
   d$signif = d$pval < 0.05
