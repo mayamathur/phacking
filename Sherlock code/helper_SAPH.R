@@ -2322,7 +2322,7 @@ sim_one_study_set_stefan = function(strategy.stefan,
     # save the "original" (ideal draw) estimate for use with gold-std method
     d$yio = d$ds.orig
     d$pvalo = d$ps.orig
-    d$seio = calc_sei(yi = d$yio, pval = d$pvalo)
+    d$seio = calc_sei(yi = d$yio, pval = d$pvalo, alternative.stefan = alternative.stefan)
   
     # choose appropriate stats as yi, sei, vi depending on whether this study is hacked
     # and get dataset into same format as in my own sim_one_study_set
@@ -2340,7 +2340,7 @@ sim_one_study_set_stefan = function(strategy.stefan,
     
     
     # calculate sei, vi
-    d$sei = calc_sei(yi = d$yi, pval = d$pval)
+    d$sei = calc_sei(yi = d$yi, pval = d$pval, alternative.stefan = alternative.stefan)
     sei = d$sei  # for the while-loop condition
     
   }  # end "while ( sei > 2 | sei < 0.02 )"
@@ -2371,23 +2371,38 @@ sim_one_study_set_stefan = function(strategy.stefan,
 
 
 
-#@CAN PROBABLY REMOVE - NOTES ON ADJUSTING MU
-# problem: very hard to get published nonaffirms with prob.hacked = 0.8 and mean of 0
-# maybe try editing mu argument here?
-#  https://github.com/astefan1/phacking_compendium/blob/master/phackR/R/helpers.R
-# also might need to edit .sim.data because it has hard-coded rnorm args
-# should go through each hack mechanism that I want to include and see which data simulation fn it uses
-# - optional stopping uses .sim.data: https://github.com/astefan1/phacking_compendium/blob/master/phackR/R/optionalStopping.R
-# - exploit covariates uses .sim.covariates, which has own mu and sd args: https://github.com/astefan1/phacking_compendium/blob/master/phackR/R/exploitCovariates.R
-# - sim.outHack uses .sim.multcor
-# - sim.multDV also uses .sim.multcor
 
 
-calc_sei = function(yi, pval) {
-  # from:
-  # pval = 2 * ( 1 - pnorm( abs(yi)/sei ) )
-  abs(yi) / qnorm(1 - pval/2) 
+calc_sei = function(yi, pval, alternative.stefan) {
+  if ( alternative.stefan == "two.sided" ) {
+    # because: pval = 2 * ( 1 - pnorm( abs(yi)/sei ) )
+    abs(yi) / qnorm(1 - pval/2) 
+  } else if ( alternative.stefan == "greater" ) {
+    # because: pval = 1 - pnorm( yi/sei )
+    yi / qnorm(1 - pval) 
+  } else {
+    stop("calc_sei not implemented for that choice of alternative.stefan")
+  }
 }
+
+
+# # sanity checks
+# yi = -0.5
+# pval = 0.03
+# ( sei = calc_sei(yi = yi, pval = pval, alternative.stefan = "two.sided") )
+# yi/sei  # Z-score
+# expect_equal( 2 * ( 1 - pnorm( abs(yi)/sei ) ),
+#               pval )
+# 
+# yi = -0.5
+# pval = 0.8
+# ( sei = calc_sei(yi = yi, pval = pval, alternative.stefan = "greater") )
+# yi/sei  # Z-score
+# expect_equal( 1 - pnorm( yi/sei ),
+#               pval )
+
+
+
 
 
 # DATA WRANGLING ---------------------------------------------------------------
