@@ -184,7 +184,8 @@ if ( run.local == TRUE ) {
   # 2022-3-16: CSM, LTMA, RTMA
   scen.params = tidyr::expand_grid(
     # full list (save):
-    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
+    #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
+    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; prereg-naive",
     #rep.methods = "naive ; jeffreys-sd",
     
     sim.env = "stefan",
@@ -1172,7 +1173,7 @@ doParallel.seconds = system.time({
 
 
 # quick look
-rs %>% dplyr::select(method, Mhat)
+rs %>% dplyr::select(method, Mhat, MLo, MHi)
 
 table(rs$method)
 

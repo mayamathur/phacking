@@ -2270,7 +2270,7 @@ sim_one_study_set_stefan = function(strategy.stefan,
   #  e.g., p = 0.999 but yi = -1.04, which implies sei = 10,000
   # hackily prevent this:
   #bm
-  #while ( sei > 2 | sei < 0.02 ) {
+  while ( sei > 2 | sei < 0.02 ) {
    
     
     # even if is.hacked == FALSE, we call the appropriate hack fn for the entire
@@ -2343,7 +2343,7 @@ sim_one_study_set_stefan = function(strategy.stefan,
     d$sei = calc_sei(yi = d$yi, pval = d$pval)
     sei = d$sei  # for the while-loop condition
     
-  #}  # end "while ( sei > 2 | sei < 0.02 )"
+  }  # end "while ( sei > 2 | sei < 0.02 )"
   
  
   d$vi = d$sei^2
