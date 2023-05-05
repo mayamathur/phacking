@@ -185,7 +185,7 @@ if ( run.local == TRUE ) {
   scen.params = tidyr::expand_grid(
     # full list (save):
     #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
-    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; prereg-naive",
+    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; jeffreys-mcmc ; prereg-naive",
     #rep.methods = "naive ; jeffreys-sd",
     
     sim.env = "stefan",
@@ -209,7 +209,7 @@ if ( run.local == TRUE ) {
     ### only needed if sim.env = "stefan": args from sim_meta_2
     strategy.stefan = "firstsig",  # "firstsig" or "smallest"
     alternative.stefan = "greater",  # "two.sided" or "greater"
-    stringent.hack = FALSE,  # mathur sims always effectively use stringent.hack = TRUE
+    stringent.hack = TRUE,  # mathur sims always effectively use stringent.hack = TRUE
     ### end of stuff for sim.env = "stefan"
     
     # Stan control args
@@ -325,7 +325,7 @@ doParallel.seconds = system.time({
                              stringent.hack = p$stringent.hack,
                              strategy.stefan = p$strategy.stefan,
                              alternative.stefan = p$alternative.stefan,
-
+                             
                              k.pub.nonaffirm = p$k.pub.nonaffirm,
                              prob.hacked = p$prob.hacked,
                              return.only.published = FALSE)
@@ -534,6 +534,58 @@ doParallel.seconds = system.time({
                                 .rep.res = rep.res )
       
     }
+    
+    
+    
+    # ~~ PET-PEESE ------------------------------
+    
+    #@this is actually PEESE, not PET-PEESE
+    #  figure out how to do PET-PEESE
+    # use this code: https://osf.io/uhaew
+    # you got this! oh yeah! 
+    
+    # best PET-PEESE reference: https://bookdown.org/MathiasHarrer/Doing_Meta_Analysis_in_R/pub-bias.html
+    if ( "pet-peese" %in% all.methods ) {
+      # c.f. Hilgard's repo: https://github.com/Joe-Hilgard/PETPEESE/blob/master/PETPEESE_functions.R
+      rep.res = run_method_safe(method.label = c("pet-peese"),
+                                method.fn = function() {
+                                  
+                                  # first fit PET
+                                  mod.PET = lm(yi ~ sei,
+                                               weights = 1/vi,
+                                               data = dp)
+                   
+                                  # check if coefficient for intercept is significant
+                                  # needs to be a one-sided test
+                                  PET.pval.twotail = summary(mod.PET)$coefficients["(Intercept)", "Pr(>|t|)"]
+                                  PET.intercept = summary(mod.PET)$coefficients["(Intercept)", "Estimate"]
+                                  
+                                  
+                                  # if PET is significant, run PEESE instead
+                                  # alpha = 0.10 for two-tailed p-value to have one-tailed alpha = 0.05
+                                  if ( PET.pval.twotail < 0.10 & PET.intercept > 0 ) {
+                                    mod.PEESE = lm(yi ~ vi, # regress on vi instead of sei 
+                                                 weights = 1/vi,
+                                                 data = dp)
+                                    
+                                    mod = mod.PEESE
+                                  } else {
+                                    # in this case, stick with PET
+                                    mod = mod.PET
+                                  }
+                                  
+                                  # follow the same return structure as report_meta
+                                  summ = summary(mod)
+                                  CIs = confint(mod)
+                                  list( stats = data.frame( Mhat = mod$coefficients[1],
+                                                            MLo = CIs[1,1],
+                                                            MHi = CIs[1,2] ) )
+                                },
+                                .rep.res = rep.res ) 
+      
+    }
+    
+    
     
     
     # ~ New Methods ------------------------------

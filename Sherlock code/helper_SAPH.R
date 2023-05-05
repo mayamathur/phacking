@@ -2400,8 +2400,6 @@ calc_sei = function(yi, pval, alternative.stefan) {
 
 
 
-
-
 # DATA WRANGLING ---------------------------------------------------------------
 
 # corrObject: something returned by correct_dataset_phack
