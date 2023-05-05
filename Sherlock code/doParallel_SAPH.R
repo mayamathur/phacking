@@ -321,8 +321,8 @@ doParallel.seconds = system.time({
     
     if ( p$sim.env == "stefan" ) {
       d = sim_meta_2_stefan( hack.type = p$hack,
-                             #stringent.hack = TRUE, # HELD CONSTANT FOR ALL SIMS
-                             stringent.hack = FALSE, #@test only
+                             stringent.hack = TRUE, # HELD CONSTANT FOR ALL SIMS
+                             #stringent.hack = FALSE, #@test only
                              strategy.stefan = p$strategy.stefan,
                              alternative.stefan = p$alternative.stefan,
                              
@@ -1174,6 +1174,9 @@ doParallel.seconds = system.time({
 
 # quick look
 rs %>% dplyr::select(method, Mhat, MLo, MHi)
+
+
+
 
 table(rs$method)
 
