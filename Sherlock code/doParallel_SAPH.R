@@ -320,7 +320,8 @@ doParallel.seconds = system.time({
     
     if ( p$sim.env == "stefan" ) {
       d = sim_meta_2_stefan( hack.type = p$hack,
-                             stringent.hack = TRUE, # HELD CONSTANT FOR ALL SIMS
+                             #stringent.hack = TRUE, # HELD CONSTANT FOR ALL SIMS
+                             stringent.hack = FALSE, #@test only
                              strategy.stefan = p$strategy.stefan,
                              alternative.stefan = p$alternative.stefan,
                              
@@ -416,7 +417,7 @@ doParallel.seconds = system.time({
                                 .rep.res = rep.res )
     }
     
-    
+    srr()
     
     
     # ~~ Gold-Standard Meta-Analysis (ALL FIRST Draws) ------------------------------

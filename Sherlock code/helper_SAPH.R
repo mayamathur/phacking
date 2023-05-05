@@ -2270,7 +2270,7 @@ sim_one_study_set_stefan = function(strategy.stefan,
   #  e.g., p = 0.999 but yi = -1.04, which implies sei = 10,000
   # hackily prevent this:
   #bm
-  while ( sei > 2 | sei < 0.02 ) {
+  #while ( sei > 2 | sei < 0.02 ) {
    
     
     # even if is.hacked == FALSE, we call the appropriate hack fn for the entire
@@ -2279,7 +2279,6 @@ sim_one_study_set_stefan = function(strategy.stefan,
     if (hack.type == "DV") {
       d = as.data.frame( sim.multDVhack(nobs.group = 30,
                                         nvar = 10, # default is 5
-                                        #nvar = 1,  #@test only - unhacked
                                         r = 0.3,
                                         iter = 1,
                                         strategy = strategy.stefan,
@@ -2338,7 +2337,7 @@ sim_one_study_set_stefan = function(strategy.stefan,
     d$sei = calc_sei(yi = d$yi, pval = d$pval)
     sei = d$sei  # for the while-loop condition
     
-  }
+  #}  # end "while ( sei > 2 | sei < 0.02 )"
   
  
   d$vi = d$sei^2
