@@ -185,7 +185,7 @@ if ( run.local == TRUE ) {
   scen.params = tidyr::expand_grid(
     # full list (save):
     #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
-    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; prereg-naive",
+    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; prereg-naive",
     #rep.methods = "naive ; jeffreys-sd",
     
     sim.env = "stefan",
@@ -209,6 +209,7 @@ if ( run.local == TRUE ) {
     ### only needed if sim.env = "stefan": args from sim_meta_2
     strategy.stefan = "firstsig",  # "firstsig" or "smallest"
     alternative.stefan = "greater",  # "two.sided" or "greater"
+    stringent.hack = FALSE,  # mathur sims always effectively use stringent.hack = TRUE
     ### end of stuff for sim.env = "stefan"
     
     # Stan control args
@@ -321,11 +322,10 @@ doParallel.seconds = system.time({
     
     if ( p$sim.env == "stefan" ) {
       d = sim_meta_2_stefan( hack.type = p$hack,
-                             stringent.hack = TRUE, # HELD CONSTANT FOR ALL SIMS
-                             #stringent.hack = FALSE, #@test only
+                             stringent.hack = p$stringent.hack,
                              strategy.stefan = p$strategy.stefan,
                              alternative.stefan = p$alternative.stefan,
-                             
+
                              k.pub.nonaffirm = p$k.pub.nonaffirm,
                              prob.hacked = p$prob.hacked,
                              return.only.published = FALSE)
@@ -512,20 +512,20 @@ doParallel.seconds = system.time({
       # since pcurve.opt internally retains only 
       rep.res = run_method_safe(method.label = c("pcurve"),
                                 method.fn = function() {
-                                  #@later, revisit the decision to use df_obs = 1000
+                                  #later, revisit the decision to use df_obs = 1000
                                   #   to effectively treat yi/sei z-scores
                                   
                                   # using all significant studies (that's what pcurve.opt does internally):
                                   Mhat = pcurve.opt( t_obs = dp$Zi,
                                                      df_obs = rep(1000, length(dp$Zi)),
-                                                     dmin = -5, #@HARD-CODED and arbitrary
+                                                     dmin = -5, #HARD-CODED and arbitrary
                                                      dmax = 5)
                                   
                                   
                                   # # using only published affirmatives:
                                   # Mhat = pcurve.opt( t_obs = dpa$yi/dpa$sei,
                                   #                    df_obs = rep(1000, length(dpa$yi)),
-                                  #                    dmin = -5, #@HARD-CODED and arbitrary
+                                  #                    dmin = -5, #HARD-CODED and arbitrary
                                   #                    dmax = 5)
                                   
                                   
@@ -822,7 +822,7 @@ doParallel.seconds = system.time({
                                    .Tt = 2,
                                    .tcrit = dpn$tcrit )
       
-      #@wastefully re-run MCMC in order to capture its full output (which isn't preserved
+      #wastefully re-run MCMC in order to capture its full output (which isn't preserved
       #  when it's run inside run_method_safe)
       # with only nonaffirms:
       temp = estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
@@ -902,7 +902,7 @@ doParallel.seconds = system.time({
                                            .Mu = 2,
                                            .Tt = 2 )
       
-      #@wastefully re-run MCMC in order to capture its full output (which isn't preserved
+      #wastefully re-run MCMC in order to capture its full output (which isn't preserved
       #  when it's run inside run_method_safe)
       # with only nonaffirms:
       temp = estimate_jeffreys_mcmc_RTMA(.yi = dp.csm$yi,
@@ -961,7 +961,7 @@ doParallel.seconds = system.time({
                     log.lkl.sanity.R )
       
       
-      #@wastefully re-run MCMC in order to capture its full output (which isn't preserved
+      #wastefully re-run MCMC in order to capture its full output (which isn't preserved
       #  when it's run inside run_method_safe)
       # with only nonaffirms:
       temp = estimate_jeffreys_mcmc_RTMA(.yi = dpa$yi,

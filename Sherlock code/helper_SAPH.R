@@ -208,7 +208,7 @@ estimate_jeffreys_mcmc_RTMA = function(.yi,
                     data = list( k = length(.yi),
                                  sei = .sei,
                                  tcrit = .tcrit,
-                                 #@2022-4-5: HANDLE AFFIRMATIVES FOR CSM CASE
+                                 #2022-4-5: HANDLE AFFIRMATIVES FOR CSM CASE
                                  affirm = as.numeric( (.yi/.sei) > .tcrit ),
                                  y = .yi ),
                     
@@ -677,7 +677,7 @@ E_fisher_RTMA = function( .sei, .Mu, .Tt, .tcrit = qnorm(0.975) ) {
                          mu = .Mu
                          tau = .Tt
                          tcrit = .tcrit  # currently assumed to be a scalar
-                         if ( length(tcrit) > 1 ) tcrit = tcrit[1] #@OBVIOUSLY NEEDS TO BE GENERALIZED
+                         if ( length(tcrit) > 1 ) tcrit = tcrit[1] #OBVIOUSLY NEEDS TO BE GENERALIZED
                          
                          fishinfo = matrix( NA, nrow = 2, ncol = 2 )
                          
@@ -1357,7 +1357,7 @@ quick_sim = function(.p,
   # basically the same as correctedSE above
   # theoryExpTstat = extrunc(spec = "norm",
   #                          mean =.p$Mu /.p$se,
-  #                          #@doesn't use the delta-method thing
+  #                          #doesn't use the delta-method thing
   #                          sd = sqrt( (1/.p$se^2) * (.p$T2 +.p$t2w +.p$se^2) ),
   #                          b = crit )
   
@@ -1526,7 +1526,7 @@ sim_meta_2 = function(Nmax,
 # d$k.nonaffirm.underlying[1]
 # d$k.underlying[1]
 # table(d$Di, d$affirm)
-# #@KEEP/PULL IN THE SANITY CHECKS FROM THE VERSION BELOW
+# #KEEP/PULL IN THE SANITY CHECKS FROM THE VERSION BELOW
 
 
 # KEEP THIS VERSION FOR REVERSE-COMPATIBILITY AND SANITY CHECKS
@@ -2287,9 +2287,11 @@ sim_one_study_set_stefan = function(strategy.stefan,
     }
     
     if (hack.type == "optstop") {
-      #@WHY DOES THIS NOT HAVE STRATEGY ARG? ASK
-      # SOUNDS LIKE IT'S TWO.SIDED:
+      # IMPORTANT: this doesn't have strategy arg because it's inherently firstsig:
       # The dataset is evaluated row-by-row, starting with a minimum sample size of n.min. At each step, a number of observations is added to the sample, defined by the argument step and the t-test is computed. This continues until the maximum sample size specified in n.max is reached. The p-hacked p-value is defined as the first p-value that is smaller than the defined alpha level.
+      
+      if ( strategy != "firstsig" ) stop("hack.type optstop requires strategy = firstsig")
+      
       d = as.data.frame( sim.optstop(n.min = 10,
                                      #n.max = 20,  # default
                                      n.max = 50,
@@ -2310,12 +2312,7 @@ sim_one_study_set_stefan = function(strategy.stefan,
                                           iter = 1) )
     }
     
-    
-    
-    
-    
-    #@add other stefan hack types
-    
+
     
     ### Post-processing that doesn't depend on hacking type ###
   
@@ -2415,7 +2412,7 @@ add_method_result_row = function(repRes = NA,
   
   # newRow = bind_cols( corrObject$metaCorr,
   #                 corrObject$sanityChecks )
-  #@TEMP: DON'T KEEP THE SANITY CHECKS BECAUSE CORRECT_META_PHACK2 doesn't have it
+  #TEMP: DON'T KEEP THE SANITY CHECKS BECAUSE CORRECT_META_PHACK2 doesn't have it
   newRow = corrObject$metaCorr
   
   newRow = newRow %>% add_column(.before = 1,
@@ -2807,7 +2804,7 @@ res1 = function() {
 #                                      Shat,
 #                                      showAffirms = FALSE) {
 #   
-#   # #@TEST ONLY
+#   # #TEST ONLY
 #   # d = dp
 #   # showAffirms = FALSE
 #   # Mhat = 0.45  # FAKE for now
