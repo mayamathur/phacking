@@ -2278,7 +2278,7 @@ sim_one_study_set_stefan = function(strategy.stefan,
     #  use the original (unhacked) stats if is.hacked = FALSE
     if (hack.type == "DV") {
       d = as.data.frame( sim.multDVhack(nobs.group = 30,
-                                        nvar = 10, # default is 5
+                                        nvar = 5, # default is 5
                                         r = 0.3,
                                         iter = 1,
                                         strategy = strategy.stefan,
@@ -2317,7 +2317,13 @@ sim_one_study_set_stefan = function(strategy.stefan,
     #@add other stefan hack types
     
     
-    ### work that doesn't depend on hacking type ###
+    ### Post-processing that doesn't depend on hacking type ###
+  
+    # save the "original" (ideal draw) estimate for use with gold-std method
+    d$yio = d$ds.orig
+    d$pvalo = d$ps.orig
+    d$seio = calc_sei(yi = d$yio, pval = d$pvalo)
+  
     # choose appropriate stats as yi, sei, vi depending on whether this study is hacked
     # and get dataset into same format as in my own sim_one_study_set
     if ( is.hacked == TRUE ) {

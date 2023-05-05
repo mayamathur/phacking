@@ -184,7 +184,7 @@ if ( run.local == TRUE ) {
   # 2022-3-16: CSM, LTMA, RTMA
   scen.params = tidyr::expand_grid(
     # full list (save):
-    rep.methods = "naive ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
+    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
     #rep.methods = "naive ; jeffreys-sd",
     
     sim.env = "stefan",
@@ -358,6 +358,7 @@ doParallel.seconds = system.time({
     dp = d %>% filter(Di == 1)
     
     # keep first draws only
+    # for Stefan, this is the same as d
     d.first = d[ !duplicated(d$study), ]
     
     # published nonaffirmatives only
@@ -424,20 +425,37 @@ doParallel.seconds = system.time({
     
     if ( "gold-std" %in% all.methods ) {
       
-      # to implement it, would need to save the ds.orig things from the underlying stefan fns
-      if ( p$sim.env == "stefan" ) stop("gold-std not implemented for stefan")
+      if ( p$sim.env == "mathur" ) {
+        rep.res = run_method_safe(method.label = c("gold-std"),
+                                  method.fn = function() {
+                                    mod.all = rma( yi = d.first$yi,
+                                                   vi = d.first$vi,
+                                                   method = "REML",
+                                                   knha = TRUE )
+                                    
+                                    report_meta(mod.all, .mod.type = "rma")
+                                  },
+                                  .rep.res = rep.res )
+      }
       
-      rep.res = run_method_safe(method.label = c("gold-std"),
-                                method.fn = function() {
-                                  mod.all = rma( yi = d.first$yi,
-                                                 vi = d.first$vi,
-                                                 method = "REML",
-                                                 knha = TRUE )
-                                  
-                                  report_meta(mod.all, .mod.type = "rma")
-                                },
-                                .rep.res = rep.res )
+      # Stefan datasets are wide (each row has yi [hacked] and yio [ideal draw])
+      #  rather than long, so handled slightly differently
+      if ( p$sim.env == "stefan" ) {
+        rep.res = run_method_safe(method.label = c("gold-std"),
+                                  method.fn = function() {
+                                    mod.all = rma( yi = d.first$yio,
+                                                   vi = d.first$seio^2,
+                                                   method = "REML",
+                                                   knha = TRUE )
+                                    
+                                    report_meta(mod.all, .mod.type = "rma")
+                                  },
+                                  .rep.res = rep.res )
+      }
     }
+    
+    
+    srr()
     
     # ~~ MAON (Nonaffirmative Published Draws) ------------------------------
     
