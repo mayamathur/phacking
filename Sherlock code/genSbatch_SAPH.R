@@ -44,7 +44,7 @@ lapply( allPackages,
 #   the start values from being the true ones)
 
 
-### FULL VERSION - RSM_1 ###
+### 2023-05-06 - SMALL TESTS ###
 scen.params = tidyr::expand_grid(
   # full list (save):
   # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",

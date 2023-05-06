@@ -2547,7 +2547,8 @@ sbatch_skeleton <- function() {
 #now run normal batch commands
 
 ml load v8
-ml load R/4.1.2
+ml load R/4.2.0
+ml load jags
 R -f PATH_TO_R_SCRIPT ARGS_TO_R_SCRIPT")
 }
 
