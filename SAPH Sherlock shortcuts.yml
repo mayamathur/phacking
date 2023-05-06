@@ -1,0 +1,60 @@
+
+
+ssh mmathur@login.sherlock.stanford.edu
+
+
+# push all code files
+scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Linked\ to\ OSF\ \(SAPH\)/Code\ \(git\)/Sherlock\ code/* mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH
+
+
+# view errors
+# jump up: u
+# jump down: d
+# jump to very bottom: G
+# jump to very top: g
+# search within file: /<text to search>
+less /home/groups/manishad/SAPH/rmfiles/rm_1.err
+less /home/groups/manishad/SAPH/rmfiles/rm_1.out
+
+# search within file
+/string
+
+
+# run one file
+sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
+
+
+# look at results
+less /home/groups/manishad/SAPH/long_results/long_results_job_1_.csv
+less /home/groups/manishad/SAPH/short_results/short_results_job_1_.csv
+
+# CLEAN UP (retain sbatches)
+rsync -a --delete /home/groups/manishad/SAPH/empty_dir/ /home/groups/manishad/SAPH/long_results/
+rsync -a --delete /home/groups/manishad/SAPH/empty_dir/ /home/groups/manishad/SAPH/short_results/
+rsync -a --delete /home/groups/manishad/SAPH/empty_dir/ /home/groups/manishad/SAPH/rmfiles/
+rm /home/groups/manishad/SAPH/overall_stitched/*
+
+
+# clean up (delete sbatches)
+rsync -a --delete /home/groups/manishad/SAPH/empty_dir/ /home/groups/manishad/SAPH/sbatch_files/
+
+
+
+
+
+# run stitch job
+sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/job_stitch.sbatch
+# 15727893
+# sacct --jobs=15727893
+# look at its outfiles:
+less /home/groups/manishad/SAPH/rmfiles/rm_stitch.err
+less /home/groups/manishad/SAPH/rmfiles/rm_stitch.out
+
+# how long did most recent jobs take?
+sacct --format=JobID,account,Timelimit,elapsed,ReqMem,MaxRss,ExitCode
+# check on specific job
+sacct --jobs=15032592 --format=JobID,account,Timelimit,elapsed,ReqMem,MaxRss,ExitCode
+
+# search for file within dir and sub-dirs
+find /home/groups/manishad/SAPH -name "rm_1.err"
+find /home/groups/manishad/SAPH -name "long_results_job_1_.csv"

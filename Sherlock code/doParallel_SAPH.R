@@ -52,8 +52,8 @@ toLoad = c("crayon",
            "truncnorm",
            "rstan",
            "optimx",
-           "weightr")
-#@will need to load stefan package from git, or else copy all the code
+           "weightr",
+           "RoBMA")
 
 if ( run.local == TRUE | interactive.cluster.run == TRUE ) toLoad = c(toLoad, "here")
 
@@ -95,6 +95,7 @@ if (run.local == FALSE) {
   path = "/home/groups/manishad/SAPH"
   setwd(path)
   source("helper_SAPH.R")
+  source("stefan_phackR_fns.R")
   
   # ~~ Cluster Run ----------------------------------------
   
@@ -115,6 +116,7 @@ if (run.local == FALSE) {
     path = "/home/groups/manishad/SAPH"
     setwd(path)
     source("helper_SAPH.R")
+    source("stefan_phackR_fns.R")
     scen.params = tidyr::expand_grid(
       rep.methods = "naive ; jeffreys-mcmc ; jeffreys-sd",
       
@@ -176,6 +178,7 @@ if ( run.local == TRUE ) {
   code.dir = here("Sherlock code")
   setwd(code.dir)
   source("helper_SAPH.R")
+  source("stefan_phackR_fns.R")
   
   
   # ~~ ****** Set Local Sim Params -----------------------------
@@ -185,8 +188,8 @@ if ( run.local == TRUE ) {
   scen.params = tidyr::expand_grid(
     # full list (save):
     #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
-    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; jeffreys-mcmc ; prereg-naive",
-    #rep.methods = "naive ; jeffreys-sd",
+    #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
+    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm",
     
     sim.env = "stefan",
     
@@ -202,7 +205,7 @@ if ( run.local == TRUE ) {
     
     true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
     rho = c(0),
-    k.pub.nonaffirm = c(100),
+    k.pub.nonaffirm = c(100), 
     prob.hacked = c(0.8),
     ### end of stuff for sim.env = "mathur"
     
@@ -539,11 +542,6 @@ doParallel.seconds = system.time({
     
     # ~~ PET-PEESE ------------------------------
     
-    #@this is actually PEESE, not PET-PEESE
-    #  figure out how to do PET-PEESE
-    # use this code: https://osf.io/uhaew
-    # you got this! oh yeah! 
-    
     # best PET-PEESE reference: https://bookdown.org/MathiasHarrer/Doing_Meta_Analysis_in_R/pub-bias.html
     if ( "pet-peese" %in% all.methods ) {
       # c.f. Hilgard's repo: https://github.com/Joe-Hilgard/PETPEESE/blob/master/PETPEESE_functions.R
@@ -554,7 +552,7 @@ doParallel.seconds = system.time({
                                   mod.PET = lm(yi ~ sei,
                                                weights = 1/vi,
                                                data = dp)
-                   
+                                  
                                   # check if coefficient for intercept is significant
                                   # needs to be a one-sided test
                                   PET.pval.twotail = summary(mod.PET)$coefficients["(Intercept)", "Pr(>|t|)"]
@@ -565,8 +563,8 @@ doParallel.seconds = system.time({
                                   # alpha = 0.10 for two-tailed p-value to have one-tailed alpha = 0.05
                                   if ( PET.pval.twotail < 0.10 & PET.intercept > 0 ) {
                                     mod.PEESE = lm(yi ~ vi, # regress on vi instead of sei 
-                                                 weights = 1/vi,
-                                                 data = dp)
+                                                   weights = 1/vi,
+                                                   data = dp)
                                     
                                     mod = mod.PEESE
                                   } else {
@@ -577,15 +575,41 @@ doParallel.seconds = system.time({
                                   # follow the same return structure as report_meta
                                   summ = summary(mod)
                                   CIs = confint(mod)
-                                  list( stats = data.frame( Mhat = mod$coefficients[1],
-                                                            MLo = CIs[1,1],
-                                                            MHi = CIs[1,2] ) )
+                                  list( stats = data.frame( Mhat = as.numeric( mod$coefficients[1] ),
+                                                            MLo = as.numeric( CIs[1,1] ),
+                                                            MHi = as.numeric( CIs[1,2] ) ) )
                                 },
                                 .rep.res = rep.res ) 
       
     }
     
     
+    # ~~ RoBMA ------------------------------
+    # this method is very slow! 
+    
+    srr()
+    
+    # https://cran.r-project.org/web/packages/RoBMA/vignettes/CustomEnsembles.html
+    if ( "robma" %in% all.methods ) {
+    
+      # c.f. Hilgard's repo: https://github.com/Joe-Hilgard/PETPEESE/blob/master/PETPEESE_functions.R
+      rep.res = run_method_safe(method.label = c("robma"),
+                                method.fn = function() {
+                                  
+                                  # default model ensemble
+                                  mod = RoBMA(d = dp$yi,
+                                              se = dp$sei)
+                                  
+                                  summ  = summary(mod)
+                                  
+                                  # does also return tau, but I'm not including it for now
+                                  list( stats = data.frame( Mhat = as.numeric( mod$coefficients[1] ),
+                                                            MLo = as.numeric( summ$estimates["mu", "0.025"] ),
+                                                            MHi = as.numeric( summ$estimates["mu", "0.975"] ) ) )
+                                },
+                                .rep.res = rep.res ) 
+      
+    }
     
     
     # ~ New Methods ------------------------------
@@ -1034,10 +1058,10 @@ doParallel.seconds = system.time({
       
       # not checking prior because helper_SAPH::lprior doesn't handle affirms
       
-      # # if needed to refresh code
-      path = "/home/groups/manishad/SAPH"
-      setwd(path)
-      source("helper_SAPH.R")
+      # # # if needed to refresh code
+      # path = "/home/groups/manishad/SAPH"
+      # setwd(path)
+      # source("helper_SAPH.R")
     }
     
     # # SAVE 
