@@ -43,7 +43,7 @@ library(testthat)
 #                  .stitch.file.name="stitched.csv")
 
 .results.singles.path = "/home/groups/manishad/SAPH/long_results"
-.results.stitched.write.path = "/home/groups/manishad/SAPH/stitched_results"
+.results.stitched.write.path = "/home/groups/manishad/SAPH/overall_stitched"
 .name.prefix = "long_results"
 .stitch.file.name="stitched.csv"
 
@@ -218,7 +218,7 @@ table( s$overall.error[ s$method == "2psm" & is.na(s$Mhat) ] )
 ##### Move to Local #####
 
 # # stitched and agg -> local directory
-# scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/stitched_results/* /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Linked\ to\ OSF\ \(SAPH\)/Sherlock\ simulation\ results/Pilot\ simulations
+# scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/overall_stitched/* /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Linked\ to\ OSF\ \(SAPH\)/Sherlock\ simulation\ results/Pilot\ simulations
 
 # LOOK FOR MISSED JOBS ----------------------------------------------
 

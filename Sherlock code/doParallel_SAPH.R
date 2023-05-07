@@ -23,7 +23,7 @@ rm( list = ls() )
 
 
 # are we running locally?
-run.local = TRUE
+run.local = FALSE
 
 # should we set scen params interactively on cluster?
 interactive.cluster.run = FALSE
@@ -50,10 +50,10 @@ toLoad = c("crayon",
            "testthat",
            "truncreg",
            "truncnorm",
-           "rstan",
+           "rstan", # note: to reinstall this one, need to use high-mem session
            "optimx",
            "weightr",
-           "RoBMA")
+           "RoBMA")  # note: to reinstall this one, need ml load jags
 
 if ( run.local == TRUE | interactive.cluster.run == TRUE ) toLoad = c(toLoad, "here")
 
@@ -155,7 +155,7 @@ if (run.local == FALSE) {
   
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
-  if ( interactive.cluster.run == FALSE ) sim.reps = 100
+  if ( interactive.cluster.run == FALSE ) sim.reps = 1
   if ( interactive.cluster.run == TRUE ) sim.reps = 1  
   
   # set the number of cores
@@ -333,9 +333,6 @@ doParallel.seconds = system.time({
                              prob.hacked = p$prob.hacked,
                              return.only.published = FALSE)
       
-      #bm: trying to get spidey sense for when the various methods work vs. don't
-      # soon will be good to run for all methods except mine
-      
       # recode for comparability with sim_meta_2
       d$hack = NA
       d$hack[ d$is.hacked == 1 ] = p$hack
@@ -351,8 +348,6 @@ doParallel.seconds = system.time({
       # hist(d$yi[ d$Di == 1 & d$is.hacked == FALSE ]/ d$sei[ d$Di == 1 & d$is.hacked == FALSE ] ) # Z-scores
       
     }
-    
-    
     
     
     d$Zi = d$yi / sqrt(d$vi)
@@ -422,7 +417,7 @@ doParallel.seconds = system.time({
                                 .rep.res = rep.res )
     }
     
-    srr()
+    if (run.local == TRUE) srr()
     
     
     # ~~ Gold-Standard Meta-Analysis (ALL FIRST Draws) ------------------------------
@@ -459,7 +454,7 @@ doParallel.seconds = system.time({
     }
     
     
-    srr()
+    if (run.local == TRUE) srr()
     
     # ~~ MAON (Nonaffirmative Published Draws) ------------------------------
     
@@ -587,7 +582,7 @@ doParallel.seconds = system.time({
     # ~~ RoBMA ------------------------------
     # this method is very slow! 
     
-    srr()
+    if (run.local == TRUE) srr()
     
     # https://cran.r-project.org/web/packages/RoBMA/vignettes/CustomEnsembles.html
     if ( "robma" %in% all.methods ) {

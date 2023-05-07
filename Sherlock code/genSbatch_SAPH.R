@@ -10,8 +10,10 @@ allPackages = c("here",
                 "magrittr",
                 "dplyr",
                 "data.table",
-                "tidyverse",
+                # "fribidi",  # new dependency of tidyverse
+                # "tidyverse", # these two can't be installed for some reason??
                 "tidyr",
+                "tibble",
                 "metafor",
                 "robumeta",
                 "testthat",
@@ -44,45 +46,51 @@ lapply( allPackages,
 #   the start values from being the true ones)
 
 
-### 2023-05-06 - SMALL TESTS ###
+### 2023-05-06 - SMALL TESTS (SIM.ENV = STEFAN) ###
 scen.params = tidyr::expand_grid(
   # full list (save):
-  # rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; jeffreys-var ; mle-sd ; mle-var ; csm-mle-sd ; 2psm-csm-dataset ; prereg-naive",
+  #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
+  #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
+  rep.methods = "naive",
+  #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm",
   
-  # don't run gold-std with stefan; not implemented
-  rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
-  #rep.methods = "naive ; jeffreys-mcmc ; jeffreys-sd",
+  sim.env = "stefan",
   
-  ### only needed if sim.env = "mathur": args from sim_meta_2
-  Nmax = 30,
-  Mu = c(0.5),  #@will need to include even for sim.env = stefan to have start values 
-  t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
-  t2w = c(0.2^2),
-  m = 50,
-  
-  hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
-  rho = c(0),
-  k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
+  ### args shared between sim environments
+  hack = c("DV"),
+  k.pub.nonaffirm = c(20), 
   prob.hacked = c(0.8),
+  # important: if sim.env = stefan, these t2 args are ONLY used for setting start values
+  #   and for checking bias of Shat, so set them to have the correct t2a
+  #   not clear what t2w should be given the way stefan implements hacking 
+  t2a = c(1),
+  t2w = c(0),
+  # same with Mu
+  Mu = c(0),
   
-  true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
-  # true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)",
-  #                   "rbeta(n = 1, 2, 5)",
-  #                   "draw_lodder_se()"),
-  ### end of stuff for sim.env = "mathur"
-  
+  # ### only needed if sim.env = "mathur": args from sim_meta_2
+  # Nmax = 30,
+  # m = 50,
+  # 
+  # true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
+  # rho = c(0),
+  # ### end of stuff for sim.env = "mathur"
   
   ### only needed if sim.env = "stefan": args from sim_meta_2
-  # FILL
+  strategy.stefan = "firstsig",  # "firstsig" or "smallest"
+  alternative.stefan = "greater",  # "two.sided" or "greater"
+  stringent.hack = TRUE,  # mathur sims always effectively use stringent.hack = TRUE
   ### end of stuff for sim.env = "stefan"
   
   # Stan control args
-  #@INCREASED 2022-4-26
-  stan.maxtreedepth = 25,
-  stan.adapt_delta = 0.995,
+  stan.maxtreedepth = 20,
+  stan.adapt_delta = 0.98,
   
   get.CIs = TRUE,
   run.optimx = FALSE )
+
+
+
 
 
 # ### RSM_0 VERSION - AS IN 2022-5-17 SIMS ###
@@ -150,22 +158,22 @@ write.csv( scen.params, "scen_params.csv", row.names = FALSE )
 ########################### GENERATE SBATCHES ###########################
 
 # load functions for generating sbatch files
+path = "/home/groups/manishad/SAPH"
+setwd(path)
 source("helper_SAPH.R")
 
 # number of sbatches to generate (i.e., iterations within each scenario)
-# n.reps.per.scen = 1000  
-# n.reps.in.doParallel = 200  #@if running optimx, I used 100 here and 5:00:00 below
-n.reps.per.scen = 2000
-n.reps.in.doParallel = 100
+n.reps.per.scen = 1  # RSM_0 version; 2:00 per job 
+n.reps.in.doParallel = 1  # RSM_0 version; 2:00 per job
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
-path = "/home/groups/manishad/SAPH"
+
 
 scen.name = rep( scen.params$scen, each = ( n.files / n.scen ) )
 jobname = paste("job", 1:n.files, sep="_")
-outfile = paste("rm_", 1:n.files, ".out", sep="")
-errorfile = paste("rm_", 1:n.files, ".err", sep="")
+outfile = paste("/home/groups/manishad/SAPH/rmfiles/rm_", 1:n.files, ".out", sep="")
+errorfile = paste("/home/groups/manishad/SAPH/rmfiles/rm_", 1:n.files, ".err", sep="")
 write_path = paste(path, "/sbatch_files/", 1:n.files, ".sbatch", sep="")
 runfile_path = paste(path, "/testRunFile.R", sep="")
 
@@ -174,7 +182,8 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
-                            jobtime = "02:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
+                            #jobtime = "02:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
+                            jobtime = "00:00:20",
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -193,13 +202,13 @@ generateSbatch(sbatch_params, runfile_path)
 n.files
 
 # run just the first one
-# sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/500.sbatch
+#     sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
 
 # 1680
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1001:1680) {
+for (i in 1:1) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
