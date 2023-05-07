@@ -50,8 +50,8 @@ lapply( allPackages,
 scen.params = tidyr::expand_grid(
   # full list (save):
   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
-  #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
-  rep.methods = "naive",
+  rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
+  #rep.methods = "naive",
   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm",
   
   sim.env = "stefan",
@@ -183,7 +183,7 @@ sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
                             #jobtime = "02:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
-                            jobtime = "00:00:20",
+                            jobtime = "02:00:00",
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
