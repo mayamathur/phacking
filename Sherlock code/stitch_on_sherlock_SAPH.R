@@ -84,6 +84,9 @@ if( is.na(s[1,1]) ) s = s[-1,]  # delete annoying NA row
 cat("\n\n nrow(s) =", nrow(s))
 cat("\n nuni(s$scen.name) =", nuni(s$scen.name) )
 
+# check runtimes
+summary(s$doParallel.seconds/60)
+
 # ~ Check for Bad Column Names ---------------------------
 
 # not sure why this is needed - has NA columns at end
@@ -109,6 +112,64 @@ s = s %>% filter(!is.na(scen.name))
 
 
 # ~ Optional: Quick Summary and Look for Failed Iterates ---------------------------
+
+
+# summarize the scens that have run
+table(s$hack)
+table(s$alternative.stefan, s$strategy.stefan)
+table(s$strategy.stefan)
+table(s$k.pub.nonaffirm)
+
+
+# Stefan, by method only
+
+t = s %>% group_by(method) %>%
+  
+  summarise( reps = n(),
+             EstFail = mean(is.na(Mhat)),
+             Mhat = meanNA(Mhat),
+             MhatBias = meanNA(Mhat - Mu),
+             MhatCover = meanNA(MLo < Mu & MHi > Mu),
+             MhatWidth = meanNA(MHi - MLo)
+             # MLo = meanNA(MLo),
+             # MHi = meanNA(MHi),
+             # Shat = meanNA(Shat),
+             # MhatNA = mean(is.na(Mhat)),
+             # MhatRhatGt1.05 = mean(MhatRhat>1.05),
+             # MhatRhatGt1.02 = mean(MhatRhat>1.02)
+             ) %>%
+  #filter(reps > 1000) %>%
+  mutate_if(is.numeric, function(x) round(x,2))
+
+as.data.frame(t)
+
+
+# by individual scen params
+t = s %>% group_by(scen.name,
+                   k.pub.nonaffirm,
+                   hack,
+                   strategy.stefan,
+                   alternative.stefan,
+                   method) %>%
+
+  summarise( reps = n(),
+             EstFail = mean(is.na(Mhat)),
+             Mhat = meanNA(Mhat),
+             MhatBias = meanNA(Mhat - Mu),
+             MhatCover = meanNA(MLo < Mu & MHi > Mu),
+             MhatWidth = meanNA(MHi - MLo)
+             # MLo = meanNA(MLo),
+             # MHi = meanNA(MHi),
+             #Shat = meanNA(Shat),
+             # MhatRhatGt1.05 = mean(MhatRhat>1.05),
+             # MhatRhatGt1.02 = mean(MhatRhat>1.02)
+             ) %>%
+  #filter(reps > 1000) %>%
+  mutate_if(is.numeric, function(x) round(x,2))
+
+as.data.frame(t)
+
+
 
 t = s %>% group_by(scen.name, k.pub.nonaffirm, Mu,
                    t2a, t2w, 

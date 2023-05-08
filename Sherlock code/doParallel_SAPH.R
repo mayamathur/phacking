@@ -155,7 +155,7 @@ if (run.local == FALSE) {
   
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
-  if ( interactive.cluster.run == FALSE ) sim.reps = 1
+  if ( interactive.cluster.run == FALSE ) sim.reps = 1  # this is LOCAL sim reps
   if ( interactive.cluster.run == TRUE ) sim.reps = 1  
   
   # set the number of cores
@@ -224,8 +224,8 @@ if ( run.local == TRUE ) {
   
   scen.params$scen = 1:nrow(scen.params)
   
-  
-  sim.reps = 1  # reps to run in this iterate
+  # ~ ****** set cluster sim.reps  -------------------------------------------------
+  sim.reps = 100  # reps to run in this iterate
   
   # set the number of local cores
   registerDoParallel(cores=8)

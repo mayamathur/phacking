@@ -57,8 +57,9 @@ scen.params = tidyr::expand_grid(
   sim.env = "stefan",
   
   ### args shared between sim environments
-  hack = c("DV"),
-  k.pub.nonaffirm = c(20), 
+  #k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100), 
+  k.pub.nonaffirm = c(10, 100, 50, 20, 30, 15, 70),  # intentionally out of order so that jobs with boundary choices with complete first 
+  hack = c("DV", "optstop", "subgroup"),
   prob.hacked = c(0.8),
   # important: if sim.env = stefan, these t2 args are ONLY used for setting start values
   #   and for checking bias of Shat, so set them to have the correct t2a
@@ -77,8 +78,8 @@ scen.params = tidyr::expand_grid(
   # ### end of stuff for sim.env = "mathur"
   
   ### only needed if sim.env = "stefan": args from sim_meta_2
-  strategy.stefan = "firstsig",  # "firstsig" or "smallest"
-  alternative.stefan = "greater",  # "two.sided" or "greater"
+  strategy.stefan = c("firstsig", "smallest"),  # "firstsig" or "smallest"
+  alternative.stefan = c("greater", "two.sided"),  # "two.sided" or "greater"
   stringent.hack = TRUE,  # mathur sims always effectively use stringent.hack = TRUE
   ### end of stuff for sim.env = "stefan"
   
@@ -89,8 +90,10 @@ scen.params = tidyr::expand_grid(
   get.CIs = TRUE,
   run.optimx = FALSE )
 
+# hack.type = optstop must have strategy.stefan = "firstsig"
+scen.params = scen.params[ !(scen.params$hack == "optstop" & scen.params$strategy.stefan == "smallest"), ]
 
-
+table(scen.params$hack, scen.params$strategy.stefan)
 
 
 # ### RSM_0 VERSION - AS IN 2022-5-17 SIMS ###
@@ -163,8 +166,9 @@ setwd(path)
 source("helper_SAPH.R")
 
 # number of sbatches to generate (i.e., iterations within each scenario)
-n.reps.per.scen = 1  # RSM_0 version; 2:00 per job 
-n.reps.in.doParallel = 1  # RSM_0 version; 2:00 per job
+n.reps.per.scen = 500  # RSM_0 version; 2:00 per job 
+# ~ *** set sim.reps  -------------------------------------------------
+n.reps.in.doParallel = 100  # RSM_1 version; 15h per job
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
@@ -182,8 +186,9 @@ runfile_path = paste(path, "/testRunFile.R", sep="")
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
+                            # ma jobtimes by partition: sh_part
                             #jobtime = "02:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
-                            jobtime = "02:00:00",
+                            jobtime = "15:00:00",
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -205,10 +210,10 @@ n.files
 #     sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
 
-# 1680
+# 2023-05-07: 1400 total
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:1) {
+for (i in 1:1000) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
