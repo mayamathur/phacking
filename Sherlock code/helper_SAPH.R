@@ -2290,7 +2290,7 @@ sim_one_study_set_stefan = function(strategy.stefan,
       # IMPORTANT: this doesn't have strategy arg because it's inherently firstsig:
       # The dataset is evaluated row-by-row, starting with a minimum sample size of n.min. At each step, a number of observations is added to the sample, defined by the argument step and the t-test is computed. This continues until the maximum sample size specified in n.max is reached. The p-hacked p-value is defined as the first p-value that is smaller than the defined alpha level.
       
-      if ( strategy != "firstsig" ) stop("hack.type optstop requires strategy = firstsig")
+      if ( strategy.stefan != "firstsig" ) stop("hack.type optstop requires strategy = firstsig")
       
       d = as.data.frame( sim.optstop(n.min = 10,
                                      #n.max = 20,  # default
