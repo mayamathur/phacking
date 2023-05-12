@@ -156,7 +156,9 @@ if (run.local == FALSE) {
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
   if ( interactive.cluster.run == FALSE ) sim.reps = 1  # this is LOCAL sim reps
-  if ( interactive.cluster.run == TRUE ) sim.reps = 1  
+  
+  # ~ ******* Set cluster sim.reps  -------------------------------------------------
+  if ( interactive.cluster.run == TRUE ) sim.reps = 20  
   
   # set the number of cores
   registerDoParallel(cores=16)
@@ -182,14 +184,14 @@ if ( run.local == TRUE ) {
   
   
   # ~~ ****** Set Local Sim Params -----------------------------
-  # methods.to.run options:
-  # naive ; gold-std ; 2psm ; maon ; jeffreys-mcmc ; jeffreys-sd ; mle-sd ; mle-var
-  # 2022-3-16: CSM, LTMA, RTMA
+  
+  # DEBUG RoBMA
+  # ALL SCENS as in genSbatch
   scen.params = tidyr::expand_grid(
     # full list (save):
     #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
     #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
-    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm",
+    rep.methods = "naive ; gold-std ; robma ; 2psm",
     
     sim.env = "stefan",
     
@@ -222,10 +224,48 @@ if ( run.local == TRUE ) {
     get.CIs = TRUE,
     run.optimx = FALSE )
   
+  # # ALL SCENS as in genSbatch
+  # scen.params = tidyr::expand_grid(
+  #   # full list (save):
+  #   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
+  #   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
+  #   rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm",
+  #   
+  #   sim.env = "stefan",
+  #   
+  #   ### args shared between sim environments
+  #   hack = c("DV"),
+  #   
+  #   ### only needed if sim.env = "mathur": args from sim_meta_2
+  #   Nmax = 30,
+  #   Mu = c(0.5),
+  #   t2a = c(0),
+  #   t2w = c(0),
+  #   m = 50,
+  #   
+  #   true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
+  #   rho = c(0),
+  #   k.pub.nonaffirm = c(100), 
+  #   prob.hacked = c(0.8),
+  #   ### end of stuff for sim.env = "mathur"
+  #   
+  #   ### only needed if sim.env = "stefan": args from sim_meta_2
+  #   strategy.stefan = "firstsig",  # "firstsig" or "smallest"
+  #   alternative.stefan = "greater",  # "two.sided" or "greater"
+  #   stringent.hack = TRUE,  # mathur sims always effectively use stringent.hack = TRUE
+  #   ### end of stuff for sim.env = "stefan"
+  #   
+  #   # Stan control args
+  #   stan.maxtreedepth = 20,
+  #   stan.adapt_delta = 0.98,
+  #   
+  #   get.CIs = TRUE,
+  #   run.optimx = FALSE )
+  
   scen.params$scen = 1:nrow(scen.params)
   
-  # ~ ****** set cluster sim.reps  -------------------------------------------------
-  sim.reps = 100  # reps to run in this iterate
+  # ~ ****** Set local sim.reps  -------------------------------------------------
+  sim.reps = 10 
   
   # set the number of local cores
   registerDoParallel(cores=8)
@@ -606,6 +646,7 @@ doParallel.seconds = system.time({
       
     }
     
+    if (run.local == TRUE) srr()
     
     # ~ New Methods ------------------------------
     # ~~ MCMC ------------------------------

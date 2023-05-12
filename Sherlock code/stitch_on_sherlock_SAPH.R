@@ -84,8 +84,12 @@ if( is.na(s[1,1]) ) s = s[-1,]  # delete annoying NA row
 cat("\n\n nrow(s) =", nrow(s))
 cat("\n nuni(s$scen.name) =", nuni(s$scen.name) )
 
-# check runtimes
-summary(s$doParallel.seconds/60)
+# check runtimes - HOURS
+summary(s$doParallel.seconds/60^2)
+
+# 90th quantile of HOURS needed (1 rep)
+quantile(s$doParallel.seconds/60^2, probs = 0.95)
+
 
 # ~ Check for Bad Column Names ---------------------------
 
@@ -103,8 +107,8 @@ s = s %>% filter(!is.na(scen.name))
 
 # ~ Write stitched.csv ---------------------------
 
-# setwd(.results.stitched.write.path)
-# fwrite(s, .stitch.file.name)
+setwd(.results.stitched.write.path)
+fwrite(s, .stitch.file.name)
 # 
 # # also make a zipped version
 # string = paste("zip -m stitched.zip", .stitch.file.name)
@@ -115,24 +119,36 @@ s = s %>% filter(!is.na(scen.name))
 
 
 # summarize the scens that have run
+
+t = s %>% group_by(hack, alternative.stefan, strategy.stefan) %>%
+  summarise(n()) 
+data.frame(t)
+nrow(t)
+
 table(s$hack)
 table(s$alternative.stefan, s$strategy.stefan)
 table(s$strategy.stefan)
 table(s$k.pub.nonaffirm)
 
+table(s$hack, s$k.pub.nonaffirm)
+
 
 # Stefan, by method only
 
-t = s %>% group_by(method) %>%
+t = s %>% group_by(hack, method) %>%
+  #filter(k.pub.nonaffirm == 100 & hack == "DV") %>%
+  #filter(k.pub.nonaffirm == 100 & hack == "subgroup") %>%  # choose sample size
+  #filter(k.pub.nonaffirm == 30) %>%  # choose sample size
+  #filter(method == "robma") %>%
   
   summarise( reps = n(),
              EstFail = mean(is.na(Mhat)),
              Mhat = meanNA(Mhat),
              MhatBias = meanNA(Mhat - Mu),
              MhatCover = meanNA(MLo < Mu & MHi > Mu),
-             MhatWidth = meanNA(MHi - MLo)
-             # MLo = meanNA(MLo),
-             # MHi = meanNA(MHi),
+             MhatWidth = meanNA(MHi - MLo),
+             MLo = meanNA(MLo),
+             MHi = meanNA(MHi)
              # Shat = meanNA(Shat),
              # MhatNA = mean(is.na(Mhat)),
              # MhatRhatGt1.05 = mean(MhatRhat>1.05),
@@ -143,6 +159,14 @@ t = s %>% group_by(method) %>%
 
 as.data.frame(t)
 
+
+# temp - explore robma issues
+# try simulating like this locally! 
+x = s %>% filter(k.pub.nonaffirm == 100 & hack == "DV") %>%  # choose sample size
+  filter(method == "robma")
+
+mean(x$MLo > x$Mhat)
+mean(x$MHi < x$Mhat)
 
 # by individual scen params
 t = s %>% group_by(scen.name,
@@ -292,7 +316,7 @@ source("analyze_sims_helper_SAPH.R")
 missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
                               "/home/groups/manishad/SAPH/long_results",
                               .name.prefix = "long",
-                              .max.sbatch.num = 1680)
+                              .max.sbatch.num = 1750)
 
 setwd( paste(path, "/sbatch_files", sep="") )
 for (i in missed.nums) {

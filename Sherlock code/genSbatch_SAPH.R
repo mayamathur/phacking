@@ -168,7 +168,7 @@ source("helper_SAPH.R")
 # number of sbatches to generate (i.e., iterations within each scenario)
 n.reps.per.scen = 500  # RSM_0 version; 2:00 per job 
 # ~ *** set sim.reps  -------------------------------------------------
-n.reps.in.doParallel = 100  # RSM_1 version; 15h per job
+n.reps.in.doParallel = 20  # RSM_1 version; 15h per job
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
@@ -188,7 +188,7 @@ sbatch_params <- data.frame(jobname,
                             errorfile,
                             # ma jobtimes by partition: sh_part
                             #jobtime = "02:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
-                            jobtime = "15:00:00",
+                            jobtime = "06:00:00",
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -210,10 +210,10 @@ n.files
 #     sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
 
-# 2023-05-08: 350 total :D
+# 2023-05-08: 1750 total
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:350) {
+for (i in 1:1000) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
