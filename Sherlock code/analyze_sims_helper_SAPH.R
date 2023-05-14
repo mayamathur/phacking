@@ -96,23 +96,47 @@ make_agg_data = function( .s,
   
   
   # variables that define the scenarios
-  param.vars = c("unique.scen",  
-                 "method",
-                 
-                 "Nmax",
-                 "Mu",
-                 "t2a",
-                 "t2w",
-                 "m",
-                 "true.sei.expr",
-                 "hack",
-                 "rho",
-                 "k.pub.nonaffirm",
-                 "prob.hacked",
-                 "stan.adapt_delta",
-                 "stan.maxtreedepth")
   
+
+  if ( all(s$sim.env == "mathur") ) {
+    param.vars = c("unique.scen",  
+                   "method",
+                   "sim.env",
+                   
+                   "Nmax",
+                   "Mu",
+                   "t2a",
+                   "t2w",
+                   "m",
+                   "true.sei.expr",
+                   "hack",
+                   "rho",
+                   "k.pub.nonaffirm",
+                   "prob.hacked",
+                   "stan.adapt_delta",
+                   "stan.maxtreedepth")
+    
+  } else if ( all(s$sim.env == "stefan") ) {
+    param.vars = c("unique.scen",  
+                   "method",
+                   "sim.env",
+                  
+                   "Mu",
+                   "t2a",
+                   "t2w",
+                  
+                   "hack",
+                   "strategy.stefan",
+                   "alternative.stefan",
+                   "stringent.hack",
+                  
+                   "k.pub.nonaffirm",
+                   "prob.hacked",
+                   "stan.adapt_delta",
+                   "stan.maxtreedepth")
+  }
   
+
   # sanity check to make sure we've listed all param vars
   t = .s %>% group_by_at(param.vars) %>% summarise(n())
   if ( !is.na(expected.sim.reps) ) {
@@ -133,6 +157,8 @@ make_agg_data = function( .s,
   s$V = s$t2a + s$t2w
   s$S = sqrt(s$t2a + s$t2w)
   
+  
+  
   toDrop = c("rep.methods",
              "get.CIs",
              "error",
@@ -140,7 +166,9 @@ make_agg_data = function( .s,
              #"doParallel.seconds",
              "optim.converged",
              "stan.warned",
+             "stan.warning", #@ADDED FOR STEFAN
              "job.name",
+             "overall.error",  #@ADDED FOR STEFAN
              names_with(.dat = .s, .pattern = "optimx") )
   
   firstOnly = c("scen.name",
@@ -270,6 +298,8 @@ make_agg_data = function( .s,
   
   # don't try to drop vars that don't exist
   toDrop = toDrop[ toDrop %in% names(s2) ]
+  
+  
   
   s3 = s2 %>%
     # take averages of numeric variables

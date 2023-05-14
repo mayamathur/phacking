@@ -46,13 +46,13 @@ code.dir = here("Sherlock code")
 
 data.dir = str_replace( string = here(),
                         pattern = "Code \\(git\\)",
-                        replacement = "Simulation results/2022-5-4 full simulations/Data" )
+                        replacement = "Simulation results/2023-05-08 full Stefan sims (as in RSM_1)/Data" )
 
 
 
 results.dir = str_replace( string = here(),
                            pattern = "Code \\(git\\)",
-                           replacement = "Simulation results/2022-5-4 full simulations/Results" )
+                           replacement = "Simulation results/2023-05-08 full Stefan sims (as in RSM_1)/Results" )
 
 
 overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/figures_SAPH/sims"
@@ -68,6 +68,16 @@ overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/figur
 setwd(code.dir)
 source("helper_SAPH.R")
 source("analyze_sims_helper_SAPH.R")
+
+
+# TEMP ----------------
+
+setwd(data.dir)
+s = fread("stitched.csv")
+
+agg = make_agg_data(s)
+setwd(data.dir)
+fwrite(agg, "agg.csv")
 
 
 # ~~ Get agg data -------------------------
