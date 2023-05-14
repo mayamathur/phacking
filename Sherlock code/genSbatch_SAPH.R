@@ -188,6 +188,8 @@ sbatch_params <- data.frame(jobname,
                             errorfile,
                             # ma jobtimes by partition: sh_part
                             #jobtime = "02:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
+                            
+                            # for RSM_1 sims with sim.env=stefan, n.reps.per.scen=500, and n.reps.in.doParallel=20 (1750 files):
                             jobtime = "06:00:00",
                             quality = "normal",
                             node_number = 1,

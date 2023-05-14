@@ -160,8 +160,7 @@ t = s %>% group_by(hack, method) %>%
 as.data.frame(t)
 
 
-# temp - explore robma issues
-# try simulating like this locally! 
+#** temp - explore robma issues
 x = s %>% filter(k.pub.nonaffirm == 100 & hack == "DV") %>%  # choose sample size
   filter(method == "robma")
 
