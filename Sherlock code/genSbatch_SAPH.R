@@ -46,7 +46,10 @@ lapply( allPackages,
 #   the start values from being the true ones)
 
 
-### 2023-05-06 - SMALL TESTS (SIM.ENV = STEFAN) ###
+
+### 2023-05-15 - RSM_1 FULL SIMS WITH SIM.ENV = MATHUR ###
+# differs from RSM_0 sims only in that this has more comparison methods
+
 scen.params = tidyr::expand_grid(
   # full list (save):
   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
@@ -54,34 +57,32 @@ scen.params = tidyr::expand_grid(
   #rep.methods = "naive",
   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm",
   
-  sim.env = "stefan",
+  sim.env = "mathur",
   
   ### args shared between sim environments
-  #k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100), 
   k.pub.nonaffirm = c(10, 100, 50, 20, 30, 15, 70),  # intentionally out of order so that jobs with boundary choices with complete first 
-  hack = c("DV", "optstop", "subgroup"),
+  hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
   prob.hacked = c(0.8),
   # important: if sim.env = stefan, these t2 args are ONLY used for setting start values
   #   and for checking bias of Shat, so set them to have the correct t2a
   #   not clear what t2w should be given the way stefan implements hacking 
-  t2a = c(1),
-  t2w = c(0),
+  t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
+  t2w = c(0.2^2),
   # same with Mu
-  Mu = c(0),
+  Mu = c(0.5),
   
-  # ### only needed if sim.env = "mathur": args from sim_meta_2
-  # Nmax = 30,
-  # m = 50,
-  # 
-  # true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
-  # rho = c(0),
-  # ### end of stuff for sim.env = "mathur"
+  ### only needed if sim.env = "mathur": args from sim_meta_2
+  Nmax = 30,
+  m = 50,
+  true.sei.expr = c("0.1 + rexp(n = 1, rate = 3)"),
+  rho = c(0),
+  ### end of stuff for sim.env = "mathur"
   
-  ### only needed if sim.env = "stefan": args from sim_meta_2
-  strategy.stefan = c("firstsig", "smallest"),  # "firstsig" or "smallest"
-  alternative.stefan = c("greater", "two.sided"),  # "two.sided" or "greater"
-  stringent.hack = TRUE,  # mathur sims always effectively use stringent.hack = TRUE
-  ### end of stuff for sim.env = "stefan"
+  # ### only needed if sim.env = "stefan": args from sim_meta_2
+  # strategy.stefan = c("firstsig", "smallest"),  # "firstsig" or "smallest"
+  # alternative.stefan = c("greater", "two.sided"),  # "two.sided" or "greater"
+  # stringent.hack = TRUE,  # mathur sims always effectively use stringent.hack = TRUE
+  # ### end of stuff for sim.env = "stefan"
   
   # Stan control args
   stan.maxtreedepth = 20,
@@ -94,6 +95,55 @@ scen.params = tidyr::expand_grid(
 scen.params = scen.params[ !(scen.params$hack == "optstop" & scen.params$strategy.stefan == "smallest"), ]
 
 table(scen.params$hack, scen.params$strategy.stefan)
+
+# ### 2023-05-08 - [SAVE] RSM_1 FULL SIMS WITH SIM.ENV = STEFAN ###
+# scen.params = tidyr::expand_grid(
+#   # full list (save):
+#   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
+#   rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
+#   #rep.methods = "naive",
+#   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm",
+#   
+#   sim.env = "stefan",
+#   
+#   ### args shared between sim environments
+#   #k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100), 
+#   k.pub.nonaffirm = c(10, 100, 50, 20, 30, 15, 70),  # intentionally out of order so that jobs with boundary choices with complete first 
+#   hack = c("DV", "optstop", "subgroup"),
+#   prob.hacked = c(0.8),
+#   # important: if sim.env = stefan, these t2 args are ONLY used for setting start values
+#   #   and for checking bias of Shat, so set them to have the correct t2a
+#   #   not clear what t2w should be given the way stefan implements hacking 
+#   t2a = c(1),
+#   t2w = c(0),
+#   # same with Mu
+#   Mu = c(0),
+#   
+#   # ### only needed if sim.env = "mathur": args from sim_meta_2
+#   # Nmax = 30,
+#   # m = 50,
+#   # 
+#   # true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
+#   # rho = c(0),
+#   # ### end of stuff for sim.env = "mathur"
+#   
+#   ### only needed if sim.env = "stefan": args from sim_meta_2
+#   strategy.stefan = c("firstsig", "smallest"),  # "firstsig" or "smallest"
+#   alternative.stefan = c("greater", "two.sided"),  # "two.sided" or "greater"
+#   stringent.hack = TRUE,  # mathur sims always effectively use stringent.hack = TRUE
+#   ### end of stuff for sim.env = "stefan"
+#   
+#   # Stan control args
+#   stan.maxtreedepth = 20,
+#   stan.adapt_delta = 0.98,
+#   
+#   get.CIs = TRUE,
+#   run.optimx = FALSE )
+# 
+# # hack.type = optstop must have strategy.stefan = "firstsig"
+# scen.params = scen.params[ !(scen.params$hack == "optstop" & scen.params$strategy.stefan == "smallest"), ]
+# 
+# table(scen.params$hack, scen.params$strategy.stefan)
 
 
 # ### RSM_0 VERSION - AS IN 2022-5-17 SIMS ###
