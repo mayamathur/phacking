@@ -2240,7 +2240,7 @@ sim_meta_2_stefan = function(strategy.stefan,
 
 
 
-#bm
+# always returns Cohen's d given the hack mechanisms we've chosen to implement
 sim_one_study_set_stefan = function(strategy.stefan,
                                     alternative.stefan,
                                     

@@ -637,9 +637,22 @@ doParallel.seconds = system.time({
       rep.res = run_method_safe(method.label = c("robma"),
                                 method.fn = function() {
                                   
-                                  # default model ensemble
-                                  mod = RoBMA(d = dp$yi,
-                                              se = dp$sei)
+                                  
+                                  if ( p$sim.env == "stefan" ) {
+                                    # for this fn, estimates are Cohen's d
+                                    # default model ensemble
+                                    mod = RoBMA(d = dp$yi,
+                                                se = dp$sei)
+                                  }
+                                  
+                                  if ( p$sim.env == "mathur" ) {
+                                    # for this fn, estimates are raw mean differences
+                                    # default model ensemble
+                                    mod = RoBMA(y = dp$yi,
+                                                se = dp$sei)
+                                  }
+                                  
+                                  
                                   
                                   summ  = summary(mod)
                                   
