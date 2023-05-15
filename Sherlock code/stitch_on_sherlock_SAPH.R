@@ -115,10 +115,10 @@ fwrite(s, .stitch.file.name)
 # system(string)
 
 
-# ~ Optional: Quick Summary and Look for Failed Iterates ---------------------------
+# ~ Optional: Quick Summary ---------------------------
 
 
-# summarize the scens that have run
+# summarize the scens that have run - stefan
 
 t = s %>% group_by(hack, alternative.stefan, strategy.stefan) %>%
   summarise(n()) 

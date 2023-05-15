@@ -158,7 +158,7 @@ if (run.local == FALSE) {
   if ( interactive.cluster.run == FALSE ) sim.reps = 1  # this is LOCAL sim reps
   
   # ~ ******* Set cluster sim.reps  -------------------------------------------------
-  if ( interactive.cluster.run == TRUE ) sim.reps = 20  
+  if ( interactive.cluster.run == TRUE ) sim.reps = 50  
   
   # set the number of cores
   registerDoParallel(cores=16)
@@ -191,7 +191,7 @@ if ( run.local == TRUE ) {
     #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
     #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
     #rep.methods = "naive",
-    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm",
+    rep.methods = "naive ; gold-std ; robma ; 2psm",
     
     sim.env = "mathur",
     
@@ -400,6 +400,7 @@ doParallel.seconds = system.time({
     # ~ Dataset Subsets for Various Methods ------------------------------
     # dataset of only published results
     dp = d %>% filter(Di == 1)
+    dp$sei = sqrt(dp$vi)
     
     # keep first draws only
     # for Stefan, this is the same as d

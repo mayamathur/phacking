@@ -91,10 +91,7 @@ scen.params = tidyr::expand_grid(
   get.CIs = TRUE,
   run.optimx = FALSE )
 
-# hack.type = optstop must have strategy.stefan = "firstsig"
-scen.params = scen.params[ !(scen.params$hack == "optstop" & scen.params$strategy.stefan == "smallest"), ]
 
-table(scen.params$hack, scen.params$strategy.stefan)
 
 # ### 2023-05-08 - [SAVE] RSM_1 FULL SIMS WITH SIM.ENV = STEFAN ###
 # scen.params = tidyr::expand_grid(
@@ -216,9 +213,9 @@ setwd(path)
 source("helper_SAPH.R")
 
 # number of sbatches to generate (i.e., iterations within each scenario)
-n.reps.per.scen = 500  # RSM_0 version; 2:00 per job 
+n.reps.per.scen = 500  
 # ~ *** set sim.reps  -------------------------------------------------
-n.reps.in.doParallel = 20  # RSM_1 version; 15h per job
+n.reps.in.doParallel = 50  
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
@@ -240,7 +237,7 @@ sbatch_params <- data.frame(jobname,
                             #jobtime = "02:00:00",  #@when running optimx methods, used sim.reps=100 and 5:00:00 here
                             
                             # for RSM_1 sims with sim.env=stefan, n.reps.per.scen=500, and n.reps.in.doParallel=20 (1750 files):
-                            jobtime = "06:00:00",
+                            jobtime = "10:00:00",
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -262,10 +259,11 @@ n.files
 #     sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
 
-# 2023-05-08: 1750 total
+# 2023-05-15 (mathur): 840
+# 2023-05-08 (stefan): 1750 total
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:1000) {
+for (i in 1:840) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
