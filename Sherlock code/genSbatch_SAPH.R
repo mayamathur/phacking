@@ -263,7 +263,7 @@ n.files
 # 2023-05-08 (stefan): 1750 total
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:840) {
+for (i in 11:840) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 

@@ -166,8 +166,8 @@ for ( .hack in unique(agg$hack) ) {
     results.dir.temp = paste(results.dir,
                              "/Big unprettified plots",
                              sep = "")
-    
-    
+
+
     # set one of the two facetting variables for plots
     aggp$tempFacetVar2 = paste( "t2a=", aggp$t2a, "; t2w=", aggp$t2w, sep = "")
     table(aggp$tempFacetVar2)
@@ -182,7 +182,7 @@ for ( .hack in unique(agg$hack) ) {
       y.breaks = NULL
       if ( Yname == "MhatBias") y.breaks = seq(-0.5, 0.5, 0.1)
       if ( Yname == "MhatWidth") y.breaks = seq(0, 10, 0.5)
-      
+
       p  = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
                                .Yname = Yname,
                                .colorVarName = "method",
