@@ -97,8 +97,8 @@ make_agg_data = function( .s,
   
   # variables that define the scenarios
   
-
-  if ( all(s$sim.env == "mathur") ) {
+  
+  if ( all(.s$sim.env == "mathur") ) {
     param.vars = c("unique.scen",  
                    "method",
                    "sim.env",
@@ -116,27 +116,27 @@ make_agg_data = function( .s,
                    "stan.adapt_delta",
                    "stan.maxtreedepth")
     
-  } else if ( all(s$sim.env == "stefan") ) {
+  } else if ( all(.s$sim.env == "stefan") ) {
     param.vars = c("unique.scen",  
                    "method",
                    "sim.env",
-                  
+                   
                    "Mu",
                    "t2a",
                    "t2w",
-                  
+                   
                    "hack",
                    "strategy.stefan",
                    "alternative.stefan",
                    "stringent.hack",
-                  
+                   
                    "k.pub.nonaffirm",
                    "prob.hacked",
                    "stan.adapt_delta",
                    "stan.maxtreedepth")
   }
   
-
+  
   # sanity check to make sure we've listed all param vars
   t = .s %>% group_by_at(param.vars) %>% summarise(n())
   if ( !is.na(expected.sim.reps) ) {
@@ -154,8 +154,8 @@ make_agg_data = function( .s,
   
   #names(.s)[ !names(.s) %in% param.vars ]  # look at names of vars that need categorizing
   
-  s$V = s$t2a + s$t2w
-  s$S = sqrt(s$t2a + s$t2w)
+  .s$V = .s$t2a + .s$t2w
+  .s$S = sqrt(.s$t2a + .s$t2w)
   
   
   
@@ -207,6 +207,7 @@ make_agg_data = function( .s,
             
             # varies within scenario
             MhatBias = Mhat - Mu,
+            MhatAbsBias = abs(Mhat - Mu),
             ShatBias = Shat - S,
             
             # varies within scenario
@@ -278,7 +279,7 @@ make_agg_data = function( .s,
                                             0.95, na.rm = TRUE),
     ) 
   
-
+  
   # now look for which variables should have their means taken
   # this step must happen here, after we've started making s2, 
   #  so that the takeMean vars are actually in s2
@@ -353,30 +354,255 @@ wrangle_agg_local = function(agg) {
   agg$method.pretty[ agg$method == c("2psm") ] = "SM"
   agg$method.pretty[ agg$method == c("2psm-csm-dataset") ] = "SMKH" # "known hacking"
   agg$method.pretty[ agg$method == c("prereg-naive") ] = "Unhacked only"
+  agg$method.pretty[ agg$method == c("pet-peese") ] = "PET-PEESE"
+  agg$method.pretty[ agg$method == c("robma") ] = "RoBMA"
   agg$method.pretty[ agg$method %in% c("jeffreys-mcmc-max-lp-iterate") ] = "RTMA"
   table(agg$method, agg$method.pretty)
-
   
-  agg$true.sei.expr = as.factor(agg$true.sei.expr)
+  ##### Specific to Sim Env #####
+  sim.env = unique(agg$sim)
+  if ( "true.sei.expr" %in% names(agg) ){
+    agg$true.sei.expr = as.factor(agg$true.sei.expr)
+    
+    agg$true.sei.expr.pretty = dplyr::recode( agg$true.sei.expr,
+                                              `0.1 + rexp(n = 1, rate = 1.5)` = "sei ~ Exp(1.5)",
+                                              `runif(n = 1, min = 0.1, max = 1)` = "sei ~ U(0.1, 1)",
+                                              `runif(n = 1, min = 0.50, max = 0.60)` = "sei ~ U(0.5, 0.6)",
+                                              `runif(n = 1, min = 0.51, max = 1.5)` = "sei ~ U(0.51, 1.5)",
+                                              `runif(n = 1, min = 0.1, max = 3)` = "sei ~ U(0.1, 3)",
+                                              `runif(n = 1, min = 1, max = 3)` = "sei ~ U(1, 3)",
+                                              `rbeta(n = 1, 2, 5)` = "sei ~ Beta(2, 5)",
+                                              `0.02 + rexp(n = 1, rate = 3)` = "sei ~ Exp(3) + 0.02",
+                                              `draw_lodder_se()` = "sei from Lodder",
+                                              
+                                              # by default, retain original factor level
+                                              .default = levels(agg$true.sei.expr) )
+    print( table(agg$true.sei.expr, agg$true.sei.expr.pretty ) )
+  }
   
-  agg$true.sei.expr.pretty = dplyr::recode( agg$true.sei.expr,
-                                            `0.1 + rexp(n = 1, rate = 1.5)` = "sei ~ Exp(1.5)",
-                                            `runif(n = 1, min = 0.1, max = 1)` = "sei ~ U(0.1, 1)",
-                                            `runif(n = 1, min = 0.50, max = 0.60)` = "sei ~ U(0.5, 0.6)",
-                                            `runif(n = 1, min = 0.51, max = 1.5)` = "sei ~ U(0.51, 1.5)",
-                                            `runif(n = 1, min = 0.1, max = 3)` = "sei ~ U(0.1, 3)",
-                                            `runif(n = 1, min = 1, max = 3)` = "sei ~ U(1, 3)",
-                                            `rbeta(n = 1, 2, 5)` = "sei ~ Beta(2, 5)",
-                                            `0.02 + rexp(n = 1, rate = 3)` = "sei ~ Exp(3) + 0.02",
-                                            `draw_lodder_se()` = "sei from Lodder",
-                                            
-                                            # by default, retain original factor level
-                                            .default = levels(agg$true.sei.expr) )
-  print( table(agg$true.sei.expr, agg$true.sei.expr.pretty ) )
+  if ( "rho.pretty" %in% names(agg) )   agg$rho.pretty = paste("rho = ", agg$rho, sep = "")
   
-  agg$rho.pretty = paste("rho = ", agg$rho, sep = "")
+  agg$MhatEstConverge = 1 - agg$MhatEstFail
+  
+  #@add something like this (from MBMA):
+  # agg$evil.selection = 0
+  # agg$evil.selection[ agg$prob.hacked > 0 | agg$SAS.type == "carter" ] = 1
   
   return(agg)
+}
+
+
+
+
+
+# RESULTS TABLES FNS -------------------------------------------------------------
+
+make_winner_table_col = function(.agg,
+                                 yName,
+                                 methods = c("naive",
+                                             "gold-std",
+                                             "maon",
+                                             "2psm",
+                                             "pcurve",
+                                             "pet-peese", 
+                                             "robma",
+                                             "jeffreys-mcmc-pmean",
+                                             "jeffreys-mcmc-pmed",
+                                             "jeffreys-mcmc-max-lp-iterate", 
+                                             "prereg-naive"),
+                                 summarise.fun.name = "median",
+                                 digits = 2) {
+  
+  # # test only
+  # .agg = agg
+  # yName = "MhatCover"
+  # methods = c("naive",
+  #             "gold-std",
+  #             "maon",
+  #             "2psm",
+  #             "pcurve",
+  #             "pet-peese",
+  #             "robma",
+  #             "jeffreys-mcmc-pmean",
+  #             "jeffreys-mcmc-pmed",
+  #             "jeffreys-mcmc-max-lp-iterate",
+  #             "prereg-naive")
+  # summarise.fun.name = "worst10th"
+  # digits = 2
+  
+  
+  # sanity check
+  if ( any( is.na( .agg$method.pretty ) ) ) {
+    stop(".agg has NAs in method.pretty; will mess up group_by")
+  }
+  
+  
+  higherBetterYNames = c("MhatEstConverge")
+  
+  lowerBetterYNames = c("MhatAbsBias", "MhatRMSE", "MhatWidth")
+  
+  # Y_disp is what will be DISPLAYED in the table (e.g., retaining signs)
+  .agg$Y_disp = .agg[[yName]]
+  
+  
+  ##### Summarize Y_disp #####
+  if ( summarise.fun.name == "mean" ) {
+    .t = .agg %>% filter(method %in% methods) %>%
+      group_by(method.pretty) %>%
+      summarise( Y_disp = round( mean(Y_disp), digits = digits ) )
+  }
+  
+  if ( summarise.fun.name == "median" ) {
+    .t = .agg %>% filter(method %in% methods) %>%
+      group_by(method.pretty) %>%
+      summarise( Y_disp = round( median(Y_disp), digits = digits ) )
+  }
+  
+  if ( summarise.fun.name == "worst10th" & yName %in% higherBetterYNames ) {
+    .t = .agg %>% filter(method %in% methods) %>%
+      group_by(method.pretty) %>%
+      summarise( Y_disp = round( quantile(Y_disp, probs = 0.10), digits = digits ) )
+  }
+  
+  if ( summarise.fun.name == "worst10th" & yName %in% lowerBetterYNames ) {
+    .t = .agg %>% filter(method %in% methods) %>%
+      group_by(method.pretty) %>%
+      summarise( Y_disp = round( quantile(Y_disp, probs = 0.90), digits = digits ) )
+  }
+  
+  # for bias, worst 10% performance is in terms of absolute value of bias
+  # note this isn't abs bias
+  if ( summarise.fun.name == "worst10th" & yName %in% c("MhatBias") ) {
+    .t = .agg %>% filter(method %in% methods) %>%
+      group_by(method.pretty) %>%
+      summarise( Y_disp = round( bias_worst10th(Y_disp), digits = digits ) )
+  }
+  # sanity check
+  #quantile(.agg$MhatBias[.agg$method.pretty == "MAN"], probs = c(0.1, .9))
+  
+  # MhatCover gets summarized simply as 10th percentile
+  if ( summarise.fun.name == "worst10th" & yName %in% c("MhatCover") ) {
+    .t = .agg %>% filter(method %in% methods) %>%
+      group_by(method.pretty) %>%
+      summarise( Y_disp = round( quantile(Y_disp, probs = 0.10), digits = digits ) )
+  }
+  # sanity check
+  #quantile(.agg$MhatCover[.agg$method.pretty == "MAN"], probs = c(0.1))
+  #quantile(.agg$MhatCover[.agg$method.pretty == "RoBMA"], probs = c(0.1))
+  
+  #@@@@****LEAVE SELF NOTE IN MBMA!
+  
+  
+  ##### Sort Best to Worst #####
+  
+  # Y_sort is the version that is used to compare and sort performances 
+  # designed so that higher values are always better
+  #  e.g., -abs(coverage-0.95)
+  if ( yName %in% higherBetterYNames ) {
+    .t$Y_sort = .t$Y_disp
+  }
+  if ( yName %in% lowerBetterYNames ) {
+    .t$Y_sort = -.t$Y_disp
+  }
+  if ( yName %in% "MhatBias" ) {
+    .t$Y_sort = -abs(.t$Y_disp)
+  }
+  if ( yName %in% "MhatCover" ) {
+    .t$Y_sort = -abs(.t$Y_disp - 0.95)
+  }
+  
+
+  # sort best to worst
+  .t = .t %>% arrange( desc(Y_sort) )
+  
+  # remove unneeded col
+  .t = .t %>% select(-Y_sort)
+
+  
+  names(.t) = c(yName, summarise.fun.name)
+  .t
+}
+
+# example
+# make_winner_table_col(.agg = agg,
+#                       yName = "MhatCover",
+#                       summarise.fun.name = "median")
+# make_winner_table_col(.agg = agg,
+#                       yName = "MhatCover",
+#                       summarise.fun.name = "worst10th")
+
+
+# for summarizing bias
+bias_worst10th = function(x) {
+  q10 = quantile(x, 0.10)
+  q90 = quantile(x, 0.90)
+  if ( abs(q10) >= abs(q90) ) return(q10)
+  if ( abs(q10) < abs(q90) ) return(q90)
+}
+#bias_worst10th(x = rnorm(100))
+
+
+# display: "xtable" or "dataframe"
+make_winner_table = function( .agg,
+                              .yNames = c("MhatBias",
+                                          "MhatAbsBias",
+                                          "MhatRMSE", 
+                                          "MhatCover",
+                                          "MhatWidth" ),
+                                          #"MhatEstConverge"),
+                              summarise.fun.name,
+                              display = "dataframe"){
+
+  
+  # sanity check
+  if ( !( all( .yNames %in% names(.agg) ) )  ){
+    not_here = paste( .yNames[ !( .yNames %in% names(.agg) ) ], collapse = ", " )
+    stop( paste( "\nThe following .yNames aren't in .agg: ", not_here) )
+  } 
+  
+  for ( .yName in .yNames ){
+    newCol = make_winner_table_col(.agg = .agg,
+                                   yName = .yName,
+                                   summarise.fun.name = summarise.fun.name )
+    
+    if ( .yName == .yNames[1] ) t.all = newCol else t.all = suppressMessages( bind_cols(t.all, newCol) )
+  }
+  
+  
+  cat( paste("\n\n**** WINNER TABLE", summarise.fun.name) )
+  
+  cat( paste("\n\n     Number of scens:", nuni(.agg$scen.name),
+             "; proportion of all scens: ",
+             round( nuni(.agg$scen.name) / nuni(agg$scen.name), 3 ) ) )
+  
+  cat("\n\n")
+  
+  
+  
+  if (display == "xtable") {
+    print( xtable( data.frame(t.all) ), include.rownames = FALSE )
+  }
+  
+  if (display == "dataframe") {
+    print( data.frame(t.all) )
+  }
+  
+  #return(t.all)
+  
+}
+
+# makes both winner tables (medians and worst 10th pctiles)
+make_both_winner_tables = function( .agg,
+                                    .yNames = c("MhatBias", "MhatAbsBias", "MhatRMSE", "MhatCover", "MhatWidth", "MhatEstConverge") ){
+  
+  make_winner_table( .agg = .agg,
+                     .yNames = .yNames,
+                     summarise.fun.name = "median")
+  
+  make_winner_table( .agg = .agg,
+                     .yNames = .yNames,
+                     summarise.fun.name = "worst10th")
+  
 }
 
 
@@ -503,7 +729,7 @@ quick_5var_agg_plot = function(.Xname,
   }
   
   return(p)
-
+  
 }
 
 
@@ -539,7 +765,7 @@ sim_plot_multiple_outcomes = function(.hack,
                     "RTMA",
                     "MAN",
                     "SMKH")
-
+  
   
   .dat$method.pretty = factor(.dat$method.pretty, levels = rev(correct.order))
   
@@ -571,11 +797,11 @@ sim_plot_multiple_outcomes = function(.hack,
     
     # set color palette to match 3_analyze_lodder.R
     .colors = c(#SMKH = "#1B9E77",
-                MAN = "#ff9900",
-                RTMA = "red",
-                `Unhacked only` = "#3399ff",
-                SM = "#00cc00",
-                Uncorrected = "black")
+      MAN = "#ff9900",
+      RTMA = "red",
+      `Unhacked only` = "#3399ff",
+      SM = "#00cc00",
+      Uncorrected = "black")
     
     myColorScale = scale_colour_manual(values = .colors)
     
@@ -586,8 +812,8 @@ sim_plot_multiple_outcomes = function(.hack,
     names(.lty) = names(.colors)
     
     newMethods = c(#"SMKH",
-                   "MAN",
-                   "RTMA")
+      "MAN",
+      "RTMA")
     
     .lty[ names(.lty) %in% newMethods ] = "solid"
     
@@ -669,7 +895,7 @@ sim_plot_multiple_outcomes = function(.hack,
     p = p + facet_wrap( ~ facetVar,
                         ncol = length( unique(.dat$facetVar) ),
                         labeller = label_bquote( cols = tau[a] ~ "=" ~ .(facetVar) ) ) 
- 
+    
     
     # ~ Set Y-axis breaks ----------
     # other outcomes follow rules or can just use default axis breaks
@@ -745,24 +971,24 @@ sim_plot_multiple_outcomes = function(.hack,
     
     # expand axis limits and have 2 rows per outcome
     p = suppressMessages( p + coord_cartesian( ylim = c( min(y.breaks.supp), max(y.breaks.supp) ) ) +
-      scale_y_continuous( breaks = y.breaks.supp) +
-
-      facet_wrap( ~ facetVar,
-                  ncol = 2,  # fix to 2 becuase will take up whole page
-                  labeller = label_bquote( cols = tau[a] ~ "=" ~ .(facetVar) ) ) + 
-
-      # theme_bw(base_size=21) +
-      # theme(text = element_text(face = "bold"),
-      #       legend.position = "bottom") +
-      
-      # always show legend
-      theme(legend.position = "bottom") +
-        
-      # always show title
-      ggtitle(.ggtitle) +
-      # fix order of legend items
-      guides(colour = guide_legend(reverse = TRUE),
-             linetype = guide_legend(reverse = TRUE) ) ) 
+                            scale_y_continuous( breaks = y.breaks.supp) +
+                            
+                            facet_wrap( ~ facetVar,
+                                        ncol = 2,  # fix to 2 becuase will take up whole page
+                                        labeller = label_bquote( cols = tau[a] ~ "=" ~ .(facetVar) ) ) + 
+                            
+                            # theme_bw(base_size=21) +
+                            # theme(text = element_text(face = "bold"),
+                            #       legend.position = "bottom") +
+                            
+                            # always show legend
+                            theme(legend.position = "bottom") +
+                            
+                            # always show title
+                            ggtitle(.ggtitle) +
+                            # fix order of legend items
+                            guides(colour = guide_legend(reverse = TRUE),
+                                   linetype = guide_legend(reverse = TRUE) ) ) 
     
     
     plotListSupp[[i]] = p 
@@ -799,7 +1025,7 @@ sim_plot_multiple_outcomes = function(.hack,
   # ~~ Save each individual supplement plot ------------
   
   if ( overwrite.res == TRUE ) {
-  
+    
     for ( .Yname in YnamesSupp ) {
       name = paste( "supp_",
                     tolower(.hack),
@@ -851,8 +1077,9 @@ init_var_names = function() {
   
   ### Names of parameter variables ###
   # figure out which scen params were actually manipulated
-  #@this assumes that "Nmax" is always the first param var and "method" is always the last
-  ( param.vars <<- names(agg)[ which( names(agg) == "Nmax" ) : which( names(agg) == "method" ) ] )
+  # **assumes that k.pub.nonaffirm is always the first scen parameter variable
+  ( param.vars <<- names(agg)[ which( names(agg) == "k.pub.nonaffirm" ) : which( names(agg) == "method" ) ] )
+  
   
   # how many levels does each param var have in dataset?
   ( n.levels <<- agg %>% dplyr::select(param.vars) %>%
@@ -1077,8 +1304,8 @@ update_result_csv = function( name,
     
     if ( "stats_for_paper.csv" %in% list.files() ) {
       res <<- read.csv( "stats_for_paper.csv",
-                                 stringsAsFactors = FALSE,
-                                 colClasses = rep("character", 3 ) )
+                        stringsAsFactors = FALSE,
+                        colClasses = rep("character", 3 ) )
       
       # if this entry is already in the results file, overwrite the
       #  old one
@@ -1097,11 +1324,11 @@ update_result_csv = function( name,
     
   }  # end "for (.dir in dirs)"
   
-
+  
   if ( print == TRUE ) {
     View(res.overleaf)
   }
-
+  
 }
 
 

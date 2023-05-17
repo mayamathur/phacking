@@ -59,6 +59,7 @@ scen.params = tidyr::expand_grid(
   
   sim.env = "mathur",
   
+  # *If you reorder the args, need to adjust wrangle_agg_local
   ### args shared between sim environments
   k.pub.nonaffirm = c(10, 100, 50, 20, 30, 15, 70),  # intentionally out of order so that jobs with boundary choices with complete first 
   hack = c("favor-best-affirm-wch", "affirm", "affirm2"),

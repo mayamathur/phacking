@@ -23,7 +23,7 @@ rm( list = ls() )
 
 
 # are we running locally?
-run.local = TRUE
+run.local = FALSE
 
 # should we set scen params interactively on cluster?
 interactive.cluster.run = FALSE
@@ -754,10 +754,10 @@ doParallel.seconds = system.time({
       cat("\n doParallel flag: Done jeffreys-mcmc if applicable")
     }
     
-    #@TEMP: c.f. posterior mode from R package
-    library(phacking)
-    mod = phacking_meta(yi = dp$yi,
-                  vi = dp$vi)
+    # #@TEMP: c.f. posterior mode from R package
+    # library(phacking)
+    # mod = phacking_meta(yi = dp$yi,
+    #               vi = dp$vi)
     
     
     
