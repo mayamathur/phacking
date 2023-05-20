@@ -121,7 +121,7 @@ scen.params = tidyr::expand_grid(
 #   # Nmax = 30,
 #   # m = 50,
 #   # 
-#   # true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
+#   # true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"), 
 #   # rho = c(0),
 #   # ### end of stuff for sim.env = "mathur"
 #   
