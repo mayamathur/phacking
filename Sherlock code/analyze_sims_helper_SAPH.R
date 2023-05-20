@@ -490,9 +490,7 @@ make_winner_table_col = function(.agg,
   #quantile(.agg$MhatCover[.agg$method.pretty == "MAN"], probs = c(0.1))
   #quantile(.agg$MhatCover[.agg$method.pretty == "RoBMA"], probs = c(0.1))
   
-  #@@@@****LEAVE SELF NOTE IN MBMA!
-  
-  
+
   ##### Sort Best to Worst #####
   
   # Y_sort is the version that is used to compare and sort performances 

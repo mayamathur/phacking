@@ -158,9 +158,9 @@ make_both_winner_tables(.agg = agg)
 #   but negatively biased under evil.selection=1
 
 
-# 2: scenarios where our method IS correctly spec
-make_both_winner_tables(.agg = agg %>% filter(evil.selection == 0) )
-
+# 2: by k
+make_both_winner_tables(.agg = agg %>% filter(k.pub.nonaffirm == 10) )
+make_both_winner_tables(.agg = agg %>% filter(k.pub.nonaffirm == 100) )
 
 
 # OLD
