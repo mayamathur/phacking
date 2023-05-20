@@ -86,8 +86,8 @@ scen.params = tidyr::expand_grid(
   # ### end of stuff for sim.env = "stefan"
   
   # Stan control args
-  stan.maxtreedepth = 20,
-  stan.adapt_delta = 0.98,
+  stan.maxtreedepth = 25,
+  stan.adapt_delta = 0.995,
   
   get.CIs = TRUE,
   run.optimx = FALSE )
@@ -132,8 +132,8 @@ scen.params = tidyr::expand_grid(
 #   ### end of stuff for sim.env = "stefan"
 #   
 #   # Stan control args
-#   stan.maxtreedepth = 20,
-#   stan.adapt_delta = 0.98,
+#   stan.maxtreedepth = 25,
+#   stan.adapt_delta = 0.995,
 #   
 #   get.CIs = TRUE,
 #   run.optimx = FALSE )
@@ -264,7 +264,7 @@ n.files
 # 2023-05-08 (stefan): 1750 total
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 11:840) {
+for (i in 1:840) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 

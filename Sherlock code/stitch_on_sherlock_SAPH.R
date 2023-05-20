@@ -117,6 +117,14 @@ fwrite(s, .stitch.file.name)
 
 # ~ Optional: Quick Summary ---------------------------
 
+
+# summarize scens that have run
+param.vars.manip = c("hack", "k.pub.nonaffirm", "t2a")
+library(tableone)
+temp = s %>% filter(method == "naive")  # keep only 1 row per iterate
+CreateCatTable(data = s, vars = param.vars.manip )
+
+
 # increase width of console print area for df viewing joy
 options("width"=200)
 
@@ -127,7 +135,7 @@ t = s %>% group_by(hack, method) %>%
   #filter(k.pub.nonaffirm == 30) %>%  # choose sample size
   #filter(method == "robma") %>%
   filter( method %in% c("robma", "jeffreys-mcmc-max-lp-iterate", "jeffreys-mcmc-pmed")) %>%
-  filter(k.pub.nonaffirm >0 & t2a == 0) %>%
+  #filter(k.pub.nonaffirm >0 & t2a == 0) %>%
   summarise( reps = n(),
              EstFail = mean(is.na(Mhat)),
              Mhat = meanNA(Mhat),
@@ -158,7 +166,7 @@ t = s %>% group_by(hack, method) %>%
   filter( method %in% c("naive", "2psm")) %>%
   filter(k.pub.nonaffirm == 10 &
            hack == "affirm" & # favor first affirm
-           t2a == 0) %>%
+           t2a == 0.3^2) %>%
   summarise( scens = length(unique(scen.name)),
              reps = n(),
              EstFail = mean(is.na(Mhat)),
@@ -167,11 +175,11 @@ t = s %>% group_by(hack, method) %>%
              MhatCover = meanNA(MLo < Mu & MHi > Mu),
              MhatWidth = meanNA(MHi - MLo),
              MLo = meanNA(MLo),
-             MHi = meanNA(MHi)
+             MHi = meanNA(MHi),
              # Shat = meanNA(Shat),
              # MhatNA = mean(is.na(Mhat)),
-             # MhatRhatGt1.05 = mean(MhatRhat>1.05),
-             # MhatRhatGt1.02 = mean(MhatRhat>1.02)
+             MhatRhatGt1.05 = meanNA(MhatRhat>1.05),
+             MhatRhatGt1.02 = meanNA(MhatRhat>1.02)
   ) %>%
   #filter(reps > 1000) %>%
   mutate_if(is.numeric, function(x) round(x,2))
