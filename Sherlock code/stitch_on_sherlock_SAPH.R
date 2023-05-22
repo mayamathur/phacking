@@ -83,6 +83,7 @@ if( is.na(s[1,1]) ) s = s[-1,]  # delete annoying NA row
 
 cat("\n\n nrow(s) =", nrow(s))
 cat("\n nuni(s$scen.name) =", nuni(s$scen.name) )
+# mathur sim env: 84 scens total
 
 # check runtimes - HOURS
 summary(s$doParallel.seconds/60^2)
@@ -134,7 +135,7 @@ t = s %>% group_by(hack, method) %>%
   #filter(k.pub.nonaffirm == 100 & hack == "subgroup") %>%  # choose sample size
   #filter(k.pub.nonaffirm == 30) %>%  # choose sample size
   #filter(method == "robma") %>%
-  filter( method %in% c("robma", "jeffreys-mcmc-max-lp-iterate", "jeffreys-mcmc-pmed")) %>%
+  filter( method %in% c("robma", "jeffreys-mcmc-max-lp-iterate", "jeffreys-mcmc-pmed") ) %>%
   #filter(k.pub.nonaffirm >0 & t2a == 0) %>%
   summarise( reps = n(),
              EstFail = mean(is.na(Mhat)),
@@ -162,11 +163,12 @@ t = s %>% group_by(hack, method) %>%
   #filter(k.pub.nonaffirm == 100 & hack == "subgroup") %>%  # choose sample size
   #filter(k.pub.nonaffirm == 30) %>%  # choose sample size
   #filter(method == "robma") %>%
-  #filter( method %in% c("robma", "jeffreys-mcmc-max-lp-iterate", "jeffreys-mcmc-pmed")) %>%
-  filter( method %in% c("naive", "2psm")) %>%
+  filter( method %in% c("robma", "jeffreys-mcmc-max-lp-iterate", "jeffreys-mcmc-pmed")) %>%
+  #filter( method %in% c("naive", "2psm")) %>%
   filter(k.pub.nonaffirm == 10 &
-           hack == "affirm" & # favor first affirm
-           t2a == 0.3^2) %>%
+           #hack == "favor-best-affirm-wch" & # favor first affirm
+           hack == "affirm" &
+           t2a == 0^2) %>%
   summarise( scens = length(unique(scen.name)),
              reps = n(),
              EstFail = mean(is.na(Mhat)),
@@ -186,7 +188,19 @@ t = s %>% group_by(hack, method) %>%
 
 as.data.frame(t)
 
+# sanity check
+temp = s[ s$k.pub.nonaffirm == 10 &
+     s$hack == "affirm" & # favor first affirm
+     s$t2a == 0^2 &
+       s$method == "jeffreys-mcmc-max-lp-iterate", ]
+meanNA(temp$Mhat)
+median(temp$Mhat, na.rm = TRUE)
+meanNA(temp$Mhat - temp$Mu)
+meanNA(temp$MLo < temp$Mu & temp$MHi > temp$Mu)
 
+meanNA(temp$MhatRhat > 1.05)
+
+# before increasing stan parameters:
 # as.data.frame(t)
 #     hack                       method scens reps EstFail Mhat MhatBias MhatCover MhatWidth   MLo  MHi
 # 1 affirm jeffreys-mcmc-max-lp-iterate     1  500       0 0.16    -0.34      0.98      4.76 -0.15 4.60

@@ -23,7 +23,7 @@ rm( list = ls() )
 
 
 # are we running locally?
-run.local = FALSE
+run.local = TRUE
 
 # should we set scen params interactively on cluster?
 interactive.cluster.run = FALSE
@@ -191,18 +191,20 @@ if ( run.local == TRUE ) {
     #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
     #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
     #rep.methods = "naive",
-    rep.methods = "naive ; gold-std ; jeffreys-mcmc ; 2psm",
+    #rep.methods = "naive ; gold-std ; jeffreys-mcmc ; 2psm",
+    rep.methods = c("rtma-pkg ; jeffreys-mcmc"),
     
     sim.env = "mathur",
     
+    # *If you reorder the args, need to adjust wrangle_agg_local
     ### args shared between sim environments
     k.pub.nonaffirm = c(10),  # intentionally out of order so that jobs with boundary choices with complete first 
-    hack = c("favor-best-affirm-wch"),
+    hack = c("affirm"),
     prob.hacked = c(0.8),
     # important: if sim.env = stefan, these t2 args are ONLY used for setting start values
     #   and for checking bias of Shat, so set them to have the correct t2a
     #   not clear what t2w should be given the way stefan implements hacking 
-    t2a = c(0.5^2),
+    t2a = c(0),
     t2w = c(0.2^2),
     # same with Mu
     Mu = c(0.5),
@@ -210,7 +212,7 @@ if ( run.local == TRUE ) {
     ### only needed if sim.env = "mathur": args from sim_meta_2
     Nmax = 30,
     m = 50,
-    true.sei.expr = c("0.1 + rexp(n = 1, rate = 3)"),
+    true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
     rho = c(0),
     ### end of stuff for sim.env = "mathur"
     
@@ -221,8 +223,8 @@ if ( run.local == TRUE ) {
     # ### end of stuff for sim.env = "stefan"
     
     # Stan control args
-    stan.maxtreedepth = 20,
-    stan.adapt_delta = 0.98,
+    stan.maxtreedepth = 25,
+    stan.adapt_delta = 0.995,
     
     get.CIs = TRUE,
     run.optimx = FALSE )
@@ -314,7 +316,7 @@ if ( run.local == TRUE ) {
   scen.params$scen = 1:nrow(scen.params)
   
   # ~ ****** Set local sim.reps  -------------------------------------------------
-  sim.reps = 10 
+  sim.reps = 1 
   
   # set the number of local cores
   registerDoParallel(cores=8)
@@ -754,12 +756,52 @@ doParallel.seconds = system.time({
       cat("\n doParallel flag: Done jeffreys-mcmc if applicable")
     }
     
-    # #@TEMP: c.f. posterior mode from R package
-    # library(phacking)
-    # mod = phacking_meta(yi = dp$yi,
-    #               vi = dp$vi)
     
+    # ~~ RTMA using package ------------------------------
     
+    # uses posterior mode
+    if ( "rtma-pkg" %in% all.methods ) {
+
+      #bm
+      rep.res = run_method_safe(method.label = c("rtma-pkg"),
+                                method.fn = function() {
+                                  
+                                  mod = phacking_meta( yi = dp$yi,
+                                                      vi = dp$vi,
+                                                      stan_control = list(adapt_delta = p$stan.adapt_delta,
+                                                                          max_treedepth = p$stan.maxtreedepth),
+                                                      parallelize = ifelse(run.local == TRUE, TRUE, FALSE) )
+                                  
+                                  stats = mod$stats
+                                  
+                                  
+                                  # follow the same return structure as report_meta
+                                  list( stats = data.frame( Mhat = stats$mode[stats$param == "mu"],
+                                                            Shat =  stats$mode[stats$param == "tau"],
+                                                            
+                                                            MhatSE = stats$se[stats$param == "mu"],
+                                                            ShatSE = stats$se[stats$param == "tau"],
+                                                            
+                                                            MLo = stats$ci_lower[ stats$param == "mu"],
+                                                            MHi = stats$ci_upper[ stats$param == "mu"],
+                                                            
+                                                            
+                                                            SLo =  stats$ci_lower[stats$param == "tau"],
+                                                            SHi = stats$ci_upper[ stats$param == "tau"],
+                                                            
+                                                            MhatRhat = stats$r_hat[stats$param == "mu"],
+                                                            ShatRhat = stats$r_hat[stats$param == "tau"]
+                                                            ) ) 
+                                  
+                                },
+                                .rep.res = rep.res )
+      
+
+      
+      cat("\n doParallel flag: Done jeffreys-mcmc if applicable")
+    }
+    
+
     
     # ~~ Change Starting Values -----
     if ( !is.na(Mhat.MaxLP) ) Mhat.start = Mhat.MaxLP 
