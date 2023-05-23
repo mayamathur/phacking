@@ -122,11 +122,11 @@ system(string)
 
 #### For Mathur debugging one
 
-
-# srr thing
 t = s %>% group_by(hack, method) %>%
-  filter( method %in% c("jeffreys-mcmc-max-lp-iterate", "rtma-pkg") ) %>%
+  #filter( method %in% c("jeffreys-mcmc-max-lp-iterate", "rtma-pkg") ) %>%
   #filter(k.pub.nonaffirm >0 & t2a == 0) %>%
+  #filter(rep.name == 1) %>% # TEMP - keep only first rep
+  filter(rep.name > 1) %>% # TEMP - keep only first rep
   summarise( reps = n(),
              EstFail = mean(is.na(Mhat)),
              Mhat = meanNA(Mhat),

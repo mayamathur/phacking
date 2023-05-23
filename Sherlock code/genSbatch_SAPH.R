@@ -97,7 +97,9 @@ lapply( allPackages,
 scen.params = tidyr::expand_grid(
   # full list (save):
   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
-  rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; rtma-pkg ; prereg-naive",
+  #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; rtma-pkg ; prereg-naive",
+  # without robma:
+  rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; rtma-pkg ; prereg-naive",
   #rep.methods = "naive",
   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm",
   #rep.methods = "rtma-pkg ; jeffreys-mcmc",
