@@ -69,7 +69,7 @@ tables <- lapply( keepers, function(x) read.csv(x, header= TRUE) )
 #  can be verified by looking at out-file for a job without name "doParallelTime"
 allNames = lapply( tables, names )
 # # find out which jobs had wrong number of names
-# lapply( allNames, function(x) all.equal(x, names ) )
+# lapply( allNames, function(x) all.equal(x, names ) )table(s$method)
 # allNames[[1]][ !allNames[[1]] %in% allNames[[111]] ]
 
 # bind_rows works even if datasets have different names
@@ -112,12 +112,42 @@ setwd(.results.stitched.write.path)
 fwrite(s, .stitch.file.name)
 # 
 # # also make a zipped version
-# string = paste("zip -m stitched.zip", .stitch.file.name)
-# system(string)
+string = paste("zip -m stitched.zip", .stitch.file.name)
+system(string)
 
 
 # ~ Optional: Quick Summary ---------------------------
 
+
+
+#### For Mathur debugging one
+
+
+# srr thing
+t = s %>% group_by(hack, method) %>%
+  filter( method %in% c("jeffreys-mcmc-max-lp-iterate", "rtma-pkg") ) %>%
+  #filter(k.pub.nonaffirm >0 & t2a == 0) %>%
+  summarise( reps = n(),
+             EstFail = mean(is.na(Mhat)),
+             Mhat = meanNA(Mhat),
+             MhatBias = meanNA(Mhat - Mu),
+             MhatCover = meanNA(MLo < Mu & MHi > Mu),
+             MhatWidth = meanNA(MHi - MLo),
+             MLo = meanNA(MLo),
+             MHi = meanNA(MHi)
+             # Shat = meanNA(Shat),
+             # MhatNA = mean(is.na(Mhat)),
+             # MhatRhatGt1.05 = mean(MhatRhat>1.05),
+             # MhatRhatGt1.02 = mean(MhatRhat>1.02)
+  ) %>%
+  #filter(reps > 1000) %>%
+  mutate_if(is.numeric, function(x) round(x,2))
+
+as.data.frame(t)
+
+
+
+#### For normal, large sims
 
 # summarize scens that have run
 param.vars.manip = c("hack", "k.pub.nonaffirm", "t2a")

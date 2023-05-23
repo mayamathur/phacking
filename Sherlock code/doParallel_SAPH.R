@@ -23,7 +23,7 @@ rm( list = ls() )
 
 
 # are we running locally?
-run.local = TRUE
+run.local = FALSE
 
 # should we set scen params interactively on cluster?
 interactive.cluster.run = FALSE
@@ -53,6 +53,7 @@ toLoad = c("crayon",
            "rstan", # note: to reinstall this one, need to use high-mem session
            "optimx",
            "weightr",
+           "phacking",
            "RoBMA")  # note: to reinstall this one, need ml load jags
 
 if ( run.local == TRUE | interactive.cluster.run == TRUE ) toLoad = c(toLoad, "here")
@@ -189,10 +190,11 @@ if ( run.local == TRUE ) {
   scen.params = tidyr::expand_grid(
     # full list (save):
     #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
-    #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
+    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
     #rep.methods = "naive",
     #rep.methods = "naive ; gold-std ; jeffreys-mcmc ; 2psm",
-    rep.methods = c("rtma-pkg ; jeffreys-mcmc"),
+    #rep.methods = c("rtma-pkg ; jeffreys-mcmc"),
+    #rep.methods = "naive ; rtma-pkg",
     
     sim.env = "mathur",
     
@@ -366,7 +368,7 @@ if ( exists("rs") ) rm(rs)
 doParallel.seconds = system.time({
   rs = foreach( i = 1:sim.reps, .combine = bind_rows ) %dopar% {
     #for debugging (out file will contain all printed things):
-    #for ( i in 1:1 ) {
+    #for ( i in 1:10 ) {
     
     # only print info for first sim rep for visual clarity
     if ( i == 1 ) cat("\n\n~~~~~~~~~~~~~~~~ BEGIN SIM REP", i, "~~~~~~~~~~~~~~~~")
@@ -509,6 +511,7 @@ doParallel.seconds = system.time({
                                 .rep.res = rep.res )
     }
     
+    # NOTE: if doing run.local, this will break if you didn't run naive
     if (run.local == TRUE) srr()
     
     
@@ -671,6 +674,102 @@ doParallel.seconds = system.time({
     }
     
     
+    
+    
+    
+    
+    
+    # ~~ ***** DEBUGGING: MCMC ------------------------------
+    
+    #@RUN BEFORE ROBMA
+    
+    if ( "jeffreys-mcmc" %in% all.methods ) {
+      # # temp for refreshing code
+      # path = "/home/groups/manishad/SAPH"
+      # setwd(path)
+      # source("helper_SAPH.R")
+      # source("init_stan_model_SAPH.R")
+      # 
+      # 
+      # #TEMP
+      # estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
+      #                             .sei = sqrt(dpn$vi),
+      #                             .tcrit = dpn$tcrit,
+      #                             .Mu.start = Mhat.start,
+      #                             # can't handle start value of 0:
+      #                             .Tt.start = max(0.01, Shat.start),
+      #                             .stan.adapt_delta = p$stan.adapt_delta,
+      #                             .stan.maxtreedepth = p$stan.maxtreedepth)
+      
+      # this one has two labels in method arg because a single call to estimate_jeffreys_mcmc
+      #  returns 2 lines of output, one for posterior mean and one for posterior median
+      # order of labels in method arg needs to match return structure of estimate_jeffreys_mcmc
+      rep.res = run_method_safe(method.label = c("jeffreys-mcmc-pmean-0",
+                                                 "jeffreys-mcmc-pmed-0",
+                                                 "jeffreys-mcmc-max-lp-iterate-0"),
+                                method.fn = function() estimate_jeffreys_mcmc_RTMA(.yi = dpn$yi,
+                                                                                   .sei = sqrt(dpn$vi),
+                                                                                   .tcrit = dpn$tcrit,
+                                                                                   .Mu.start = Mhat.start,
+                                                                                   # can't handle start value of 0:
+                                                                                   .Tt.start = max(0.01, Shat.start),
+                                                                                   .stan.adapt_delta = p$stan.adapt_delta,
+                                                                                   .stan.maxtreedepth = p$stan.maxtreedepth), .rep.res = rep.res )
+      
+      
+      # Mhat.MaxLP = rep.res$Mhat[ rep.res$method == "jeffreys-mcmc-max-lp-iterate" ]
+      # Shat.MaxLP = rep.res$Shat[ rep.res$method == "jeffreys-mcmc-max-lp-iterate" ]
+      
+      cat("\n doParallel flag: Done jeffreys-mcmc-0 if applicable")
+    }
+    
+    
+    # ~~ ***** DEBUGGING: RTMA using package ------------------------------
+    #@TEST ONLY: RUN RTMA BEFORE ROBMA
+    # uses posterior mode
+    
+    if ( "rtma-pkg" %in% all.methods ) {
+      
+      rep.res = run_method_safe(method.label = c("rtma-pkg-0"),
+                                method.fn = function() {
+                                  
+                                  mod = phacking_meta( yi = dp$yi,
+                                                       vi = dp$vi,
+                                                       stan_control = list(adapt_delta = p$stan.adapt_delta,
+                                                                           max_treedepth = p$stan.maxtreedepth),
+                                                       parallelize = FALSE )
+                                  
+                                  stats = mod$stats
+                                  
+                                  
+                                  # follow the same return structure as report_meta
+                                  list( stats = data.frame( Mhat = stats$mode[stats$param == "mu"],
+                                                            Shat =  stats$mode[stats$param == "tau"],
+                                                            
+                                                            MhatSE = stats$se[stats$param == "mu"],
+                                                            ShatSE = stats$se[stats$param == "tau"],
+                                                            
+                                                            MLo = stats$ci_lower[ stats$param == "mu"],
+                                                            MHi = stats$ci_upper[ stats$param == "mu"],
+                                                            
+                                                            
+                                                            SLo =  stats$ci_lower[stats$param == "tau"],
+                                                            SHi = stats$ci_upper[ stats$param == "tau"],
+                                                            
+                                                            MhatRhat = stats$r_hat[stats$param == "mu"],
+                                                            ShatRhat = stats$r_hat[stats$param == "tau"]
+                                  ) ) 
+                                  
+                                },
+                                .rep.res = rep.res )
+    }
+    
+    
+    
+    
+    
+    
+    
     # ~~ RoBMA ------------------------------
     # this method is very slow! 
     
@@ -679,7 +778,6 @@ doParallel.seconds = system.time({
     # https://cran.r-project.org/web/packages/RoBMA/vignettes/CustomEnsembles.html
     if ( "robma" %in% all.methods ) {
     
-      # c.f. Hilgard's repo: https://github.com/Joe-Hilgard/PETPEESE/blob/master/PETPEESE_functions.R
       rep.res = run_method_safe(method.label = c("robma"),
                                 method.fn = function() {
                                   
@@ -714,7 +812,7 @@ doParallel.seconds = system.time({
     if (run.local == TRUE) srr()
     
     # ~ New Methods ------------------------------
-    # ~~ MCMC ------------------------------
+    # ~~ ***** MCMC ------------------------------
     
     if ( "jeffreys-mcmc" %in% all.methods ) {
       # # temp for refreshing code
@@ -757,12 +855,11 @@ doParallel.seconds = system.time({
     }
     
     
-    # ~~ RTMA using package ------------------------------
+    # ~~ ***** RTMA using package ------------------------------
     
     # uses posterior mode
     if ( "rtma-pkg" %in% all.methods ) {
 
-      #bm
       rep.res = run_method_safe(method.label = c("rtma-pkg"),
                                 method.fn = function() {
                                   
@@ -770,7 +867,7 @@ doParallel.seconds = system.time({
                                                       vi = dp$vi,
                                                       stan_control = list(adapt_delta = p$stan.adapt_delta,
                                                                           max_treedepth = p$stan.maxtreedepth),
-                                                      parallelize = ifelse(run.local == TRUE, TRUE, FALSE) )
+                                                      parallelize = FALSE )
                                   
                                   stats = mod$stats
                                   
@@ -796,12 +893,12 @@ doParallel.seconds = system.time({
                                 },
                                 .rep.res = rep.res )
       
-
       
       cat("\n doParallel flag: Done jeffreys-mcmc if applicable")
     }
     
 
+    if ( run.local == TRUE ) srr()
     
     # ~~ Change Starting Values -----
     if ( !is.na(Mhat.MaxLP) ) Mhat.start = Mhat.MaxLP 
@@ -1423,7 +1520,6 @@ table(rs$method)
 #  total computational time
 nMethods = length( unique(rs$method) )
 
-#bm
 print(nMethods)
 print(unique(rs$method))
 table(rs$method)
@@ -1436,12 +1532,11 @@ rs$doParallel.seconds = doParallel.seconds
 rs$rep.seconds = doParallel.seconds/sim.reps
 rs$rep.seconds[ rs$method != unique(rs$method)[1] ] = NA
 
-#rs$rep.seconds = rep( c( doParallel.seconds / sim.reps,
-#                         rep( NA, nMethods - 1 ) ), sim.reps )
-
 expect_equal( as.numeric( sum(rs$rep.seconds, na.rm = TRUE) ),
               as.numeric(doParallel.seconds) )
 
+#@debugging
+#rs$overall.error[rs$method == "rtma-pkg"]
 
 
 # ~ QUICK RESULTS SUMMARY ---------------------------------------------------
