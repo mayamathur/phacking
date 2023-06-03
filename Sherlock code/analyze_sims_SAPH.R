@@ -46,13 +46,13 @@ code.dir = here("Sherlock code")
 
 data.dir = str_replace( string = here(),
                         pattern = "Code \\(git\\)",
-                        replacement = "Simulation results/2023-05-08 full Stefan sims (as in RSM_1)/Data" )
+                        replacement = "Simulation results/2023-05-08 full Stefan sims/Data" )
 
 
 
 results.dir = str_replace( string = here(),
                            pattern = "Code \\(git\\)",
-                           replacement = "Simulation results/2023-05-08 full Stefan sims (as in RSM_1)/Results" )
+                           replacement = "Simulation results/2023-05-08 full Stefan sims/Results" )
 
 
 overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/figures_SAPH/sims"
@@ -84,7 +84,7 @@ fwrite(aggo, "agg.csv")
 
 # ~~ Get agg data -------------------------
 
-# if only analyzing a single set of sims (no merging):
+# if only analyzing a single sim environment (no merging):
 setwd(data.dir)
 aggo = fread( "agg.csv")
 # check when the dataset was last modified to make sure we're working with correct version
@@ -93,7 +93,6 @@ file.info("agg.csv")$mtime
 sim.env = unique(aggo$sim.env)
 
 dim(aggo)  # will exceed number of scens because of multiple methods
-s
 
 if (sim.env == "mathur") expect_equal( 84, nuni(aggo$scen.name) ) 
 if (sim.env == "stefan") expect_equal( 70, nuni(aggo$scen.name) ) 
@@ -117,8 +116,35 @@ table(agg$sim.reps.actual)
 init_var_names()
 
 
+# 2023-05-30: SANITY CHECKS ON FIRST VS. LATER SIM REPS -------------------------
+
+table(s$rep.name)
 
 
+
+t = s %>% filter(scen.name == 5) %>%
+  filter( method %in% c("jeffreys-mcmc-max-lp-iterate", "rtma-pkg", "robma") ) %>%
+  #filter(k.pub.nonaffirm ==10 & t2a == 0) %>%  # c.f. RSM_0
+  filter(rep.name == 1) %>% # TEMP - keep only first rep
+  #filter(rep.name == 1) %>% # TEMP - keep only first rep
+  group_by(method) %>%
+  summarise( reps = n(),
+             EstFail = mean(is.na(Mhat)),
+             Mhat = meanNA(Mhat),
+             MhatBias = meanNA(Mhat - Mu),
+             MhatCover = meanNA(MLo < Mu & MHi > Mu),
+             MhatWidth = meanNA(MHi - MLo),
+             MLo = meanNA(MLo),
+             MHi = meanNA(MHi)
+             # Shat = meanNA(Shat),
+             # MhatNA = mean(is.na(Mhat)),
+             # MhatRhatGt1.05 = mean(MhatRhat>1.05),
+             # MhatRhatGt1.02 = mean(MhatRhat>1.02)
+  ) %>%
+  #filter(reps > 1000) %>%
+  mutate_if(is.numeric, function(x) round(x,2))
+
+as.data.frame(t)
 
 
 
