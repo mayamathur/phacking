@@ -49,14 +49,9 @@ lapply( allPackages,
 ### 2023-05-30 - SIM.ENV = MATHUR; ROBMA ONLY ###
 
 scen.params = tidyr::expand_grid(
-  # full list (save):
-  #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
-  #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; rtma-pkg ; prereg-naive",
   # without robma:
-  #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; rtma-pkg ; prereg-naive",
-  rep.methods = "robma",
-  #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm",
-  #rep.methods = "rtma-pkg ; jeffreys-mcmc",
+  rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; rtma-pkg ; prereg-naive",
+  #rep.methods = "robma",
 
   sim.env = "mathur",
 
@@ -216,9 +211,9 @@ setwd(path)
 source("helper_SAPH.R")
 
 # number of sbatches to generate (i.e., iterations within each scenario)
-n.reps.per.scen = 100  
+n.reps.per.scen = 1000  
 # ~ *** set sim.reps  -------------------------------------------------
-n.reps.in.doParallel = 10  
+n.reps.in.doParallel = 500  
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
@@ -244,7 +239,7 @@ sbatch_params <- data.frame(jobname,
                             # how to specify job times: https://www.sherlock.stanford.edu/docs/advanced-topics/job-management/#job-submission-limits
                             # days-hh:mm:ss
                             #jobtime = "1-00:00:00",  # 1 day
-                            jobtime = "10:00:00",
+                            jobtime = "02:00:00",
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -266,10 +261,11 @@ n.files
 #     sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
 
+# 2023-06-02 - 96 - mathur with all other methods 
 # 2023-05-30 - 480 - mathur with only RoBMA
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:480) {
+for (i in 1:96) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
@@ -285,7 +281,7 @@ source("helper_SAPH.R")
 missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
                               "/home/groups/manishad/SAPH/long_results",
                               .name.prefix = "long_results",
-                              .max.sbatch.num = 480 )
+                              .max.sbatch.num = 96 )
 
 
 

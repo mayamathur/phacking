@@ -83,7 +83,7 @@ if( is.na(s[1,1]) ) s = s[-1,]  # delete annoying NA row
 
 cat("\n\n nrow(s) =", nrow(s))
 cat("\n nuni(s$scen.name) =", nuni(s$scen.name) )
-# mathur sim env: 49 scens total
+# mathur sim env: 48 scens total
 
 
 
@@ -130,7 +130,7 @@ table(s$rep.name)
 s %>% group_by(scen.name, method) %>%
   summarise(n())
 
-as.data.frame( s %>% group_by(scen.name, k.pub.nonaffirm) %>%
+as.data.frame( s %>% group_by(method, scen.name, k.pub.nonaffirm) %>%
                   summarise(n()) )
 
 
@@ -172,6 +172,7 @@ t = s %>% group_by(hack, method, k.pub.nonaffirm) %>%
   #filter(k.pub.nonaffirm ==10 & t2a == 0) %>%  # c.f. RSM_0
   #filter(rep.name == 1) %>% # TEMP - keep only first rep
   #filter(rep.name == 1) %>% # TEMP - keep only first rep
+  filter(method == "rtma-pkg") %>%
   summarise( reps = n(),
              EstFail = mean(is.na(Mhat)),
              Mhat = meanNA(Mhat),
@@ -458,7 +459,7 @@ source("analyze_sims_helper_SAPH.R")
 missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
                               "/home/groups/manishad/SAPH/long_results",
                               .name.prefix = "long",
-                              .max.sbatch.num = 420)
+                              .max.sbatch.num = 96)
 
 setwd( paste(path, "/sbatch_files", sep="") )
 for (i in missed.nums) {
