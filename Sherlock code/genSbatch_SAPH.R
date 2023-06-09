@@ -46,92 +46,89 @@ lapply( allPackages,
 #   the start values from being the true ones)
 
 
-### 2023-05-30 - SIM.ENV = MATHUR; ROBMA ONLY ###
 
+### 2023-06-09 - DEBUG SINGLE SCEN FOR SIM.ENV = STEFAN ###
 scen.params = tidyr::expand_grid(
   # without robma:
-  rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; rtma-pkg ; prereg-naive",
-  #rep.methods = "robma",
-
-  sim.env = "mathur",
-
-  # *If you reorder the args, need to adjust wrangle_agg_local
+  rep.methods = "naive ; rtma-pkg ; jeffreys-mcmc",
+  #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; rtma-pkg ; prereg-naive",
+  
+  sim.env = "stefan",
+  
   ### args shared between sim environments
-  #k.pub.nonaffirm = c(10, 100, 50, 20, 30, 15, 70),  # intentionally out of order so that jobs with boundary choices with complete first
-  k.pub.nonaffirm = c(10, 100, 30, 20),
-  hack = c("affirm", "favor-best-affirm-wch", "affirm2"),
+  #k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
+  k.pub.nonaffirm = c(100),  # intentionally out of order so that jobs with boundary choices with complete first
+  hack = c("DV"),
   prob.hacked = c(0.8),
   # important: if sim.env = stefan, these t2 args are ONLY used for setting start values
   #   and for checking bias of Shat, so set them to have the correct t2a
   #   not clear what t2w should be given the way stefan implements hacking
-  t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
-  t2w = c(0.2^2),
+  t2a = c(1),
+  t2w = c(0),
   # same with Mu
-  Mu = c(0.5),
-
-  ### only needed if sim.env = "mathur": args from sim_meta_2
-  Nmax = 30,
-  m = 50,
-  true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
-  rho = c(0),
-  ### end of stuff for sim.env = "mathur"
-
-  # ### only needed if sim.env = "stefan": args from sim_meta_2
-  # strategy.stefan = c("firstsig", "smallest"),  # "firstsig" or "smallest"
-  # alternative.stefan = c("greater", "two.sided"),  # "two.sided" or "greater"
-  # stringent.hack = TRUE,  # mathur sims always effectively use stringent.hack = TRUE
-  # ### end of stuff for sim.env = "stefan"
-
+  Mu = c(0),
+  
+  # ### only needed if sim.env = "mathur": args from sim_meta_2
+  # Nmax = 30,
+  # m = 50,
+  #
+  # true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
+  # rho = c(0),
+  # ### end of stuff for sim.env = "mathur"
+  
+  ### only needed if sim.env = "stefan": args from sim_meta_2
+  strategy.stefan = c("firstsig"),  # "firstsig" or "smallest"
+  alternative.stefan = c("greater"),  # "two.sided" or "greater"
+  stringent.hack = TRUE,  # mathur sims always effectively use stringent.hack = TRUE
+  ### end of stuff for sim.env = "stefan"
+  
   # Stan control args
   stan.maxtreedepth = 25,
   stan.adapt_delta = 0.995,
-
+  
   get.CIs = TRUE,
   run.optimx = FALSE )
 
 
 
-# ### 2023-05-08 - [SAVE] RSM_1 FULL SIMS WITH SIM.ENV = STEFAN ###
+# ### 2023-06-03 - SIM.ENV = STEFAN ###
 # scen.params = tidyr::expand_grid(
-#   # full list (save):
-#   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
-#   rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
-#   #rep.methods = "naive",
-#   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm",
-#   
+#   # without robma:
+#   rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; rtma-pkg ; prereg-naive",
+# 
 #   sim.env = "stefan",
-#   
+# 
 #   ### args shared between sim environments
-#   #k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100), 
-#   k.pub.nonaffirm = c(10, 100, 50, 20, 30, 15, 70),  # intentionally out of order so that jobs with boundary choices with complete first 
+#   #k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
+#   k.pub.nonaffirm = c(10, 100, 30, 20),  # intentionally out of order so that jobs with boundary choices with complete first
 #   hack = c("DV", "optstop", "subgroup"),
 #   prob.hacked = c(0.8),
 #   # important: if sim.env = stefan, these t2 args are ONLY used for setting start values
 #   #   and for checking bias of Shat, so set them to have the correct t2a
-#   #   not clear what t2w should be given the way stefan implements hacking 
+#   #   not clear what t2w should be given the way stefan implements hacking
 #   t2a = c(1),
 #   t2w = c(0),
 #   # same with Mu
 #   Mu = c(0),
-#   
+# 
 #   # ### only needed if sim.env = "mathur": args from sim_meta_2
 #   # Nmax = 30,
 #   # m = 50,
-#   # 
-#   # true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"), 
+#   #
+#   # true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
 #   # rho = c(0),
 #   # ### end of stuff for sim.env = "mathur"
-#   
+# 
 #   ### only needed if sim.env = "stefan": args from sim_meta_2
 #   strategy.stefan = c("firstsig", "smallest"),  # "firstsig" or "smallest"
 #   alternative.stefan = c("greater", "two.sided"),  # "two.sided" or "greater"
 #   stringent.hack = TRUE,  # mathur sims always effectively use stringent.hack = TRUE
 #   ### end of stuff for sim.env = "stefan"
-#   
+# 
 #   # Stan control args
 #   stan.maxtreedepth = 25,
 #   stan.adapt_delta = 0.995,
-#   
+# 
 #   get.CIs = TRUE,
 #   run.optimx = FALSE )
 # 
@@ -139,6 +136,52 @@ scen.params = tidyr::expand_grid(
 # scen.params = scen.params[ !(scen.params$hack == "optstop" & scen.params$strategy.stefan == "smallest"), ]
 # 
 # table(scen.params$hack, scen.params$strategy.stefan)
+
+
+
+# ### 2023-05-31 - SIM.ENV = MATHUR ###
+# 
+# scen.params = tidyr::expand_grid(
+#   # without robma:
+#   rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; rtma-pkg ; prereg-naive",
+#   #rep.methods = "robma",
+# 
+#   sim.env = "mathur",
+# 
+#   # *If you reorder the args, need to adjust wrangle_agg_local
+#   ### args shared between sim environments
+#   #k.pub.nonaffirm = c(10, 100, 50, 20, 30, 15, 70),  # intentionally out of order so that jobs with boundary choices with complete first
+#   k.pub.nonaffirm = c(10, 100, 30, 20),
+#   hack = c("affirm", "favor-best-affirm-wch", "affirm2"),
+#   prob.hacked = c(0.8),
+#   # important: if sim.env = stefan, these t2 args are ONLY used for setting start values
+#   #   and for checking bias of Shat, so set them to have the correct t2a
+#   #   not clear what t2w should be given the way stefan implements hacking
+#   t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
+#   t2w = c(0.2^2),
+#   # same with Mu
+#   Mu = c(0.5),
+# 
+#   ### only needed if sim.env = "mathur": args from sim_meta_2
+#   Nmax = 30,
+#   m = 50,
+#   true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
+#   rho = c(0),
+#   ### end of stuff for sim.env = "mathur"
+# 
+#   # ### only needed if sim.env = "stefan": args from sim_meta_2
+#   # strategy.stefan = c("firstsig", "smallest"),  # "firstsig" or "smallest"
+#   # alternative.stefan = c("greater", "two.sided"),  # "two.sided" or "greater"
+#   # stringent.hack = TRUE,  # mathur sims always effectively use stringent.hack = TRUE
+#   # ### end of stuff for sim.env = "stefan"
+# 
+#   # Stan control args
+#   stan.maxtreedepth = 25,
+#   stan.adapt_delta = 0.995,
+# 
+#   get.CIs = TRUE,
+#   run.optimx = FALSE )
+
 
 
 # ### RSM_0 VERSION - AS IN 2022-5-17 SIMS ###
@@ -189,7 +232,8 @@ scen.params = tidyr::expand_grid(
 # also don't include all the extra combos
 
 # add scen numbers
-start.at = 1
+#start.at = 1  # for mathur
+start.at = 1  # for stefan
 scen.params = scen.params %>% add_column( scen = start.at : ( nrow(scen.params) + (start.at - 1) ),
                                           .before = 1 )
 
@@ -210,10 +254,14 @@ path = "/home/groups/manishad/SAPH"
 setwd(path)
 source("helper_SAPH.R")
 
+scen.params = fread("scen_params.csv")
+( n.scen = nrow(scen.params) )
+
+
 # number of sbatches to generate (i.e., iterations within each scenario)
 n.reps.per.scen = 1000  
 # ~ *** set sim.reps  -------------------------------------------------
-n.reps.in.doParallel = 500  
+n.reps.in.doParallel = 100  
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
@@ -221,6 +269,7 @@ n.reps.in.doParallel = 500
 
 scen.name = rep( scen.params$scen, each = ( n.files / n.scen ) )
 jobname = paste("job", 1:n.files, sep="_")
+# for re-run only: jobname = paste("job", 100:147, sep="_")
 outfile = paste("/home/groups/manishad/SAPH/rmfiles/rm_", 1:n.files, ".out", sep="")
 errorfile = paste("/home/groups/manishad/SAPH/rmfiles/rm_", 1:n.files, ".err", sep="")
 write_path = paste(path, "/sbatch_files/", 1:n.files, ".sbatch", sep="")
@@ -260,12 +309,12 @@ n.files
 # run just the first one
 #     sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
-
+# 2023-06-03 - 80 - stefan with all other methods
 # 2023-06-02 - 96 - mathur with all other methods 
 # 2023-05-30 - 480 - mathur with only RoBMA
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:96) {
+for (i in 1:10) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
@@ -281,7 +330,7 @@ source("helper_SAPH.R")
 missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
                               "/home/groups/manishad/SAPH/long_results",
                               .name.prefix = "long_results",
-                              .max.sbatch.num = 96 )
+                              .max.sbatch.num = 40 )
 
 
 

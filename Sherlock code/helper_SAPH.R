@@ -2425,7 +2425,7 @@ add_method_result_row = function(repRes = NA,
 
 
 # quickly look at results when running doParallel locally
-srr = function() {
+srr = function(rep.res) {
   
   if( "optimx.Mhat.winner" %in% names(rep.res) ) {
     cat("\n")

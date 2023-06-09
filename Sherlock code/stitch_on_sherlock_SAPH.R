@@ -83,7 +83,7 @@ if( is.na(s[1,1]) ) s = s[-1,]  # delete annoying NA row
 
 cat("\n\n nrow(s) =", nrow(s))
 cat("\n nuni(s$scen.name) =", nuni(s$scen.name) )
-# mathur sim env: 48 scens total
+
 
 
 
@@ -135,13 +135,73 @@ as.data.frame( s %>% group_by(method, scen.name, k.pub.nonaffirm) %>%
 
 
 
+
+#### General summary
+
+t = s %>% group_by(hack, method, k.pub.nonaffirm) %>%
+  #filter(rep.name == 1) %>% # TEMP - keep only first rep
+  #filter(rep.name == 1) %>% # TEMP - keep only first rep
+  #filter(method == "rtma-pkg") %>%
+  summarise( reps = n(),
+             EstFail = mean(is.na(Mhat)),
+             Mhat = meanNA(Mhat),
+             MhatBias = meanNA(Mhat - Mu),
+             MhatCover = meanNA(MLo < Mu & MHi > Mu),
+             MhatWidth = meanNA(MHi - MLo),
+             MLo = meanNA(MLo),
+             MHi = meanNA(MHi),
+             # Shat = meanNA(Shat),
+             MhatNA = mean(is.na(Mhat)),
+             MhatRhatGt1.05 = mean(MhatRhat>1.05),
+             MhatRhatGt1.02 = mean(MhatRhat>1.02)
+  ) %>%
+  #filter(reps > 1000) %>%
+  mutate_if(is.numeric, function(x) round(x,2))
+
+as.data.frame(t)
+
+
+# Stefan: c.f. project log
+t = s %>% group_by(hack, method, k.pub.nonaffirm) %>%
+  filter(stringent.hack == TRUE &
+           hack == "DV" & 
+           k.pub.nonaffirm == 100 &
+           strategy.stefan == "firstsig" & 
+           alternative.stefan == "greater") %>%
+#filter( method %in% c("rtma-pkg") ) %>%
+  #filter(k.pub.nonaffirm ==10 & t2a == 0) %>%  # c.f. RSM_0
+  #filter(rep.name > 1) %>% # TEMP - keep only >first rep
+  #filter(rep.name == 1) %>% # TEMP - keep only first rep
+  #filter(method == "rtma-pkg") %>%
+  summarise( scen = scen.name[1],
+             reps = n(),
+             EstFail = mean(is.na(Mhat)),
+             Mhat = meanNA(Mhat),
+             MhatBias = meanNA(Mhat - Mu),
+             MhatCover = meanNA(MLo < Mu & MHi > Mu),
+             MhatWidth = meanNA(MHi - MLo),
+             MLo = meanNA(MLo),
+             MHi = meanNA(MHi)
+             # Shat = meanNA(Shat),
+             # MhatNA = mean(is.na(Mhat)),
+             # MhatRhatGt1.05 = mean(MhatRhat>1.05),
+             # MhatRhatGt1.02 = mean(MhatRhat>1.02)
+  ) %>%
+  #filter(reps > 1000) %>%
+  mutate_if(is.numeric, function(x) round(x,2))
+
+as.data.frame(t)
+
+
+
+
 t = s %>%
   #filter(scen.name == 1) %>%
   filter(hack == "affirm") %>%
   filter( method %in% c("jeffreys-mcmc-max-lp-iterate", "rtma-pkg", "robma") ) %>%
   #filter(k.pub.nonaffirm ==10 & t2a == 0) %>%  # c.f. RSM_0
   #filter(rep.name != 1) %>% # TEMP - keep only later reps
-  filter(rep.name == 1) %>% # TEMP - keep only first rep
+  #filter(rep.name == 1) %>% # TEMP - keep only first rep
   group_by(method) %>%
   summarise( reps = n(),
              EstFail = mean(is.na(Mhat)),
@@ -161,35 +221,6 @@ t = s %>%
 
 as.data.frame(t)
 # when filtering to rep.name == 1, n() should be equal to reps.per.scen / reps.in.doParallel
-
-
-
-
-#### General summary
-
-t = s %>% group_by(hack, method, k.pub.nonaffirm) %>%
-  #filter( method %in% c("jeffreys-mcmc-max-lp-iterate", "rtma-pkg") ) %>%
-  #filter(k.pub.nonaffirm ==10 & t2a == 0) %>%  # c.f. RSM_0
-  #filter(rep.name == 1) %>% # TEMP - keep only first rep
-  #filter(rep.name == 1) %>% # TEMP - keep only first rep
-  filter(method == "rtma-pkg") %>%
-  summarise( reps = n(),
-             EstFail = mean(is.na(Mhat)),
-             Mhat = meanNA(Mhat),
-             MhatBias = meanNA(Mhat - Mu),
-             MhatCover = meanNA(MLo < Mu & MHi > Mu),
-             MhatWidth = meanNA(MHi - MLo),
-             MLo = meanNA(MLo),
-             MHi = meanNA(MHi)
-             # Shat = meanNA(Shat),
-             # MhatNA = mean(is.na(Mhat)),
-             # MhatRhatGt1.05 = mean(MhatRhat>1.05),
-             # MhatRhatGt1.02 = mean(MhatRhat>1.02)
-  ) %>%
-  #filter(reps > 1000) %>%
-  mutate_if(is.numeric, function(x) round(x,2))
-
-as.data.frame(t)
 
 
 
@@ -459,7 +490,7 @@ source("analyze_sims_helper_SAPH.R")
 missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
                               "/home/groups/manishad/SAPH/long_results",
                               .name.prefix = "long",
-                              .max.sbatch.num = 96)
+                              .max.sbatch.num = 80)
 
 setwd( paste(path, "/sbatch_files", sep="") )
 for (i in missed.nums) {

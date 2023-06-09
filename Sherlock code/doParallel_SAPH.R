@@ -157,7 +157,7 @@ if (run.local == FALSE) {
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
   # ***** Set cluster sim reps  -------------------------------------------------
-  if ( interactive.cluster.run == FALSE ) sim.reps = 500  # mathur, all methods except robma
+  if ( interactive.cluster.run == FALSE ) sim.reps = 100  # stefan, all methods except robma
   #if ( interactive.cluster.run == FALSE ) sim.reps = 10  # mathur, robma only
   
   #if ( interactive.cluster.run == TRUE ) sim.reps = 50 
@@ -187,71 +187,27 @@ if ( run.local == TRUE ) {
   
   # ~~ ****** Set Local Sim Params -----------------------------
   
-  # Mathur environment - debugging
-  scen.params = tidyr::expand_grid(
-    # full list (save):
-    #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
-    rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
-    #rep.methods = "naive",
-    #rep.methods = "naive ; gold-std ; jeffreys-mcmc ; 2psm",
-    #rep.methods = c("rtma-pkg ; jeffreys-mcmc"),
-    #rep.methods = "naive ; rtma-pkg",
-    
-    sim.env = "mathur",
-    
-    # *If you reorder the args, need to adjust wrangle_agg_local
-    ### args shared between sim environments
-    k.pub.nonaffirm = c(10),  # intentionally out of order so that jobs with boundary choices with complete first 
-    hack = c("affirm"),
-    prob.hacked = c(0.8),
-    # important: if sim.env = stefan, these t2 args are ONLY used for setting start values
-    #   and for checking bias of Shat, so set them to have the correct t2a
-    #   not clear what t2w should be given the way stefan implements hacking 
-    t2a = c(0),
-    t2w = c(0.2^2),
-    # same with Mu
-    Mu = c(0.5),
-    
-    ### only needed if sim.env = "mathur": args from sim_meta_2
-    Nmax = 30,
-    m = 50,
-    true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
-    rho = c(0),
-    ### end of stuff for sim.env = "mathur"
-    
-    # ### only needed if sim.env = "stefan": args from sim_meta_2
-    # strategy.stefan = c("firstsig", "smallest"),  # "firstsig" or "smallest"
-    # alternative.stefan = c("greater", "two.sided"),  # "two.sided" or "greater"
-    # stringent.hack = TRUE,  # mathur sims always effectively use stringent.hack = TRUE
-    # ### end of stuff for sim.env = "stefan"
-    
-    # Stan control args
-    stan.maxtreedepth = 25,
-    stan.adapt_delta = 0.995,
-    
-    get.CIs = TRUE,
-    run.optimx = FALSE )
-  
-  
-  
   # # Mathur environment
   # scen.params = tidyr::expand_grid(
   #   # full list (save):
   #   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
-  #   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
+  #   rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
   #   #rep.methods = "naive",
-  #   rep.methods = "naive ; gold-std ; robma ; 2psm",
+  #   #rep.methods = "naive ; gold-std ; jeffreys-mcmc ; 2psm",
+  #   #rep.methods = c("rtma-pkg ; jeffreys-mcmc"),
+  #   #rep.methods = "naive ; rtma-pkg",
   #   
   #   sim.env = "mathur",
   #   
+  #   # *If you reorder the args, need to adjust wrangle_agg_local
   #   ### args shared between sim environments
-  #   k.pub.nonaffirm = c(10, 100, 50, 20, 30, 15, 70),  # intentionally out of order so that jobs with boundary choices with complete first 
-  #   hack = c("favor-best-affirm-wch", "affirm", "affirm2"),
+  #   k.pub.nonaffirm = c(10),  # intentionally out of order so that jobs with boundary choices with complete first 
+  #   hack = c("affirm"),
   #   prob.hacked = c(0.8),
   #   # important: if sim.env = stefan, these t2 args are ONLY used for setting start values
   #   #   and for checking bias of Shat, so set them to have the correct t2a
   #   #   not clear what t2w should be given the way stefan implements hacking 
-  #   t2a = c(0, 0.2^2, 0.3^2, 0.5^2),
+  #   t2a = c(0),
   #   t2w = c(0.2^2),
   #   # same with Mu
   #   Mu = c(0.5),
@@ -259,7 +215,7 @@ if ( run.local == TRUE ) {
   #   ### only needed if sim.env = "mathur": args from sim_meta_2
   #   Nmax = 30,
   #   m = 50,
-  #   true.sei.expr = c("0.1 + rexp(n = 1, rate = 3)"),
+  #   true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
   #   rho = c(0),
   #   ### end of stuff for sim.env = "mathur"
   #   
@@ -270,50 +226,56 @@ if ( run.local == TRUE ) {
   #   # ### end of stuff for sim.env = "stefan"
   #   
   #   # Stan control args
-  #   stan.maxtreedepth = 20,
-  #   stan.adapt_delta = 0.98,
+  #   stan.maxtreedepth = 25,
+  #   stan.adapt_delta = 0.995,
   #   
   #   get.CIs = TRUE,
   #   run.optimx = FALSE )
   
   
-  # # Stefan environment
-  # scen.params = tidyr::expand_grid(
-  #   # full list (save):
-  #   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; jeffreys-mcmc ; jeffreys-sd ; prereg-naive",
-  #   #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; robma ; jeffreys-mcmc ; prereg-naive",
-  #   rep.methods = "naive ; gold-std ; robma ; 2psm",
-  #   
-  #   sim.env = "stefan",
-  #   
-  #   ### args shared between sim environments
-  #   hack = c("DV"),
-  #   
-  #   ### only needed if sim.env = "mathur": args from sim_meta_2
-  #   Nmax = 30,
-  #   Mu = c(0.5),
-  #   t2a = c(0),
-  #   t2w = c(0),
-  #   m = 50,
-  #   
-  #   true.sei.expr = c("0.1 + rexp(n = 1, rate = 1.5)"), 
-  #   rho = c(0),
-  #   k.pub.nonaffirm = c(100), 
-  #   prob.hacked = c(0.8),
-  #   ### end of stuff for sim.env = "mathur"
-  #   
-  #   ### only needed if sim.env = "stefan": args from sim_meta_2
-  #   strategy.stefan = "firstsig",  # "firstsig" or "smallest"
-  #   alternative.stefan = "greater",  # "two.sided" or "greater"
-  #   stringent.hack = TRUE,  # mathur sims always effectively use stringent.hack = TRUE
-  #   ### end of stuff for sim.env = "stefan"
-  #   
-  #   # Stan control args
-  #   stan.maxtreedepth = 20,
-  #   stan.adapt_delta = 0.98,
-  #   
-  #   get.CIs = TRUE,
-  #   run.optimx = FALSE )
+  
+  # Stefan environment - exactly as in genSbatch
+  scen.params = tidyr::expand_grid(
+    # without robma:
+    rep.methods = "naive ; rtma-pkg ; jeffreys-mcmc",
+    #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; rtma-pkg ; prereg-naive",
+    
+    sim.env = "stefan",
+    
+    ### args shared between sim environments
+    #k.pub.nonaffirm = c(10, 15, 20, 30, 50, 70, 100),
+    k.pub.nonaffirm = c(100),  # intentionally out of order so that jobs with boundary choices with complete first
+    hack = c("DV"),
+    prob.hacked = c(0.8),
+    # important: if sim.env = stefan, these t2 args are ONLY used for setting start values
+    #   and for checking bias of Shat, so set them to have the correct t2a
+    #   not clear what t2w should be given the way stefan implements hacking
+    t2a = c(1),
+    t2w = c(0),
+    # same with Mu
+    Mu = c(0),
+    
+    # ### only needed if sim.env = "mathur": args from sim_meta_2
+    # Nmax = 30,
+    # m = 50,
+    #
+    # true.sei.expr = c("0.02 + rexp(n = 1, rate = 3)"),
+    # rho = c(0),
+    # ### end of stuff for sim.env = "mathur"
+    
+    ### only needed if sim.env = "stefan": args from sim_meta_2
+    strategy.stefan = c("firstsig"),  # "firstsig" or "smallest"
+    alternative.stefan = c("greater"),  # "two.sided" or "greater"
+    stringent.hack = TRUE,  # mathur sims always effectively use stringent.hack = TRUE
+    ### end of stuff for sim.env = "stefan"
+    
+    # Stan control args
+    stan.maxtreedepth = 25,
+    stan.adapt_delta = 0.995,
+    
+    get.CIs = TRUE,
+    run.optimx = FALSE )
+  
   
   
   scen.params$scen = 1:nrow(scen.params)
@@ -371,8 +333,7 @@ doParallel.seconds = system.time({
     #for debugging (out file will contain all printed things):
     #for ( i in 1:10 ) {
     
-    # only print info for first sim rep for visual clarity
-    if ( i == 1 ) cat("\n\n~~~~~~~~~~~~~~~~ BEGIN SIM REP", i, "~~~~~~~~~~~~~~~~")
+    cat("\n\n~~~~~~~~~~~~~~~~ BEGIN SIM REP", i, "~~~~~~~~~~~~~~~~")
     
     # results for just this simulation rep
     if ( exists("rep.res") ) suppressWarnings( rm(rep.res) )
@@ -482,7 +443,6 @@ doParallel.seconds = system.time({
     #  will correctly recognize it as having 0 rows
     rep.res = data.frame()
     
-    
     # ~ Start Values ------------------------------
     Mhat.start = p$Mu
     Shat.start = p$S
@@ -513,7 +473,7 @@ doParallel.seconds = system.time({
     }
     
     # NOTE: if doing run.local, this will break if you didn't run naive
-    if (run.local == TRUE) srr()
+    if (run.local == TRUE) srr(rep.res)
     
     
     # ~~ Gold-Standard Meta-Analysis (ALL FIRST Draws) ------------------------------
@@ -550,7 +510,7 @@ doParallel.seconds = system.time({
     }
     
     
-    if (run.local == TRUE) srr()
+    if (run.local == TRUE) srr(rep.res)
     
     # ~~ MAON (Nonaffirmative Published Draws) ------------------------------
     
@@ -679,7 +639,7 @@ doParallel.seconds = system.time({
     # ~~ RoBMA ------------------------------
     # this method is very slow! 
     
-    if (run.local == TRUE) srr()
+    if (run.local == TRUE) srr(rep.res)
     
     # https://cran.r-project.org/web/packages/RoBMA/vignettes/CustomEnsembles.html
     if ( "robma" %in% all.methods ) {
@@ -715,7 +675,7 @@ doParallel.seconds = system.time({
       
     }
     
-    if (run.local == TRUE) srr()
+    if (run.local == TRUE) srr(rep.res)
     
     # ~ New Methods ------------------------------
     # ~~ ***** MCMC ------------------------------
@@ -769,8 +729,8 @@ doParallel.seconds = system.time({
       rep.res = run_method_safe(method.label = c("rtma-pkg"),
                                 method.fn = function() {
                                   
-                                  mod = phacking_meta( yi = dp$yi,
-                                                      vi = dp$vi,
+                                  mod = phacking_meta( yi = dp$yi[dp$affirm == FALSE],
+                                                      vi = dp$vi[dp$affirm == FALSE],
                                                       stan_control = list(adapt_delta = p$stan.adapt_delta,
                                                                           max_treedepth = p$stan.maxtreedepth),
                                                       parallelize = FALSE )
@@ -804,7 +764,7 @@ doParallel.seconds = system.time({
     }
     
 
-    if ( run.local == TRUE ) srr()
+    if ( run.local == TRUE ) srr(rep.res)
     
     # ~~ Change Starting Values -----
     if ( !is.na(Mhat.MaxLP) ) Mhat.start = Mhat.MaxLP 
