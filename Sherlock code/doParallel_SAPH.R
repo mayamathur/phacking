@@ -157,7 +157,7 @@ if (run.local == FALSE) {
   # simulation reps to run within this job
   # **this need to match n.reps.in.doParallel in the genSbatch script
   # ***** Set cluster sim reps  -------------------------------------------------
-  if ( interactive.cluster.run == FALSE ) sim.reps = 100  # stefan, all methods except robma
+  if ( interactive.cluster.run == FALSE ) sim.reps = 25  # stefan, all methods except robma
   #if ( interactive.cluster.run == FALSE ) sim.reps = 10  # mathur, robma only
   
   #if ( interactive.cluster.run == TRUE ) sim.reps = 50 
@@ -729,6 +729,7 @@ doParallel.seconds = system.time({
       rep.res = run_method_safe(method.label = c("rtma-pkg"),
                                 method.fn = function() {
                                   
+                                  # important: when running stefan sim env, need to subset on affirm status here because they sometimes use one-tailed selection
                                   mod = phacking_meta( yi = dp$yi[dp$affirm == FALSE],
                                                       vi = dp$vi[dp$affirm == FALSE],
                                                       stan_control = list(adapt_delta = p$stan.adapt_delta,
