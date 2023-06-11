@@ -288,7 +288,7 @@ sbatch_params <- data.frame(jobname,
                             # how to specify job times: https://www.sherlock.stanford.edu/docs/advanced-topics/job-management/#job-submission-limits
                             # days-hh:mm:ss
                             #jobtime = "1-00:00:00",  # 1 day
-                            jobtime = "02:00:00",
+                            jobtime = "06:00:00",
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -329,7 +329,7 @@ source("helper_SAPH.R")
 missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
                               "/home/groups/manishad/SAPH/long_results",
                               .name.prefix = "long_results",
-                              .max.sbatch.num = 40 )
+                              .max.sbatch.num = 800 )
 
 
 

@@ -120,6 +120,26 @@ string = paste("zip -m stitched.zip", .stitch.file.name)
 system(string)
 
 
+# LOOK FOR MISSED JOBS ----------------------------------------------
+
+# run in Sherlock ml load R
+path = "/home/groups/manishad/SAPH"
+setwd(path)
+source("helper_SAPH.R")
+
+missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
+                              "/home/groups/manishad/SAPH/long_results",
+                              .name.prefix = "long_results",
+                              .max.sbatch.num = 800 )
+
+
+
+setwd( paste(path, "/sbatch_files", sep="") )
+for (i in missed.nums) {
+  system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
+}
+
+
 # ~ Optional: Quick Summary ---------------------------
 
 
@@ -142,6 +162,7 @@ t = s %>% group_by(hack, method, k.pub.nonaffirm) %>%
   #filter(rep.name == 1) %>% # TEMP - keep only first rep
   #filter(rep.name == 1) %>% # TEMP - keep only first rep
   #filter(method == "rtma-pkg") %>%
+  filter(method %in% c("rtma-pkg", "jeffreys-mcmc-max-lp-iterate") ) %>%
   summarise( reps = n(),
              EstFail = mean(is.na(Mhat)),
              Mhat = meanNA(Mhat),
@@ -157,7 +178,6 @@ t = s %>% group_by(hack, method, k.pub.nonaffirm) %>%
   ) %>%
   #filter(reps > 1000) %>%
   mutate_if(is.numeric, function(x) round(x,2))
-
 as.data.frame(t)
 
 
@@ -479,21 +499,4 @@ table( s$overall.error[ s$method == "2psm" & is.na(s$Mhat) ] )
 # # stitched and agg -> local directory
 # scp mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH/overall_stitched/* /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Linked\ to\ OSF\ \(SAPH\)/Sherlock\ simulation\ results/Pilot\ simulations
 
-# LOOK FOR MISSED JOBS ----------------------------------------------
-
-path = "/home/groups/manishad/SAPH"
-setwd(path)
-source("helper_SAPH.R")
-source("analyze_sims_helper_SAPH.R")
-
-# look for missed jobs
-missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
-                              "/home/groups/manishad/SAPH/long_results",
-                              .name.prefix = "long",
-                              .max.sbatch.num = 80)
-
-setwd( paste(path, "/sbatch_files", sep="") )
-for (i in missed.nums) {
-  system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
-}
 
