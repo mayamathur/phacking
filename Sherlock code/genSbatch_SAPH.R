@@ -91,11 +91,12 @@ lapply( allPackages,
 
 
 
-### 2023-06-09 - SIM.ENV = STEFAN ###
+### 2023-06-09 and 2023-06-11 - SIM.ENV = STEFAN ###
 scen.params = tidyr::expand_grid(
   # without robma:
-  rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; jeffreys-mcmc ; rtma-pkg ; prereg-naive",
-
+  #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; jeffreys-mcmc ; rtma-pkg ; prereg-naive",
+  rep.methods = "robma",
+  
   sim.env = "stefan",
 
   ### args shared between sim environments
@@ -232,8 +233,7 @@ table(scen.params$hack, scen.params$strategy.stefan)
 # also don't include all the extra combos
 
 # add scen numbers
-#start.at = 1  # for mathur
-start.at = 1  # for stefan
+start.at = 1
 scen.params = scen.params %>% add_column( scen = start.at : ( nrow(scen.params) + (start.at - 1) ),
                                           .before = 1 )
 
@@ -259,9 +259,9 @@ scen.params = fread("scen_params.csv")
 
 
 # number of sbatches to generate (i.e., iterations within each scenario)
-n.reps.per.scen = 500  
+n.reps.per.scen = 100  
 # ~ *** set sim.reps  -------------------------------------------------
-n.reps.in.doParallel = 25  
+n.reps.in.doParallel = 10  
 ( n.files = ( n.reps.per.scen / n.reps.in.doParallel ) * n.scen )
 
 
@@ -276,7 +276,6 @@ write_path = paste(path, "/sbatch_files/", 1:n.files, ".sbatch", sep="")
 runfile_path = paste(path, "/testRunFile.R", sep="")
 
 
-# 2022-2-27: timing benchmark: with all methods and sim.reps = 1, took 2.5 min
 sbatch_params <- data.frame(jobname,
                             outfile,
                             errorfile,
@@ -288,7 +287,7 @@ sbatch_params <- data.frame(jobname,
                             # how to specify job times: https://www.sherlock.stanford.edu/docs/advanced-topics/job-management/#job-submission-limits
                             # days-hh:mm:ss
                             #jobtime = "1-00:00:00",  # 1 day
-                            jobtime = "06:00:00",
+                            jobtime = "08:00:00",
                             quality = "normal",
                             node_number = 1,
                             mem_per_node = 64000,
@@ -309,11 +308,13 @@ n.files
 # run just the first one
 #     sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/1.sbatch
 
+
+# 2023-06-11 - 400 - stefan with only robma
 # 2023-06-09 - 80 - stefan with all other methods
-# 2023-05-30 - 480 - mathur with only RoBMA
+# 2023-05-30 - 480 - mathur with only robma
 path = "/home/groups/manishad/SAPH"
 setwd( paste(path, "/sbatch_files", sep="") )
-for (i in 1:800) {
+for (i in 1:n.files) {
   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
 }
 
@@ -329,7 +330,7 @@ source("helper_SAPH.R")
 missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
                               "/home/groups/manishad/SAPH/long_results",
                               .name.prefix = "long_results",
-                              .max.sbatch.num = 800 )
+                              .max.sbatch.num = n.files )
 
 
 
