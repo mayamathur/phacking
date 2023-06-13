@@ -133,11 +133,16 @@ missed.nums = sbatch_not_run( "/home/groups/manishad/SAPH/long_results",
                               .max.sbatch.num = 400 )
 
 
+if ( FALSE ){
+  
+  
+  setwd( paste(path, "/sbatch_files", sep="") )
+  for (i in missed.nums) {
+    system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
+  }
+  
+}
 
-# setwd( paste(path, "/sbatch_files", sep="") )
-# for (i in missed.nums) {
-#   system( paste("sbatch -p qsu,owners,normal /home/groups/manishad/SAPH/sbatch_files/", i, ".sbatch", sep="") )
-# }
 
 
 # ~ Optional: Quick Summary ---------------------------
@@ -157,15 +162,18 @@ as.data.frame( s %>% group_by(method, scen.name, k.pub.nonaffirm) %>%
 
 
 #### General summary
+# increase width of console print area for df viewing joy
+options("width"=200)
 
 t = s %>% group_by(hack, method, k.pub.nonaffirm) %>%
   #filter(rep.name == 1) %>% # TEMP - keep only first rep
   #filter(rep.name == 1) %>% # TEMP - keep only first rep
-  #filter(method == "rtma-pkg") %>%
+  filter(method == "rtma-pkg") %>%
+  #filter(method == "2psm") %>%
   #filter(method %in% c("rtma-pkg", "jeffreys-mcmc-max-lp-iterate") ) %>%
   summarise( reps = n(),
              EstFail = mean(is.na(Mhat)),
-             Mhat = meanNA(Mhat),
+             #Mhat = meanNA(Mhat),
              MhatBias = meanNA(Mhat - Mu),
              MhatCover = meanNA(MLo < Mu & MHi > Mu),
              MhatWidth = meanNA(MHi - MLo),
@@ -290,7 +298,7 @@ t = s %>% group_by(hack, method) %>%
   #filter(k.pub.nonaffirm == 100 & hack == "subgroup") %>%  # choose sample size
   #filter(k.pub.nonaffirm == 30) %>%  # choose sample size
   #filter(method == "robma") %>%
-  filter( method %in% c("robma", "jeffreys-mcmc-max-lp-iterate", "jeffreys-mcmc-pmed")) %>%
+  filter( method %in% c("rtma-pkg")) %>%
   #filter( method %in% c("naive", "2psm")) %>%
   filter(k.pub.nonaffirm == 10 &
            #hack == "favor-best-affirm-wch" & # favor first affirm
