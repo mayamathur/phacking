@@ -382,7 +382,7 @@ wrangle_agg_local = function(agg) {
   table(agg$method, agg$method.pretty)
   
   ##### Specific to Sim Env #####
-  sim.env = unique(agg$sim)
+
   if ( "true.sei.expr" %in% names(agg) ){
     agg$true.sei.expr = as.factor(agg$true.sei.expr)
     
@@ -406,9 +406,10 @@ wrangle_agg_local = function(agg) {
   
   agg$MhatEstConverge = 1 - agg$MhatEstFail
   
-  #@add something like this (from MBMA):
-  # agg$evil.selection = 0
-  # agg$evil.selection[ agg$prob.hacked > 0 | agg$SAS.type == "carter" ] = 1
+  # indicates that RTMA is incorrectly specified
+  agg$rtma.misspec = 1
+  agg$rtma.misspec[ agg$hack %in% c("favor-best-affirm-wch",
+                                      "affirm")] = 0
   
   return(agg)
 }

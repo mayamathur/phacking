@@ -36,14 +36,9 @@ select = dplyr::select
 # no sci notation
 options(scipen=999)
 
-# control which results should be redone and/or overwritten
-#@ not all fns respect this setting
-overwrite.res = TRUE
-
 
 # ~~ Set directories -------------------------
 code.dir = here("Sherlock code")
-
 
 ( data.dir = str_replace( string = here(),
                           pattern = "Code \\(git\\)",
@@ -67,7 +62,6 @@ overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/figur
 setwd(code.dir)
 source("helper_SAPH.R")
 source("analyze_sims_helper_SAPH.R")
-
 
 
 
@@ -130,7 +124,7 @@ expect_equal( sum( sanity$n.scens * sanity$n.methods ),
 
 # add fancy variables for plotting, etc.
 agg = wrangle_agg_local(aggo)
-
+setwd(results.dir); fwrite(agg, "agg.csv")
 
 
 
