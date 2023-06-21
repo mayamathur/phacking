@@ -38,21 +38,27 @@ options(scipen=999)
 
 # control which results should be redone and/or overwritten
 #@ not all fns respect this setting
-overwrite.res = FALSE
+overwrite.res = TRUE
 
 
 # ~~ Set directories -------------------------
 code.dir = here("Sherlock code")
 
-data.dir = str_replace( string = here(),
+
+( data.dir = str_replace( string = here(),
                         pattern = "Code \\(git\\)",
-                        replacement = "Simulation results/2023-05-08 full Stefan sims/Data" )
+                        replacement = "Simulation results") )
+
+data.dir.suffixes = c("*2023-06-13 Mathur all except robma",
+                      "*2023-06-11 Stefan robma only",
+                      "*2023-06-09 Stefan all except robma",
+                      "*2023-5-31 Mathur robma only")
 
 
 
 results.dir = str_replace( string = here(),
                            pattern = "Code \\(git\\)",
-                           replacement = "Simulation results/2023-05-08 full Stefan sims/Results" )
+                           replacement = "Simulation results/2023-06-21 aggregated simulations (as in RSM_1)" )
 
 
 overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/figures_SAPH/sims"
@@ -72,7 +78,25 @@ source("analyze_sims_helper_SAPH.R")
 
 
 
-# TEMP ----------------
+# MAKE AGG DATA FOR EACH SCENARIO ----------------
+
+
+
+for (.dir in data.dir.suffixes) {
+  setwd(data.dir)
+  setwd(.dir)
+  
+  s = fread("stitched.csv")
+  
+  summary(s$scen.name)
+  
+  aggo = make_agg_data(s)
+  setwd(data.dir)
+  fwrite(aggo, "agg.csv")
+}
+
+
+
 
 setwd(data.dir)
 s = fread("stitched.csv")

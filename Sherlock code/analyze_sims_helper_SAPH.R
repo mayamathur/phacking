@@ -157,6 +157,17 @@ make_agg_data = function( .s,
   .s$V = .s$t2a + .s$t2w
   .s$S = sqrt(.s$t2a + .s$t2w)
   
+  # handle possibility that stan variables aren't available (e.g., running robma without any stan methods)
+  stan.names = c("stan.warned", "MhatRhat", "ShatRhat")
+  if ( !( all(stan.names) %in% names(.s) ) ) {
+    message("Dataset doesn't contain stan variables, e.g., stan.warned. This is fine if you didn't run stan methods. Adding these variables as NA columns.")
+    
+    if ( !( "stan.warned" %in% names(.s) ) ) .s$stan.warned = NA
+    if ( !( "MhatRhat" %in% names(.s) ) ) .s$MhatRhat = NA
+    if ( !( "ShatRhat" %in% names(.s) ) ) .s$ShatRhat = NA
+    
+  }
+  
   
   
   toDrop = c("rep.methods",
