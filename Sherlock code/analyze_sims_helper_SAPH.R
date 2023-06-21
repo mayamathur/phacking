@@ -377,7 +377,8 @@ wrangle_agg_local = function(agg) {
   agg$method.pretty[ agg$method == c("prereg-naive") ] = "Unhacked only"
   agg$method.pretty[ agg$method == c("pet-peese") ] = "PET-PEESE"
   agg$method.pretty[ agg$method == c("robma") ] = "RoBMA"
-  agg$method.pretty[ agg$method %in% c("jeffreys-mcmc-max-lp-iterate") ] = "RTMA"
+  #agg$method.pretty[ agg$method %in% c("jeffreys-mcmc-max-lp-iterate") ] = "RTMA"
+  agg$method.pretty[ agg$method %in% c("rtma-pkg") ] = "RTMA"
   table(agg$method, agg$method.pretty)
   
   ##### Specific to Sim Env #####

@@ -47,20 +47,8 @@ overwrite.res = TRUE
 # ~~ Set directories -------------------------
 code.dir = here("Sherlock code")
 
-
-( data.dir = str_replace( string = here(),
-                          pattern = "Code \\(git\\)",
-                          replacement = "Simulation results") )
-
-
-data.dir.suffixes = c("*2023-06-13 Mathur all except robma",
-                      "*2023-06-11 Stefan robma only",
-                      "*2023-06-09 Stefan all except robma",
-                      "*2023-5-31 Mathur robma only")
-
-
-
-results.dir = str_replace( string = here(),
+# dataset prepped by prep_sims_SAPH.R
+data.dir = str_replace( string = here(),
                            pattern = "Code \\(git\\)",
                            replacement = "Simulation results/2023-06-21 aggregated simulations (as in RSM_1)" )
 
@@ -80,77 +68,6 @@ source("helper_SAPH.R")
 source("analyze_sims_helper_SAPH.R")
 
 
-
-
-# MAKE AGG DATA FOR EACH SCENARIO ----------------
-
-
-
-if ( stitch.from.scratch == TRUE ) {
-  
-  
-  # bind the stitched files
-  for (i in 1:length(data.dir.suffixes) ) {
-    
-    .dir = data.dir.suffixes[i]
-    
-    setwd(data.dir)
-    setwd(.dir)
-    
-    s.chunk = fread("stitched.csv")
-    
-    summary(s.chunk$scen.name)
-    
-    if (i == 1) {
-      s = s.chunk
-      
-      # just for sanity checks
-      sanity = data.frame(sim.env = s.chunk$sim.env[1],
-                          methods = s.chunk$rep.methods[1],
-                          n.methods = nuni(s.chunk$method),
-                          n.scens = nuni(s.chunk$scen.name))
-      
-    } else {
-      # *need to bind_rows here to fill in NA columns (e.g., vars that don't apply for stefan sim env)
-      # hence approach of directly binding the iterate-level data before aggregating
-      s = bind_rows(s, s.chunk)
-      
-      sanity = bind_rows(sanity, 
-                         data.frame(sim.env = s.chunk$sim.env[1],
-                                    methods = s.chunk$rep.methods[1],
-                                    n.methods = nuni(s.chunk$method),
-                                    n.scens = nuni(s.chunk$scen.name)) )
-    }
-    
-    setwd(results.dir)
-    fwrite(s, "stitched_merged.csv")
-    fwrite(sanity, "sanity.csv")
-    
-  } # end loop over data.dir.suffixes
-  
-  
-  aggo = make_agg_data(s,
-                       expected.sim.reps = 500) # robma is 100, but this is fine given make_agg_data
-  setwd(results.dir); fwrite(aggo, "agg.csv")
-  
-  
-  # sanity check:
-  # should have 1 row per scen-method combo
-  expect_equal( sum( sanity$n.scens * sanity$n.methods ),
-                nrow(aggo) )
-  
-}
-
-
-
-
-
-# setwd(data.dir)
-# s = fread("stitched.csv")
-# 
-# aggo = make_agg_data(s)
-# setwd(data.dir)
-# fwrite(aggo, "agg.csv")
 
 
 # ~~ Get agg data -------------------------
@@ -186,54 +103,6 @@ table(agg$sim.reps.actual)
 # this must be after calling wrangle_agg_local
 init_var_names()
 
-
-# 2023-05-30: SANITY CHECKS ON FIRST VS. LATER SIM REPS -------------------------
-
-table(s$rep.name)
-
-
-
-t = s %>% filter(scen.name == 5) %>%
-  filter( method %in% c("jeffreys-mcmc-max-lp-iterate", "rtma-pkg", "robma") ) %>%
-  #filter(k.pub.nonaffirm ==10 & t2a == 0) %>%  # c.f. RSM_0
-  filter(rep.name == 1) %>% # TEMP - keep only first rep
-  #filter(rep.name == 1) %>% # TEMP - keep only first rep
-  group_by(method) %>%
-  summarise( reps = n(),
-             EstFail = mean(is.na(Mhat)),
-             Mhat = meanNA(Mhat),
-             MhatBias = meanNA(Mhat - Mu),
-             MhatCover = meanNA(MLo < Mu & MHi > Mu),
-             MhatWidth = meanNA(MHi - MLo),
-             MLo = meanNA(MLo),
-             MHi = meanNA(MHi)
-             # Shat = meanNA(Shat),
-             # MhatNA = mean(is.na(Mhat)),
-             # MhatRhatGt1.05 = mean(MhatRhat>1.05),
-             # MhatRhatGt1.02 = mean(MhatRhat>1.02)
-  ) %>%
-  #filter(reps > 1000) %>%
-  mutate_if(is.numeric, function(x) round(x,2))
-
-as.data.frame(t)
-
-
-
-# 2022-4-4: EFFECT OF SCEN PARAMS ON DATASETS -------------------------
-
-#@not updated
-
-param.vars.manip2 = drop_vec_elements(param.vars.manip, "method")
-
-t = agg %>% group_by_at( param.vars.manip2 ) %>%
-  # keep only scens in main text
-  #filter(Mu == 0.5 & true.sei.expr == "0.02 + rexp(n = 1, rate = 3)") %>%
-  select( all_of( contains("sancheck") ) ) %>%
-  mutate_if( is.numeric, function(x) round(x, 2) )
-
-# setwd(results.dir)
-# setwd("Sanity checks")
-# write.xlsx( as.data.frame(t), "table_sanchecks.xlsx")
 
 
 # ONE-OFF STATS FOR PAPER  -------------------------
