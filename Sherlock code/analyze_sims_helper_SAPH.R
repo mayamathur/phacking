@@ -21,7 +21,7 @@ make_agg_data = function( .s,
   
   
   # make unique scenario variable, defined as scen.name AND method
-  if ( !"unique.scen" %in% names(.s) ) .s$unique.scen = paste(.s$scen.name, .s$method)
+  if ( !"unique.scen" %in% names(.s) ) .s$unique.scen = paste(.s$sim.env, .s$scen.name, .s$method)
   
   ##### Outcome and Parameter Variables #####
   # "outcome" variables used in analysis
@@ -136,6 +136,28 @@ make_agg_data = function( .s,
                    "stan.maxtreedepth")
   }
   
+ # TEMP aggregation issue
+  param.vars = c("unique.scen",  
+                 "method",
+                 "sim.env",
+                 
+                 "Nmax",
+                 "Mu",
+                 "t2a",
+                 "t2w",
+                 "m",
+                 "true.sei.expr",
+                 "hack",
+                 "rho",
+                 "k.pub.nonaffirm",
+                 "prob.hacked",
+                 "stan.adapt_delta",
+                 "stan.maxtreedepth",
+                 
+                 "strategy.stefan",
+                 "alternative.stefan",
+                 "stringent.hack")
+  
   
   # sanity check to make sure we've listed all param vars
   t = .s %>% group_by_at(param.vars) %>% summarise(n())
@@ -157,19 +179,7 @@ make_agg_data = function( .s,
   .s$V = .s$t2a + .s$t2w
   .s$S = sqrt(.s$t2a + .s$t2w)
   
-  # handle possibility that stan variables aren't available (e.g., running robma without any stan methods)
-  stan.names = c("stan.warned", "MhatRhat", "ShatRhat")
-  if ( !( all(stan.names) %in% names(.s) ) ) {
-    message("Dataset doesn't contain stan variables, e.g., stan.warned. This is fine if you didn't run stan methods. Adding these variables as NA columns.")
-    
-    if ( !( "stan.warned" %in% names(.s) ) ) .s$stan.warned = NA
-    if ( !( "MhatRhat" %in% names(.s) ) ) .s$MhatRhat = NA
-    if ( !( "ShatRhat" %in% names(.s) ) ) .s$ShatRhat = NA
-    
-  }
-  
-  
-  
+
   toDrop = c("rep.methods",
              "get.CIs",
              "error",

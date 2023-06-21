@@ -36,6 +36,9 @@ select = dplyr::select
 # no sci notation
 options(scipen=999)
 
+
+stitch.from.scratch = TRUE
+
 # control which results should be redone and/or overwritten
 #@ not all fns respect this setting
 overwrite.res = TRUE
@@ -46,8 +49,9 @@ code.dir = here("Sherlock code")
 
 
 ( data.dir = str_replace( string = here(),
-                        pattern = "Code \\(git\\)",
-                        replacement = "Simulation results") )
+                          pattern = "Code \\(git\\)",
+                          replacement = "Simulation results") )
+
 
 data.dir.suffixes = c("*2023-06-13 Mathur all except robma",
                       "*2023-06-11 Stefan robma only",
@@ -82,28 +86,71 @@ source("analyze_sims_helper_SAPH.R")
 
 
 
-for (.dir in data.dir.suffixes) {
-  setwd(data.dir)
-  setwd(.dir)
+if ( stitch.from.scratch == TRUE ) {
   
-  s = fread("stitched.csv")
   
-  summary(s$scen.name)
+  # bind the stitched files
+  for (i in 1:length(data.dir.suffixes) ) {
+    
+    .dir = data.dir.suffixes[i]
+    
+    setwd(data.dir)
+    setwd(.dir)
+    
+    s.chunk = fread("stitched.csv")
+    
+    summary(s.chunk$scen.name)
+    
+    if (i == 1) {
+      s = s.chunk
+      
+      # just for sanity checks
+      sanity = data.frame(sim.env = s.chunk$sim.env[1],
+                          methods = s.chunk$rep.methods[1],
+                          n.methods = nuni(s.chunk$method),
+                          n.scens = nuni(s.chunk$scen.name))
+      
+    } else {
+      # *need to bind_rows here to fill in NA columns (e.g., vars that don't apply for stefan sim env)
+      # hence approach of directly binding the iterate-level data before aggregating
+      s = bind_rows(s, s.chunk)
+      
+      sanity = bind_rows(sanity, 
+                         data.frame(sim.env = s.chunk$sim.env[1],
+                                    methods = s.chunk$rep.methods[1],
+                                    n.methods = nuni(s.chunk$method),
+                                    n.scens = nuni(s.chunk$scen.name)) )
+    }
+    
+    setwd(results.dir)
+    fwrite(s, "stitched_merged.csv")
+    fwrite(sanity, "sanity.csv")
+    
+  } # end loop over data.dir.suffixes
   
-  aggo = make_agg_data(s)
-  setwd(data.dir)
-  fwrite(aggo, "agg.csv")
+  
+  aggo = make_agg_data(s,
+                       expected.sim.reps = 500) # robma is 100, but this is fine given make_agg_data
+  setwd(results.dir); fwrite(aggo, "agg.csv")
+  
+  
+  # sanity check:
+  # should have 1 row per scen-method combo
+  expect_equal( sum( sanity$n.scens * sanity$n.methods ),
+                nrow(aggo) )
+  
 }
 
 
 
 
-setwd(data.dir)
-s = fread("stitched.csv")
 
-aggo = make_agg_data(s)
-setwd(data.dir)
-fwrite(aggo, "agg.csv")
+# setwd(data.dir)
+# s = fread("stitched.csv")
+# 
+# aggo = make_agg_data(s)
+# setwd(data.dir)
+# fwrite(aggo, "agg.csv")
 
 
 # ~~ Get agg data -------------------------
