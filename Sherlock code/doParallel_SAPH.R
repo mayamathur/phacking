@@ -237,7 +237,7 @@ if ( run.local == TRUE ) {
   # Stefan environment - exactly as in genSbatch
   scen.params = tidyr::expand_grid(
     # without robma:
-    rep.methods = "naive ; rtma-pkg ; jeffreys-mcmc",
+    rep.methods = "naive ; gold-std ; maon",
     #rep.methods = "naive ; gold-std ; pcurve ; maon ; 2psm ; pet-peese ; rtma-pkg ; prereg-naive",
     
     sim.env = "stefan",
@@ -393,6 +393,13 @@ doParallel.seconds = system.time({
       d$hack[ d$is.hacked == 1 ] = p$hack
       d$hack[ d$is.hacked == 0 ] = "no"
       
+      
+      d %>% group_by(Di, is.hacked, affirm) %>%
+        summarise( n(),
+                   mean(yi),
+                   mean(vi) )
+      
+      hist(d$yi)
       
       # # sanity checks
       # hist(d$yi[ d$Di == 1] )
