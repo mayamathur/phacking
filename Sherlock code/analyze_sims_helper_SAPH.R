@@ -432,6 +432,7 @@ make_winner_table_col = function(.agg,
                                              "jeffreys-mcmc-pmean",
                                              "jeffreys-mcmc-pmed",
                                              "jeffreys-mcmc-max-lp-iterate", 
+                                             "rtma-pkg",
                                              "prereg-naive"),
                                  summarise.fun.name = "median",
                                  digits = 2) {
@@ -466,7 +467,6 @@ make_winner_table_col = function(.agg,
   
   # Y_disp is what will be DISPLAYED in the table (e.g., retaining signs)
   .agg$Y_disp = .agg[[yName]]
-  
   
   ##### Summarize Y_disp #####
   if ( summarise.fun.name == "mean" ) {
@@ -507,7 +507,7 @@ make_winner_table_col = function(.agg,
   if ( summarise.fun.name == "worst10th" & yName %in% c("MhatCover") ) {
     .t = .agg %>% filter(method %in% methods) %>%
       group_by(method.pretty) %>%
-      summarise( Y_disp = round( quantile(Y_disp, probs = 0.10), digits = digits ) )
+      summarise( Y_disp = round( quantile(Y_disp, probs = 0.10, na.rm = TRUE), digits = digits ) )
   }
   # sanity check
   #quantile(.agg$MhatCover[.agg$method.pretty == "MAN"], probs = c(0.1))
@@ -592,9 +592,9 @@ make_winner_table = function( .agg,
   
   cat( paste("\n\n**** WINNER TABLE", summarise.fun.name) )
   
-  cat( paste("\n\n     Number of scens:", nuni(.agg$scen.name),
+  cat( paste("\n\n     Number of scens:", nuni(.agg$scen.name2),
              "; proportion of all scens: ",
-             round( nuni(.agg$scen.name) / nuni(agg$scen.name), 3 ) ) )
+             round( nuni(.agg$scen.name) / nuni(agg$scen.name2), 3 ) ) )
   
   cat("\n\n")
   
@@ -614,7 +614,7 @@ make_winner_table = function( .agg,
 
 # makes both winner tables (medians and worst 10th pctiles)
 make_both_winner_tables = function( .agg,
-                                    .yNames = c("MhatBias", "MhatAbsBias", "MhatRMSE", "MhatCover", "MhatWidth", "MhatEstConverge") ){
+                                    .yNames = c("MhatBias", "MhatAbsBias", "MhatRMSE", "MhatCover", "MhatWidth") ){
   
   make_winner_table( .agg = .agg,
                      .yNames = .yNames,
@@ -625,6 +625,7 @@ make_both_winner_tables = function( .agg,
                      summarise.fun.name = "worst10th")
   
 }
+
 
 
 

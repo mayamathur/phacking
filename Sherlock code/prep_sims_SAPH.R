@@ -56,9 +56,6 @@ results.dir = str_replace( string = here(),
                            pattern = "Code \\(git\\)",
                            replacement = "Simulation results/2023-06-21 aggregated simulations (as in RSM_1)" )
 
-
-overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/figures_SAPH/sims"
-
 setwd(code.dir)
 source("helper_SAPH.R")
 source("analyze_sims_helper_SAPH.R")

@@ -55,13 +55,6 @@ data.dir = str_replace( string = here(),
 
 overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/figures_SAPH/sims"
 
-# # alternative for running new simulations
-# data.dir = str_replace( string = here(),
-#                         pattern = "Code \\(git\\)",
-#                         replacement = "Simulation results" )
-# 
-# results.dir = data.dir
-
 
 setwd(code.dir)
 source("helper_SAPH.R")
@@ -74,27 +67,25 @@ source("analyze_sims_helper_SAPH.R")
 
 # if only analyzing a single sim environment (no merging):
 setwd(data.dir)
-aggo = fread( "agg.csv")
+agg = fread( "agg.csv")
 # check when the dataset was last modified to make sure we're working with correct version
 file.info("agg.csv")$mtime
 
-sim.env = unique(aggo$sim.env)
+dim(agg)
 
-dim(aggo)  # will exceed number of scens because of multiple methods
-
-if (sim.env == "mathur") expect_equal( 84, nuni(aggo$scen.name) ) 
-if (sim.env == "stefan") expect_equal( 70, nuni(aggo$scen.name) ) 
-
-
-# prettify variable names
-agg = wrangle_agg_local(aggo)
 
 # drop any "NA" methods (i.e., ones that didn't get labeled in wrangle_agg_local)
-agg = agg %>% filter( !is.na(method.pretty) )
+agg = agg %>% filter( method.pretty != "" )
 
 # look at number of actual sim reps
 table(agg$sim.reps.actual)
 
+
+#@important: stefan and mathur share scen.names, so relabel them
+agg$scen.name2 = paste(agg$sim.env, agg$scen.name)
+# stefan: 40 scens, mathur: 48
+expect_equal( nuni(agg$scen.name2), 40 + 48)
+ 
 
 
 # ~~ List variable names -------------------------
@@ -118,15 +109,90 @@ init_var_names()
 #  make_winner_table between display = "dataframe" (easy viewing)
 #  and display = "xtable" (Overleaf)
 
+# stefan only
+aggs = agg %>% filter(sim.env == "stefan")
+# mathur only
+aggm = agg %>% filter(sim.env == "mathur")
+
+
+
+# ~~~ Stefan  ------------------------------
 # 1: all scenarios
-make_both_winner_tables(.agg = agg)
+make_both_winner_tables(.agg = aggs)
 # here, reason SM-step appears unbiased is that it's positively biased under evil.selection=0
 #   but negatively biased under evil.selection=1
 
+# by k
+make_both_winner_tables(.agg = aggs %>% filter(k.pub.nonaffirm == 10) )
+
+
+# by two- vs. one-tailed selection
+make_both_winner_tables(.agg = aggs %>% filter(alternative.stefan == "two.sided") )
+make_both_winner_tables(.agg = aggs %>% filter(alternative.stefan == "greater") )
+
+
+
+
+# ~~~ Mathur  ------------------------------
+# 1: all scenarios
+make_both_winner_tables(.agg = aggm)
+# here, reason SM-step appears unbiased is that it's positively biased under evil.selection=0
+#   but negatively biased under evil.selection=1
+#bm: wrong number of scens
+
+# 2: by k
+make_both_winner_tables(.agg = aggm %>% filter(k.pub.nonaffirm == 10) )
+make_both_winner_tables(.agg = aggm %>% filter(k.pub.nonaffirm == 100) )
+
+
+
+# 3: evil.selection (misspecified)
+make_both_winner_tables(.agg = aggm %>% filter(rtma.misspec == TRUE))
+
+make_both_winner_tables(.agg = aggm %>% filter(rtma.misspec == FALSE))
+
+#bm: interesting...so my method looks better in stefan's sim env than in my own
+#next, think about mathur sim env results and how they compare to what I saw previously
+# also think about what subsets make sense to present, as in original paper :)
+
+
+
+
+# ~~~ Mathur, heterogeneity subsets  ------------------------------
+
+make_both_winner_tables(.agg = aggm %>% filter(t2a == 0) )
+
+
+
+
+# ~~~ All scens together  ------------------------------
+
+# 1: all scenarios
+make_both_winner_tables(.agg = agg) # RTMA WINS BY MOST METRICS
+# here, reason SM-step appears unbiased is that it's positively biased under evil.selection=0
+#   but negatively biased under evil.selection=1
 
 # 2: by k
 make_both_winner_tables(.agg = agg %>% filter(k.pub.nonaffirm == 10) )
 make_both_winner_tables(.agg = agg %>% filter(k.pub.nonaffirm == 100) )
+
+# 3: evil.selection (misspecified)
+make_both_winner_tables(.agg = agg %>% filter(rtma.misspec == TRUE))
+
+
+
+
+
+# TEMP EXPORATION
+# MAN performance
+
+aggs %>% filter(method.pretty == "MAN") %>%
+  select(k.pub.nonaffirm, 
+         hack,
+         alternative.stefan,
+         strategy.stefan,
+         Mhat) %>%
+  mutate(scens = n())
 
 
 # OLD
