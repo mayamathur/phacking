@@ -122,8 +122,6 @@ aggm = agg %>% filter(sim.env == "mathur")
 # ~~~ Stefan ------------------------------
 # 1: all scenarios
 make_both_winner_tables(.agg = aggs)
-# here, reason SM-step appears unbiased is that it's positively biased under evil.selection=0
-#   but negatively biased under evil.selection=1
 
 # by k
 make_both_winner_tables(.agg = aggs %>% filter(k.pub.nonaffirm == 10) )
