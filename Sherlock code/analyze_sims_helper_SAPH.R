@@ -572,7 +572,9 @@ make_winner_table = function( .agg,
                                           "MhatWidth" ),
                                           #"MhatEstConverge"),
                               summarise.fun.name,
-                              display = "dataframe"){
+                              display = "dataframe"
+                              #display = "xtable"
+                              ){
 
   
   # sanity check

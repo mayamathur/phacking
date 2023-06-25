@@ -130,69 +130,72 @@ make_both_winner_tables(.agg = aggs %>% filter(k.pub.nonaffirm == 10) )
 make_both_winner_tables(.agg = aggs %>% filter(alternative.stefan == "two.sided") )
 make_both_winner_tables(.agg = aggs %>% filter(alternative.stefan == "greater") )
 
+# by strategy (favor-first vs. favor-best)
+make_both_winner_tables(.agg = aggs %>% filter(strategy.stefan == "firstsig") )
+make_both_winner_tables(.agg = aggs %>% filter(strategy.stefan == "smallest") )
+
+
+# 
+# # ~~~ Mathur  ------------------------------
+# # 1: all scenarios
+# make_both_winner_tables(.agg = aggm)
+# # here, reason SM-step appears unbiased is that it's positively biased under evil.selection=0
+# #   but negatively biased under evil.selection=1
+# #bm: wrong number of scens
+# 
+# # 2: by k
+# make_both_winner_tables(.agg = aggm %>% filter(k.pub.nonaffirm == 10) )
+# make_both_winner_tables(.agg = aggm %>% filter(k.pub.nonaffirm == 100) )
+# 
+# 
+# 
+# # 3: evil.selection (misspecified)
+# make_both_winner_tables(.agg = aggm %>% filter(rtma.misspec == TRUE))
+# 
+# make_both_winner_tables(.agg = aggm %>% filter(rtma.misspec == FALSE))
+# 
+# #bm: interesting...so my method looks better in stefan's sim env than in my own
+# #next, think about mathur sim env results and how they compare to what I saw previously
+# # also think about what subsets make sense to present, as in original paper :)
+# 
+# 
+# 
+# 
+# # ~~~ Mathur, heterogeneity subsets  ------------------------------
+# 
+# make_both_winner_tables(.agg = aggm %>% filter(t2a == 0) )
+# 
 
 
 
-# ~~~ Mathur  ------------------------------
-# 1: all scenarios
-make_both_winner_tables(.agg = aggm)
-# here, reason SM-step appears unbiased is that it's positively biased under evil.selection=0
-#   but negatively biased under evil.selection=1
-#bm: wrong number of scens
-
-# 2: by k
-make_both_winner_tables(.agg = aggm %>% filter(k.pub.nonaffirm == 10) )
-make_both_winner_tables(.agg = aggm %>% filter(k.pub.nonaffirm == 100) )
-
-
-
-# 3: evil.selection (misspecified)
-make_both_winner_tables(.agg = aggm %>% filter(rtma.misspec == TRUE))
-
-make_both_winner_tables(.agg = aggm %>% filter(rtma.misspec == FALSE))
-
-#bm: interesting...so my method looks better in stefan's sim env than in my own
-#next, think about mathur sim env results and how they compare to what I saw previously
-# also think about what subsets make sense to present, as in original paper :)
-
-
-
-
-# ~~~ Mathur, heterogeneity subsets  ------------------------------
-
-make_both_winner_tables(.agg = aggm %>% filter(t2a == 0) )
-
-
-
-
-# ~~~ All scens together  ------------------------------
-
-# 1: all scenarios
-make_both_winner_tables(.agg = agg) # RTMA WINS BY MOST METRICS
-# here, reason SM-step appears unbiased is that it's positively biased under evil.selection=0
-#   but negatively biased under evil.selection=1
-
-# 2: by k
-make_both_winner_tables(.agg = agg %>% filter(k.pub.nonaffirm == 10) )
-make_both_winner_tables(.agg = agg %>% filter(k.pub.nonaffirm == 100) )
-
-# 3: evil.selection (misspecified)
-make_both_winner_tables(.agg = agg %>% filter(rtma.misspec == TRUE))
-
-
-
-
-
-# TEMP EXPORATION
-# MAN performance
-
-aggs %>% filter(method.pretty == "MAN") %>%
-  select(k.pub.nonaffirm, 
-         hack,
-         alternative.stefan,
-         strategy.stefan,
-         Mhat) %>%
-  mutate(scens = n())
+# # ~~~ All scens together  ------------------------------
+# 
+# # 1: all scenarios
+# make_both_winner_tables(.agg = agg) # RTMA WINS BY MOST METRICS
+# # here, reason SM-step appears unbiased is that it's positively biased under evil.selection=0
+# #   but negatively biased under evil.selection=1
+# 
+# # 2: by k
+# make_both_winner_tables(.agg = agg %>% filter(k.pub.nonaffirm == 10) )
+# make_both_winner_tables(.agg = agg %>% filter(k.pub.nonaffirm == 100) )
+# 
+# # 3: evil.selection (misspecified)
+# make_both_winner_tables(.agg = agg %>% filter(rtma.misspec == TRUE))
+# 
+# 
+# 
+# 
+# 
+# # TEMP EXPORATION
+# # MAN performance
+# 
+# aggs %>% filter(method.pretty == "MAN") %>%
+#   select(k.pub.nonaffirm, 
+#          hack,
+#          alternative.stefan,
+#          strategy.stefan,
+#          Mhat) %>%
+#   mutate(scens = n())
 
 
 # OLD
