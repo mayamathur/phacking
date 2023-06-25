@@ -1,4 +1,11 @@
 
+
+# NOTES ----------------------------------------------------
+
+# Only results from sim.env = stefan are in paper per reviewers' comments.
+#  Analyses with sim.env = mathur retained here for completeness.
+
+
 # PRELIMINARIES ----------------------------------------------------
 
 #rm(list=ls())
@@ -96,10 +103,6 @@ init_var_names()
 
 
 
-# ONE-OFF STATS FOR PAPER  -------------------------
-
-#@pull in from MBMA
-
 
 # ******** WINNER TABLES -------------------------
 
@@ -116,7 +119,7 @@ aggm = agg %>% filter(sim.env == "mathur")
 
 
 
-# ~~~ Stefan  ------------------------------
+# ~~~ Stefan ------------------------------
 # 1: all scenarios
 make_both_winner_tables(.agg = aggs)
 # here, reason SM-step appears unbiased is that it's positively biased under evil.selection=0
@@ -135,32 +138,30 @@ make_both_winner_tables(.agg = aggs %>% filter(strategy.stefan == "firstsig") )
 make_both_winner_tables(.agg = aggs %>% filter(strategy.stefan == "smallest") )
 
 
-# 
-# # ~~~ Mathur  ------------------------------
-# # 1: all scenarios
-# make_both_winner_tables(.agg = aggm)
-# # here, reason SM-step appears unbiased is that it's positively biased under evil.selection=0
-# #   but negatively biased under evil.selection=1
-# #bm: wrong number of scens
-# 
-# # 2: by k
-# make_both_winner_tables(.agg = aggm %>% filter(k.pub.nonaffirm == 10) )
-# make_both_winner_tables(.agg = aggm %>% filter(k.pub.nonaffirm == 100) )
-# 
-# 
-# 
-# # 3: evil.selection (misspecified)
-# make_both_winner_tables(.agg = aggm %>% filter(rtma.misspec == TRUE))
-# 
-# make_both_winner_tables(.agg = aggm %>% filter(rtma.misspec == FALSE))
-# 
-# #bm: interesting...so my method looks better in stefan's sim env than in my own
-# #next, think about mathur sim env results and how they compare to what I saw previously
-# # also think about what subsets make sense to present, as in original paper :)
-# 
-# 
-# 
-# 
+
+# ~~~ Mathur  ------------------------------
+
+# not in paper per reviewers
+
+# 1: all scenarios
+make_both_winner_tables(.agg = aggm)
+# here, reason SM-step appears unbiased is that it's positively biased under evil.selection=0
+#   but negatively biased under evil.selection=1
+#bm: wrong number of scens
+
+# 2: by k
+make_both_winner_tables(.agg = aggm %>% filter(k.pub.nonaffirm == 10) )
+make_both_winner_tables(.agg = aggm %>% filter(k.pub.nonaffirm == 100) )
+
+
+
+# 3: evil.selection (misspecified)
+make_both_winner_tables(.agg = aggm %>% filter(rtma.misspec == TRUE))
+
+make_both_winner_tables(.agg = aggm %>% filter(rtma.misspec == FALSE))
+
+
+
 # # ~~~ Mathur, heterogeneity subsets  ------------------------------
 # 
 # make_both_winner_tables(.agg = aggm %>% filter(t2a == 0) )
@@ -168,37 +169,7 @@ make_both_winner_tables(.agg = aggs %>% filter(strategy.stefan == "smallest") )
 
 
 
-# # ~~~ All scens together  ------------------------------
-# 
-# # 1: all scenarios
-# make_both_winner_tables(.agg = agg) # RTMA WINS BY MOST METRICS
-# # here, reason SM-step appears unbiased is that it's positively biased under evil.selection=0
-# #   but negatively biased under evil.selection=1
-# 
-# # 2: by k
-# make_both_winner_tables(.agg = agg %>% filter(k.pub.nonaffirm == 10) )
-# make_both_winner_tables(.agg = agg %>% filter(k.pub.nonaffirm == 100) )
-# 
-# # 3: evil.selection (misspecified)
-# make_both_winner_tables(.agg = agg %>% filter(rtma.misspec == TRUE))
-# 
-# 
-# 
-# 
-# 
-# # TEMP EXPORATION
-# # MAN performance
-# 
-# aggs %>% filter(method.pretty == "MAN") %>%
-#   select(k.pub.nonaffirm, 
-#          hack,
-#          alternative.stefan,
-#          strategy.stefan,
-#          Mhat) %>%
-#   mutate(scens = n())
 
-
-# OLD
 
 # # ******** PLOTS (BIG AND NOT PRETTIFIED) -------------------------
 # 
