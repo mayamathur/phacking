@@ -642,7 +642,7 @@ doParallel.seconds = system.time({
     }
     
     
- 
+    
     # ~~ RoBMA ------------------------------
     # this method is very slow! 
     
@@ -650,25 +650,13 @@ doParallel.seconds = system.time({
     
     # https://cran.r-project.org/web/packages/RoBMA/vignettes/CustomEnsembles.html
     if ( "robma" %in% all.methods ) {
-    
+      
       rep.res = run_method_safe(method.label = c("robma"),
                                 method.fn = function() {
                                   
-                                  
-                                  if ( p$sim.env == "stefan" ) {
-                                    # for this fn, estimates are Cohen's d
-                                    # default model ensemble
-                                    mod = RoBMA(d = dp$yi,
-                                                se = dp$sei)
-                                  }
-                                  
-                                  if ( p$sim.env == "mathur" ) {
-                                    # for this fn, estimates are raw mean differences
-                                    # default model ensemble
-                                    mod = RoBMA(y = dp$yi,
-                                                se = dp$sei)
-                                  }
-                                  
+                                  # default model ensemble
+                                  mod = RoBMA(y = dp$yi,
+                                              se = dp$sei)
                                   
                                   
                                   summ  = summary(mod)
@@ -732,16 +720,16 @@ doParallel.seconds = system.time({
     
     # uses posterior mode
     if ( "rtma-pkg" %in% all.methods ) {
-
+      
       rep.res = run_method_safe(method.label = c("rtma-pkg"),
                                 method.fn = function() {
                                   
                                   # important: when running stefan sim env, need to subset on affirm status here because they sometimes use one-tailed selection
                                   mod = phacking_meta( yi = dp$yi[dp$affirm == FALSE],
-                                                      vi = dp$vi[dp$affirm == FALSE],
-                                                      stan_control = list(adapt_delta = p$stan.adapt_delta,
-                                                                          max_treedepth = p$stan.maxtreedepth),
-                                                      parallelize = FALSE )
+                                                       vi = dp$vi[dp$affirm == FALSE],
+                                                       stan_control = list(adapt_delta = p$stan.adapt_delta,
+                                                                           max_treedepth = p$stan.maxtreedepth),
+                                                       parallelize = FALSE )
                                   
                                   stats = mod$stats
                                   
@@ -762,7 +750,7 @@ doParallel.seconds = system.time({
                                                             
                                                             MhatRhat = stats$r_hat[stats$param == "mu"],
                                                             ShatRhat = stats$r_hat[stats$param == "tau"]
-                                                            ) ) 
+                                  ) ) 
                                   
                                 },
                                 .rep.res = rep.res )
@@ -771,7 +759,7 @@ doParallel.seconds = system.time({
       cat("\n doParallel flag: Done jeffreys-mcmc if applicable")
     }
     
-
+    
     if ( run.local == TRUE ) srr(rep.res)
     
     # ~~ Change Starting Values -----
