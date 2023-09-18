@@ -572,8 +572,8 @@ make_winner_table = function( .agg,
                                           "MhatWidth" ),
                                           #"MhatEstConverge"),
                               summarise.fun.name,
-                              display = "dataframe"
-                              #display = "xtable"
+                              #display = "dataframe"
+                              display = "xtable"
                               ){
 
   
@@ -621,6 +621,10 @@ make_both_winner_tables = function( .agg,
   make_winner_table( .agg = .agg,
                      .yNames = .yNames,
                      summarise.fun.name = "median")
+  
+  make_winner_table( .agg = .agg,
+                     .yNames = .yNames,
+                     summarise.fun.name = "mean")
   
   make_winner_table( .agg = .agg,
                      .yNames = .yNames,

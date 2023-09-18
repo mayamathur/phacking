@@ -131,7 +131,7 @@ View(t)
 
 # ******** WINNER TABLES -------------------------
 
-# ~ Winner tables shown in paper ------------------------------
+# ~ Winner tables in paper ------------------------------
 
 # can toggle output of fn below by changing the default arg of 
 #  make_winner_table between display = "dataframe" (easy viewing)
@@ -140,7 +140,7 @@ View(t)
 
 
 # ~~~ Stefan ------------------------------
-# 1: all scenarios
+# all scenarios
 make_both_winner_tables(.agg = aggs)
 
 # by k
@@ -157,9 +157,13 @@ make_both_winner_tables(.agg = aggs %>% filter(strategy.stefan == "smallest") )
 
 
 
-# ~~~ Mathur  ------------------------------
+# ~ Winner tables not in paper per reviewers: Mathur sim environment ------------------------------
 
-# not in paper per reviewers
+# can toggle output of fn below by changing the default arg of 
+#  make_winner_table between display = "dataframe" (easy viewing)
+#  and display = "xtable" (Overleaf)
+
+# ~~~ Mathur  ------------------------------
 
 # 1: all scenarios
 make_both_winner_tables(.agg = aggm)
