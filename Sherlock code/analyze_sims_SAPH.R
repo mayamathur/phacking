@@ -102,6 +102,31 @@ expect_equal( nuni(agg$scen.name2), 40 + 48)
 init_var_names()
 
 
+# ~~ Make data subsets -------------------------
+
+# stefan only
+aggs = agg %>% filter(sim.env == "stefan")
+# mathur only
+aggm = agg %>% filter(sim.env == "mathur")
+
+# ~~ Convergence stats by method -------------------------
+
+summary(aggs$MhatEstConverge)
+summary(aggs$MhatCIFail)
+
+aggs %>% group_by(method)
+
+
+# convergence rates
+t = aggs %>% group_by(method) %>%
+  summarise( mean(1-MhatEstFail), 
+             min(1-MhatEstFail),
+             
+             mean(1-MhatCIFail),
+             min(1-MhatCIFail) )
+
+View(t)
+
 
 
 # ******** WINNER TABLES -------------------------
@@ -111,11 +136,6 @@ init_var_names()
 # can toggle output of fn below by changing the default arg of 
 #  make_winner_table between display = "dataframe" (easy viewing)
 #  and display = "xtable" (Overleaf)
-
-# stefan only
-aggs = agg %>% filter(sim.env == "stefan")
-# mathur only
-aggm = agg %>% filter(sim.env == "mathur")
 
 
 
