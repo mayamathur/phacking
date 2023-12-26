@@ -109,6 +109,8 @@ aggs = agg %>% filter(sim.env == "stefan")
 # mathur only
 aggm = agg %>% filter(sim.env == "mathur")
 
+
+
 # ~~ Convergence stats by method -------------------------
 
 summary(aggs$MhatEstConverge)
@@ -165,22 +167,14 @@ make_both_winner_tables(.agg = aggs %>% filter(strategy.stefan == "smallest") )
 
 # ~~~ Mathur  ------------------------------
 
-# 1: all scenarios
+# 1: scenarios where stringent overall selection holds (not "favor-best-affirm-wch", "affirm")
+make_both_winner_tables(.agg = aggm %>% filter(rtma.misspec == FALSE))
+
+# 2: all scenarios
 make_both_winner_tables(.agg = aggm)
-# here, reason SM-step appears unbiased is that it's positively biased under evil.selection=0
-#   but negatively biased under evil.selection=1
-#bm: wrong number of scens
-
-# 2: by k
-make_both_winner_tables(.agg = aggm %>% filter(k.pub.nonaffirm == 10) )
-make_both_winner_tables(.agg = aggm %>% filter(k.pub.nonaffirm == 100) )
-
-
-
-# 3: evil.selection (misspecified)
+# scenarios with "favor-best-affirm-wch" or "affirm"
 make_both_winner_tables(.agg = aggm %>% filter(rtma.misspec == TRUE))
 
-make_both_winner_tables(.agg = aggm %>% filter(rtma.misspec == FALSE))
 
 
 
@@ -188,158 +182,5 @@ make_both_winner_tables(.agg = aggm %>% filter(rtma.misspec == FALSE))
 # 
 # make_both_winner_tables(.agg = aggm %>% filter(t2a == 0) )
 # 
-
-
-
-
-
-# # ******** PLOTS (BIG AND NOT PRETTIFIED) -------------------------
-# 
-# Ynames = rev(MhatYNames)
-# 
-# # alternatively, run just a subset:
-# # Ynames = c("MhatWidth", "MhatCover", "MhatBias",
-# #            "MhatEstFail",
-# #            # last 2 are useful for looking at MAN
-# #            "Mhat", "MhatTestReject")
-# 
-# # to help decide which vars to include in plot:
-# param.vars.manip2
-# 
-# 
-# # in case you want to filter scens:
-# # full set for reference:
-# # c("naive", "gold-std", "maon", "2psm", "pcurve", "jeffreys-mcmc-pmean", 
-# #   "jeffreys-mcmc-pmed", "jeffreys-mcmc-max-lp-iterate", "jeffreys-sd", 
-# #   "jeffreys-var", "mle-sd", "csm-mle-sd", "mle-var", "2psm-csm-dataset", 
-# #   "prereg-naive", "ltn-mle-sd")
-# ( all.methods = unique(agg$method) )
-# #toDrop = c("jeffreys-mcmc-pmean", "jeffreys-mcmc-max-lp-iterate")
-# toDrop = NULL
-# method.keepers = all.methods[ !all.methods %in% toDrop ]
-# 
-# 
-# # for each hacking method and Mu, make facetted plotly
-# 
-# for ( .hack in unique(agg$hack) ) {
-#   
-#   
-#   for ( .Mu in unique(agg$Mu) ) {
-#     
-#     cat( paste("\n\n -------- STARTING Mu=", .Mu, ", hack=", .hack, sep = "") )
-#     
-#     aggp = agg %>% filter(method %in% method.keepers &
-#                             Mu == .Mu &
-#                             hack == .hack)
-#     # to label the plots
-#     prefix = paste( "2022-5-4 sims; ",
-#                     "Mu=", .Mu,
-#                     "; hack=", .hack, 
-#                     sep = "")
-#     
-#     
-#     # temporarily set wd
-#     # results.dir.temp = paste(results.dir,
-#     #                          "/Big unprettified plots/",
-#     #                          .Mu,
-#     #                          "/hack=",
-#     #                          .hack,
-#     #                          sep = "")
-#     
-#     results.dir.temp = paste(results.dir,
-#                              "/Big unprettified plots",
-#                              sep = "")
-#     
-#     
-#     # set one of the two facetting variables for plots
-#     aggp$tempFacetVar2 = paste( "t2a=", aggp$t2a, "; t2w=", aggp$t2w, sep = "")
-#     table(aggp$tempFacetVar2)
-#     
-#     
-#     for ( Yname in Ynames) {
-#       
-#       # to run "manually"
-#       #Yname = "MhatBias"
-#       #Yname = "MhatCover"
-#       
-#       y.breaks = NULL
-#       if ( Yname == "MhatBias") y.breaks = seq(-0.5, 0.5, 0.1)
-#       if ( Yname == "MhatWidth") y.breaks = seq(0, 10, 0.5)
-#       
-#       p  = quick_5var_agg_plot(.Xname = "k.pub.nonaffirm",
-#                                .Yname = Yname,
-#                                .colorVarName = "method",
-#                                .facetVar1Name = "true.sei.expr.pretty",
-#                                .facetVar2Name = "tempFacetVar2",
-#                                .dat = aggp,
-#                                .ggtitle = prefix,
-#                                .y.breaks = y.breaks,
-#                                .writePlot = FALSE,
-#                                .results.dir = results.dir.temp)
-#       
-#       
-#       pl = ggplotly(p)
-#       
-#       # in filename, mark the most important plots with asterisk
-#       if ( Yname %in% c("MhatBias", "MhatCover", "MhatWidth") ){
-#         new.prefix = paste("*", prefix, sep = "")
-#       } else {
-#         new.prefix = prefix
-#       }
-#       
-#       # how to save a plotly as html
-#       # https://www.biostars.org/p/458325/
-#       setwd(results.dir.temp)
-#       string = paste(new.prefix, Yname, "plotly.html", sep="_")
-#       htmlwidgets::saveWidget(pl, string)
-#       
-#     }
-#     
-#   }
-#   
-# }
-# 
-# 
-# 
-# 
-# 
-# 
-# # ******** PLOTS (SIMPLE AND PRETTY FOR MAIN TEXT) -------------------------
-# 
-# 
-# 
-# # for each hack type, arrange plots so each facet row is an outcome
-# ( all.methods = unique(agg$method.pretty) )
-# ( method.keepers = all.methods[ !is.na(all.methods) &
-#                                   all.methods != "Gold standard"] )
-# 
-# 
-# # outcomes to show in main text figures
-# YnamesMain = c("MhatBias", "MhatCover", "MhatWidth")
-# 
-# # outcomes to show in supplement figures
-# YnamesSupp = c("MhatBias", "MhatCover", "MhatWidth",
-#                "MhatTestReject")
-# 
-# # this dataset will be one full-page figure in main text or Supp depending on hack type
-# # by default, these write only to Overleaf dir
-# pl1 = sim_plot_multiple_outcomes(.hack = "favor-best-affirm-wch",
-#                                  .ggtitle = bquote( "SWS favors best affirmative; stringent SAS;" ~ mu ~ "= 0.5" ),
-#                                  .local.results.dir = results.dir )
-# 
-# 
-# pl2 = sim_plot_multiple_outcomes(.hack = "affirm",
-#                                  .ggtitle = bquote( "SWS favors first affirmative; stringent SAS; " ~ mu ~ "= 0.5" ),
-#                                  .local.results.dir = results.dir)
-# 
-# 
-# 
-# pl3 = sim_plot_multiple_outcomes(.hack = "affirm2",
-#                                  .ggtitle = bquote( "SWS favors first affirmative; no SAS; " ~ mu ~ "= 0.5" ),
-#                                  .local.results.dir = results.dir)
-
-
-
-
 
 
