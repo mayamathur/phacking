@@ -65,7 +65,7 @@ results.dir = str_replace( string = here(),
                            replacement = "Simulation results/*2023-06-21 aggregated simulations (as in published paper)" )
 
 
-# check
+# check that they're specified correctly
 setwd(data.dir)
 setwd(results.dir)
 

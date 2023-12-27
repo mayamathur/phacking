@@ -10,6 +10,11 @@
 
 #rm(list=ls())
 
+# This script uses renv to preserve the R environment specs (e.g., package versions.)
+library(renv)
+# run this if you want to reproduce results using the R environment we had:
+# renv::restore()
+
 # data-wrangling packages
 library(here)
 library(plotly)  # must be BEFORE dplyr or else plotly::select will take over
@@ -38,28 +43,38 @@ library(sjmisc)
 # prevent masking
 select = dplyr::select
 
+# run this only if you want to update the R environment specs
+# setwd(here())
+# renv::snapshot()
 
 # ~~ User-specified global vars -------------------------
 # no sci notation
 options(scipen=999)
 
-
 stitch.from.scratch = TRUE
 
 # control which results should be redone and/or overwritten
-#@ not all fns respect this setting
+# but note that not all fns respect this setting
 overwrite.res = TRUE
 
 
 # ~~ Set directories -------------------------
-code.dir = here("Sherlock code")
+code.dir = here()
 
 # dataset prepped by prep_sims_SAPH.R
 data.dir = str_replace( string = here(),
-                           pattern = "Code \\(git\\)",
-                           replacement = "Simulation results/2023-06-21 aggregated simulations (as in RSM_1)" )
+                           pattern = "Code \\(git\\)/Sherlock code",
+                           replacement = "Simulation results/*2023-06-21 aggregated simulations (as in published paper)" )
 
+# check that they're specified correctly
+setwd(data.dir)
+setwd(results.dir)
 
+# below is the only absolute path
+# write results directly to directory containing TeX manuscript in Overleaf so stats can be piped directly into text
+# this is an absolute path because it must live in Dropbox, outside the project directory, in order to sync with Overleaf
+# to reproduce results, just set this to any directory on your local machine
+# results will be written to a csv file in that location
 overleaf.dir.figs = "/Users/mmathur/Dropbox/Apps/Overleaf/P-hacking (SAPH)/figures_SAPH/sims"
 
 
@@ -175,12 +190,5 @@ make_both_winner_tables(.agg = aggm)
 # scenarios with "favor-best-affirm-wch" or "affirm"
 make_both_winner_tables(.agg = aggm %>% filter(rtma.misspec == TRUE))
 
-
-
-
-# # ~~~ Mathur, heterogeneity subsets  ------------------------------
-# 
-# make_both_winner_tables(.agg = aggm %>% filter(t2a == 0) )
-# 
 
 
