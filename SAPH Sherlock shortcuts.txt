@@ -2,9 +2,6 @@
 
 
 
-ssh mmathur@login.sherlock.stanford.edu
-
-
 # push all code files
 scp /Users/mmathur/Dropbox/Personal\ computer/Independent\ studies/2021/Sensitivity\ analysis\ for\ p-hacking\ \(SAPH\)/Linked\ to\ OSF\ \(SAPH\)/Code\ \(git\)/Sherlock\ code/* mmathur@login.sherlock.stanford.edu:/home/groups/manishad/SAPH
 
