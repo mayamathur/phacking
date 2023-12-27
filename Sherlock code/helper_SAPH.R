@@ -1,11 +1,8 @@
 
 # NOTES ---------------------------------------------------------------
 
-# keeping this script in general Code dir because it's a living work in progress  
-
 # "draw" always refers to within-study draw
 # "study set" refers to all draws, observed and observed, for a given study
-
 
 
 # ESTIMATION METHOD FNS ----------------------------------------------
