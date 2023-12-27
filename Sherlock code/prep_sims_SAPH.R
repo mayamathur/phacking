@@ -3,6 +3,11 @@
 
 #rm(list=ls())
 
+# This script uses renv to preserve the R environment specs (e.g., package versions.)
+library(renv)
+# run this if you want to reproduce results using the R environment we had:
+# renv::restore()
+
 # data-wrangling packages
 library(here)
 library(plotly)  # must be BEFORE dplyr or else plotly::select will take over
@@ -31,6 +36,9 @@ library(sjmisc)
 # prevent masking
 select = dplyr::select
 
+# run this only if you want to update the R environment specs
+# renv::snapshot()
+
 
 # ~~ User-specified global vars -------------------------
 # no sci notation
@@ -38,23 +46,29 @@ options(scipen=999)
 
 
 # ~~ Set directories -------------------------
-code.dir = here("Sherlock code")
+code.dir = here()
 
 ( data.dir = str_replace( string = here(),
-                          pattern = "Code \\(git\\)",
+                          pattern = "Code \\(git\\)/Sherlock code",
                           replacement = "Simulation results") )
 
 
-data.dir.suffixes = c("*2023-06-13 Mathur all except robma",
+data.dir.suffixes = c("2023-06-13 Mathur all except robma",
                       "*2023-06-11 Stefan robma only",
                       "*2023-06-09 Stefan all except robma",
-                      "*2023-5-31 Mathur robma only")
+                      "2023-5-31 Mathur robma only")
 
 
 
 results.dir = str_replace( string = here(),
-                           pattern = "Code \\(git\\)",
-                           replacement = "Simulation results/2023-06-21 aggregated simulations (as in RSM_1)" )
+                           pattern = "Code \\(git\\)/Sherlock code",
+                           replacement = "Simulation results/*2023-06-21 aggregated simulations (as in published paper)" )
+
+
+# check
+setwd(data.dir)
+setwd(results.dir)
+
 
 setwd(code.dir)
 source("helper_SAPH.R")
